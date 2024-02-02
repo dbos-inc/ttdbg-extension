@@ -29,25 +29,27 @@ jobs:
         id: relInfo
         uses: actions/github-script@v7.0.1
         env:
-          SEM_VER_2_VERSION: ${{ steps.nbgv.outputs.SemVer2 }}
+          SEMANTIC_VERSION_1: ${{ steps.nbgv.outputs.SemVer1 }}
           SIMPLE_VERSION: ${{ steps.nbgv.outputs.SimpleVersion }}
         with:
           script: |
-            const { SEM_VER_2_VERSION, SIMPLE_VERSION } = process.env;
+            const { SEMANTIC_VERSION_1, SIMPLE_VERSION } = process.env;
 
             const onDevelopBranch = context.ref === 'refs/heads/develop';
             const onReleaseBranch = context.ref.startsWith('refs/heads/release/');
             const onPublicationBranch = onDevelopBranch || onReleaseBranch;
 
+            // dev branch builds are marked as pre-release, 
             const preRelease = onDevelopBranch ? true : false;
-            const extensionVersion = onPublicationBranch ? SIMPLE_VERSION : SEM_VER_2_VERSION;
+            // builds from publication branches (dev + release) use simple version, all other branches use semantic version 1
+            const extensionVersion = onPublicationBranch ? SIMPLE_VERSION : SEMANTIC_VERSION_1;
 
             // convert boolean preRelease value to integer via + operator for github expressions compatibility
             core.setOutput('preRelease', +preRelease);
             core.setOutput('extensionVersion', extensionVersion);
 
       - name: Pack Extension
-        if: ${{ steps.relInfo.outputs.preRelease == '0' }}
+        if: ${{ steps.relInfo.outputs.preRelease == 0 }}
         run: npx vsce pack ${{ steps.relInfo.outputs.extensionVersion }} --no-git-tag-version 
       - name: Pack Pre-Release Extension
         if: ${{ steps.relInfo.outputs.preRelease }} != 0
