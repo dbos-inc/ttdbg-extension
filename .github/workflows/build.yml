@@ -37,6 +37,8 @@ jobs:
       - name: Nerdbank.GitVersioning
         uses: dotnet/nbgv@v0.4.2
         id: nbgv
+      - name: Install Dependencies
+        run: npm ci
       - name: Pack Extension
         run: npx vsce pack ${{ steps.nbgv.outputs.SemVer1 }}
       - name: Upload Extension Artifact
