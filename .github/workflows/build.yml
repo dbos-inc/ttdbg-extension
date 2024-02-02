@@ -1,0 +1,46 @@
+name: Build
+
+on:
+  workflow_call:
+    outputs:
+      public-release:
+        description: "A boolean value indicating whether this build is recognized as building from a public release branch"
+        value: ${{ jobs.build.outputs.public-release }}
+      sem-ver-1: 
+        description: "The SemVer 1.0 compliant version"
+        value: ${{ jobs.build.outputs.sem-ver-1 }}
+      sem-ver-2: 
+        description: "The SemVer 2.0 compliant version"
+        value: ${{ jobs.build.outputs.sem-ver-2 }}
+      simple-ver: 
+        description: "The three integer version"
+        value: ${{ jobs.build.outputs.version }}
+      version: 
+        description: "The four integer version"
+        value: ${{ jobs.build.outputs.version }}
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      # convert PublicRelease to a boolean by comparing the string value to 'true'
+      public-release: ${{ steps.nbgv.outputs.PublicRelease == 'true' }}
+      sem-ver-1: ${{ steps.nbgv.outputs.SemVer1 }}
+      sem-ver-2: ${{ steps.nbgv.outputs.SemVer2 }}
+      simple-ver: ${{ steps.nbgv.outputs.SimpleVersion }}
+      version: ${{ steps.nbgv.outputs.Version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 0 # fetch-depth 0 needed for NBGV
+      - name: Nerdbank.GitVersioning
+        uses: dotnet/nbgv@v0.4.2
+        id: nbgv
+      - name: Pack Extension
+        run: npx vsce pack ${{ steps.nbgv.outputs.SemVer1 }}
+      - name: Upload Extension Artifact
+        uses: actions/upload-artifact@v4.3.0
+        with: 
+          name: Extension
+          path: dbos-ttdbg*.vsix
