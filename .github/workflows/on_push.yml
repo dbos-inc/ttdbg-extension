@@ -10,4 +10,18 @@ on:
 jobs:
   build:
     uses: ./.github/workflows/build.yml
-    
+  dump-vars:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump GitHub context
+        env:
+          DEV_BRANCH: ${{ needs.build.outputs.dev-branch }}
+          PRE_RELEASE: ${{ needs.build.outputs.pre-release }}
+          RELEASE_BRANCH: ${{ needs.build.outputs.release-branch }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          echo "version      $VERSION"
+          echo "  prerelease $PRE_RELEASE"
+          echo "  dev branch $DEV_BRANCH"
+          echo "  rel branch $VERSION"
