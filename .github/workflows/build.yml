@@ -47,16 +47,16 @@ jobs:
             core.setOutput('preRelease', preRelease);
             core.setOutput('extensionVersion', extensionVersion);
 
-      - name: Dump job context
+      - name: Dump Release Info
         env:
           PRE_RELEASE: ${{ steps.relInfo.outputs.preRelease }}
           EXT_VERSION: ${{ steps.relInfo.outputs.extensionVersion }}
-        run: echo "$PRE_RELEASE $EXT_VERSION"
+        run: echo "version $EXT_VERSION\n  prerelease $PRE_RELEASE"
       - name: Pack Extension
         if: ${{ steps.relInfo.outputs.preRelease != 'true' }}
         run: npx vsce pack ${{ steps.relInfo.outputs.extensionVersion }} --no-git-tag-version 
       - name: Pack Pre-Release Extension
-        if: ${{ steps.relInfo.outputs.preRelease }} == 'true'
+        if: ${{ steps.relInfo.outputs.preRelease == 'true' }} 
         run: npx vsce pack ${{ steps.relInfo.outputs.extensionVersion }} --no-git-tag-version --pre-release  
       - name: Upload Extension Artifact
         uses: actions/upload-artifact@v4.3.0
