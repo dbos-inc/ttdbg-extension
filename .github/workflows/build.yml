@@ -27,7 +27,7 @@ jobs:
         run: npm ci
       - name: Calculate Release Info
         id: relInfo
-        uses: actions/github-script@v6.0.0
+        uses: actions/github-script@v7.0.1
         env:
           SEM_VER_2_VERSION: ${{ steps.nbgv.outputs.SemVer2 }}
           SIMPLE_VERSION: ${{ steps.nbgv.outputs.SimpleVersion }}
