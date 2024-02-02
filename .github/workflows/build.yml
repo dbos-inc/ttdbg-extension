@@ -3,32 +3,18 @@ name: Build
 on:
   workflow_call:
     outputs:
-      public-release:
-        description: "A boolean value indicating whether this build is recognized as building from a public release branch"
-        value: ${{ jobs.build.outputs.public-release }}
-      sem-ver-1: 
-        description: "The SemVer 1.0 compliant version"
-        value: ${{ jobs.build.outputs.sem-ver-1 }}
-      sem-ver-2: 
-        description: "The SemVer 2.0 compliant version"
-        value: ${{ jobs.build.outputs.sem-ver-2 }}
-      simple-ver: 
-        description: "The three integer version"
-        value: ${{ jobs.build.outputs.version }}
+      pre-release:
+        value: ${{ jobs.build.outputs.pre-release }}
       version: 
-        description: "The four integer version"
         value: ${{ jobs.build.outputs.version }}
-  
+
 jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
       # convert PublicRelease to a boolean by comparing the string value to 'true'
-      public-release: ${{ steps.nbgv.outputs.PublicRelease == 'true' }}
-      sem-ver-1: ${{ steps.nbgv.outputs.SemVer1 }}
-      sem-ver-2: ${{ steps.nbgv.outputs.SemVer2 }}
-      simple-ver: ${{ steps.nbgv.outputs.SimpleVersion }}
-      version: ${{ steps.nbgv.outputs.Version }}
+      pre-release: ${{ steps.relInfo.outputs.preRelease != 0 }}
+      version: ${{ steps.relInfo.outputs.extensionVersion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.0
@@ -39,8 +25,33 @@ jobs:
         id: nbgv
       - name: Install Dependencies
         run: npm ci
+      - name: Calculate Release Info
+        id: relInfo
+        uses: actions/github-script@v6.0.0
+        env:
+          SEM_VER_2_VERSION: ${{ steps.nbgv.outputs.SemVer2 }}
+          SIMPLE_VERSION: ${{ steps.nbgv.outputs.SimpleVersion }}
+        with:
+          script: |
+            const { SEM_VER_2_VERSION, SIMPLE_VERSION } = process.env;
+
+            const onDevelopBranch = context.ref === 'refs/heads/develop';
+            const onReleaseBranch = context.ref.startsWith('refs/heads/release/');
+            const onPublicationBranch = onDevelopBranch || onReleaseBranch;
+
+            const preRelease = onDevelopBranch ? true : false;
+            const extensionVersion = onPublicationBranch ? SIMPLE_VERSION : SEM_VER_2_VERSION;
+
+            // convert boolean preRelease value to integer via + operator for github expressions compatibility
+            core.setOutput('preRelease', +preRelease);
+            core.setOutput('extensionVersion', extensionVersion);
+
       - name: Pack Extension
-        run: npx vsce pack ${{ steps.nbgv.outputs.SemVer1 }} --no-git-tag-version 
+        if: ${{ steps.relInfo.outputs.preRelease == '0' }}
+        run: npx vsce pack ${{ steps.relInfo.outputs.extensionVersion }} --no-git-tag-version 
+      - name: Pack Pre-Release Extension
+        if: ${{ steps.relInfo.outputs.preRelease }} != 0
+        run: npx vsce pack ${{ steps.relInfo.outputs.extensionVersion }} --no-git-tag-version --pre-release  
       - name: Upload Extension Artifact
         uses: actions/upload-artifact@v4.3.0
         with: 
