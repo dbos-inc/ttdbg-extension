@@ -3,8 +3,12 @@ name: Build
 on:
   workflow_call:
     outputs:
+      dev-branch:
+        value: ${{ jobs.build.outputs.dev-branch }}
       pre-release:
         value: ${{ jobs.build.outputs.pre-release }}
+      release-branch:
+          value: ${{ jobs.build.outputs.release-branch }}
       version: 
         value: ${{ jobs.build.outputs.version }}
 
@@ -13,7 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       # convert PublicRelease to a boolean by comparing the string value to 'true'
-      pre-release: ${{ steps.relInfo.outputs.preRelease != 0 }}
+      dev-branch: ${{ steps.relInfo.outputs.onDevelopBranch == 'true'}}
+      pre-release: ${{ steps.relInfo.outputs.preRelease == 'true'}}
+      release-branch: ${{ steps.relInfo.outputs.onReleaseBranch == 'true'}}
       version: ${{ steps.relInfo.outputs.extensionVersion }}
     steps:
       - name: Checkout
@@ -46,6 +52,8 @@ jobs:
 
             core.setOutput('preRelease', preRelease);
             core.setOutput('extensionVersion', extensionVersion);
+            core.setOutput('onDevelopBranch', onDevelopBranch);
+            core.setOutput('onReleaseBranch', onReleaseBranch);
 
       - name: Dump Release Info
         env:
