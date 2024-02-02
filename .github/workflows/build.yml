@@ -51,7 +51,9 @@ jobs:
         env:
           PRE_RELEASE: ${{ steps.relInfo.outputs.preRelease }}
           EXT_VERSION: ${{ steps.relInfo.outputs.extensionVersion }}
-        run: echo "version $EXT_VERSION\n  prerelease $PRE_RELEASE"
+        run: |
+          echo "version      $EXT_VERSION"
+          echo "  prerelease $PRE_RELEASE"
       - name: Pack Extension
         if: ${{ steps.relInfo.outputs.preRelease != 'true' }}
         run: npx vsce pack ${{ steps.relInfo.outputs.extensionVersion }} --no-git-tag-version 
