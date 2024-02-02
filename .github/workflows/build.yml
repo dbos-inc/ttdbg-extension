@@ -57,11 +57,8 @@ jobs:
 
       - name: Dump Release Info
         env:
-          PRE_RELEASE: ${{ steps.relInfo.outputs.preRelease }}
-          EXT_VERSION: ${{ steps.relInfo.outputs.extensionVersion }}
-        run: |
-          echo "version      $EXT_VERSION"
-          echo "  prerelease $PRE_RELEASE"
+          REL_INFO: ${{ toJson(steps.relInfo.outputs) }}
+        run: echo "$REL_INFO"
       - name: Pack Extension
         if: ${{ steps.relInfo.outputs.preRelease != 'true' }}
         run: npx vsce pack ${{ steps.relInfo.outputs.extensionVersion }} --no-git-tag-version 
