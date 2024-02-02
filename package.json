@@ -2,7 +2,7 @@
   "name": "dbos-ttdbg",
   "displayName": "DBOS Time Travel Debugger",
   "description": "",
-  "version": "1.2.3",
+  "version": "0.0.0-placeholder",
   "engines": {
     "vscode": "^1.86.0"
   },
