@@ -43,8 +43,11 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.504.0",
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
+    "@types/pg": "^8.11.0",
+    "@types/semver": "^7.5.6",
     "@types/vscode": "^1.86.0",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
@@ -53,8 +56,10 @@
     "@vscode/vsce": "^2.23.0",
     "esbuild": "^0.20.0",
     "eslint": "^8.56.0",
+    "jszip": "^3.10.1",
     "pg": "^8.11.3",
     "rimraf": "^5.0.5",
+    "semver": "^7.6.0",
     "typescript": "^5.3.3",
     "yaml": "^2.3.4"
   }
