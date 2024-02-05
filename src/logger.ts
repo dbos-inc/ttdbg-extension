@@ -32,7 +32,7 @@ class Logger {
         this._outputChannel.debug(this.logString(message, component));
     }
 
-    public appendLine(message: any, component?: string) {
+    public info(message: any, component?: string) {
         this._outputChannel.info(this.logString(message, component));
     }
 
