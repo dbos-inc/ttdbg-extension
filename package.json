@@ -27,6 +27,11 @@
         "command": "dbos-ttdbg.updateDebugProxy",
         "title": "Update Debug Proxy",
         "category": "DBOS"
+      },
+      {
+        "command": "dbos-ttdbg.getDebugProxyVersion",
+        "title": "Get Debug Proxy Version",
+        "category": "DBOS"
       }
     ],
     "configuration": {

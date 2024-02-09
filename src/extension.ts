@@ -2,8 +2,7 @@ import * as vscode from 'vscode';
 import { TTDbgCodeLensProvider } from './codeLensProvider';
 import logger from './logger';
 import { CloudStorage, S3CloudStorage } from './CloudStorage';
-import { DebugProxy, startDebuggingCommandName, updateDebugProxyCommandName } from './DebugProxy';
-
+import { DebugProxy, getDebugProxyVersionCommandName, startDebuggingCommandName, updateDebugProxyCommandName } from './DebugProxy';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -17,6 +16,10 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       updateDebugProxyCommandName,
       debugProxy.update, debugProxy));
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      getDebugProxyVersionCommandName,
+      debugProxy.getVersion, debugProxy));
   context.subscriptions.push(
     vscode.commands.registerCommand(
       startDebuggingCommandName,
