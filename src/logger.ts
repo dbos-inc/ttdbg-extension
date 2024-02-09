@@ -1,11 +1,6 @@
 import * as vscode from 'vscode';
+import { stringify } from './utils';
 
-export function errorMsg(error: any) {
-    if (typeof error === 'string') { return error; }
-    if (error instanceof Error) { return error.message; }
-    if ('toString' in error) { return error.toString(); }   
-    return JSON.stringify(error);
-}
 
 // Logger class copied from https://github.com/microsoft/vscode-pull-request-github project
 class Logger {
@@ -20,7 +15,7 @@ class Logger {
     }
 
     private logString(message: any, component?: string): string {
-        message = errorMsg(message);
+        message = stringify(message);
         return component ? `${component}> ${message}` : message;
     }
 

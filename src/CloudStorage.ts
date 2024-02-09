@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as semver from "semver";
 import { GetObjectCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import { HttpHandlerOptions } from "@aws-sdk/types";
+import { PLATFORM, ARCHITECTURE } from './utils';
 
 export interface CloudObject {
   asByteArray(): Promise<Uint8Array>;
@@ -97,26 +98,3 @@ export class S3CloudStorage implements CloudStorage {
   }
 }
 
-export const PLATFORM = function () {
-  switch (process.platform) {
-    case "linux":
-      return "linux";
-    case "darwin":
-      return "macos";
-    case "win32":
-      return "windows";
-    default:
-      throw new Error(`Unsupported platform: ${process.platform}`);
-  }
-}();
-
-export const ARCHITECTURE = function () {
-  switch (process.arch) {
-    case "arm64":
-      return "arm64";
-    case "x64":
-      return "x64";
-    default:
-      throw new Error(`Unsupported architecture: ${process.arch}`);
-  }
-}();

@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import { CloudStorage, getLatestVersion } from './CloudStorage';
 import * as childProcess from "child_process";
-import logger, { errorMsg } from './logger';
+import logger from './logger';
 import jszip from 'jszip';
 import * as fsp from 'node:fs/promises';
 import { DbosMethodType } from "./sourceParser";
 import * as semver from 'semver';
+import { stringify } from './utils';
 
 const IS_WINDOWS = process.platform === "win32";
 const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
@@ -41,9 +42,6 @@ function throwOnCancelled(token?: vscode.CancellationToken) {
 }
 
 export const startDebuggingCommandName = "dbos-ttdbg.startDebugging";
-export const updateDebugProxyCommandName = "dbos-ttdbg.updateDebugProxy";
-export const getDebugProxyVersionCommandName = "dbos-ttdbg.getDebugProxyVersion";
-
 
 export class DebugProxy implements vscode.Disposable {
     constructor(private readonly cloudStorage: CloudStorage, private readonly storageUri: vscode.Uri) {
@@ -121,7 +119,7 @@ export class DebugProxy implements vscode.Disposable {
             await this._downloadRemoteVersion(remoteVersion);
             logger.info(`Debug Proxy updated to v${remoteVersion}.`);
         }).then(undefined, (reason) => {
-            const msg = `Failed to update Debug Proxy: ${errorMsg(reason)}`;
+            const msg = `Failed to update Debug Proxy: ${stringify(reason)}`;
             logger.error(msg);
             vscode.window.showErrorMessage(msg);
         });
@@ -148,7 +146,7 @@ export class DebugProxy implements vscode.Disposable {
                 });
             });
         } catch (e) {
-            logger.error(`Failed to get local debug proxy version ${errorMsg(e)}`);
+            logger.error(`Failed to get local debug proxy version ${stringify(e)}`);
             return undefined;
         }
     }

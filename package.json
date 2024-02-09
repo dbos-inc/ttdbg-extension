@@ -24,13 +24,13 @@
   "contributes": {
     "commands": [
       {
-        "command": "dbos-ttdbg.updateDebugProxy",
-        "title": "Update Debug Proxy",
+        "command": "dbos-ttdbg.killDebugProxy",
+        "title": "Kill Debug Proxy Process",
         "category": "DBOS"
       },
       {
-        "command": "dbos-ttdbg.getDebugProxyVersion",
-        "title": "Get Debug Proxy Version",
+        "command": "dbos-ttdbg.launchDebugProxy",
+        "title": "Launch Debug Proxy Proceess",
         "category": "DBOS"
       }
     ],
