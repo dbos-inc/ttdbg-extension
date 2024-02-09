@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { CloudStorage, getLatestVersion } from './CloudStorage';
+import { CloudStorage } from './CloudStorage';
 import * as childProcess from "child_process";
 import logger from './logger';
 import jszip from 'jszip';
@@ -43,12 +43,11 @@ function throwOnCancelled(token?: vscode.CancellationToken) {
 
 export const startDebuggingCommandName = "dbos-ttdbg.startDebugging";
 
-export class DebugProxy implements vscode.Disposable {
+export class DebugProxy {
     constructor(private readonly cloudStorage: CloudStorage, private readonly storageUri: vscode.Uri) {
     }
 
     dispose() {
-        this.cloudStorage.dispose();
     }
 
     async getWorkflowStatuses(name: string, $type: DbosMethodType): Promise<workflow_status[]> {
@@ -96,18 +95,18 @@ export class DebugProxy implements vscode.Disposable {
             logger.error("Failed to get the latest version of Debug Proxy.");
             return;
         }
-        logger.info(`Debug Proxy remote version ${remoteVersion}.`);
+        logger.info(`Debug Proxy remote version v${remoteVersion}.`);
 
         const localVersion = await this._getLocalVersion();
         if (localVersion && semver.valid(localVersion) !== null) {
-            logger.info(`Debug Proxy local version ${localVersion}.`);
+            logger.info(`Debug Proxy local version v${localVersion}.`);
             if (semver.satisfies(localVersion, `>=${remoteVersion}`, { includePrerelease: true })) { 
                 return; 
             }
         }
 
         const msg = localVersion
-            ? `Updating DBOS Debug Proxy from v${localVersion} to v${remoteVersion}.`
+            ? `Updating DBOS Debug Proxy to v${remoteVersion}.`
             : `Installing DBOS Debug Proxy v${remoteVersion}.`;
         logger.info(msg);
 
@@ -116,7 +115,7 @@ export class DebugProxy implements vscode.Disposable {
             cancellable: true
         }, async (progress, token) => {
             progress.report({ message: msg });
-            await this._downloadRemoteVersion(remoteVersion);
+            await this._downloadRemoteVersion(remoteVersion, token);
             logger.info(`Debug Proxy updated to v${remoteVersion}.`);
         }).then(undefined, (reason) => {
             const msg = `Failed to update Debug Proxy: ${stringify(reason)}`;
@@ -151,9 +150,16 @@ export class DebugProxy implements vscode.Disposable {
         }
     }
 
-    async _getRemoteVersion() {
-        const versions = this.cloudStorage.getVersions();
-        return await getLatestVersion(versions);
+    async _getRemoteVersion(token?: vscode.CancellationToken) {
+        const versions = this.cloudStorage.getVersions(token);
+
+        let latestVersion: string | undefined = undefined;
+        for await (const version of versions) {
+          if (latestVersion === undefined || semver.gt(version, latestVersion)) {
+            latestVersion = version;
+          }
+        }
+        return latestVersion;
     }
 
     async _downloadRemoteVersion(version: string, token?: vscode.CancellationToken) {

@@ -8,19 +8,9 @@ export interface CloudObject {
   asByteArray(): Promise<Uint8Array>;
 }
 
-export interface CloudStorage extends vscode.Disposable {
+export interface CloudStorage {
   downloadVersion(version: string, token?: vscode.CancellationToken): Promise<CloudObject | undefined>;
   getVersions(token?: vscode.CancellationToken): AsyncGenerator<string>;
-}
-
-export async function getLatestVersion(versions: AsyncGenerator<string>): Promise<string | undefined> {
-  let latestVersion: string | undefined = undefined;
-  for await (const version of versions) {
-    if (latestVersion === undefined || semver.gt(version, latestVersion)) {
-      latestVersion = version;
-    }
-  }
-  return latestVersion;
 }
 
 export interface S3CloudStorageOptions {
@@ -48,6 +38,10 @@ export class S3CloudStorage implements CloudStorage {
       region: this.region,
       signer: { sign: (request) => Promise.resolve(request) }
     });
+  }
+  
+  dispose() {
+    this.s3.destroy();
   }
 
   async #send<TOut>(sendFunc: (options: HttpHandlerOptions) => Promise<TOut>, token?: vscode.CancellationToken): Promise<TOut> {
@@ -91,10 +85,6 @@ export class S3CloudStorage implements CloudStorage {
       if (!NextContinuationToken) { break; } // (should not happen, but just in case...)
       cmd.input.ContinuationToken = NextContinuationToken;
     } 
-  }
-
-  dispose() {
-    this.s3.destroy();
   }
 }
 

@@ -1,3 +1,5 @@
+import "reflect-metadata";
+
 import * as vscode from 'vscode';
 import { TTDbgCodeLensProvider } from './codeLensProvider';
 import logger from './logger';
@@ -6,12 +8,14 @@ import { DebugProxy, startDebuggingCommandName } from './DebugProxy';
 
 export function activate(context: vscode.ExtensionContext) {
 
-  const cloudStorage: CloudStorage = new S3CloudStorage();
+  const cloudStorage = new S3CloudStorage();
+  context.subscriptions.push(cloudStorage);
+
   const debugProxy = new DebugProxy(cloudStorage, context.globalStorageUri);
+  context.subscriptions.push(debugProxy);
 
   debugProxy.update().catch(e => logger.error(e));
 
-  context.subscriptions.push(debugProxy);
   context.subscriptions.push(
     vscode.commands.registerCommand(
       startDebuggingCommandName,

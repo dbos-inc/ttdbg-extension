@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { stringify } from './utils';
 
-
 // Logger class copied from https://github.com/microsoft/vscode-pull-request-github project
 class Logger {
     private _outputChannel: vscode.LogOutputChannel;
