@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { CloudStorage } from './CloudStorage';
 import * as childProcess from "child_process";
-import logger from './logger';
+import { logger } from './extension';
 import jszip from 'jszip';
 import * as fsp from 'node:fs/promises';
 import { DbosMethodType } from "./sourceParser";
@@ -117,10 +117,9 @@ export class DebugProxy {
             progress.report({ message: msg });
             await this._downloadRemoteVersion(remoteVersion, token);
             logger.info(`Debug Proxy updated to v${remoteVersion}.`);
-        }).then(undefined, (reason) => {
-            const msg = `Failed to update Debug Proxy: ${stringify(reason)}`;
-            logger.error(msg);
-            vscode.window.showErrorMessage(msg);
+        }).then(undefined, reason => {
+            logger.error("Failed to update Debug Proxy", reason);
+            vscode.window.showErrorMessage("Failed to update Debug Proxy");
         });
     }
 
@@ -145,7 +144,7 @@ export class DebugProxy {
                 });
             });
         } catch (e) {
-            logger.error(`Failed to get local debug proxy version ${stringify(e)}`);
+            logger.error("Failed to get local debug proxy version", e);
             return undefined;
         }
     }

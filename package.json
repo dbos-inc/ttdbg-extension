@@ -24,13 +24,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "dbos-ttdbg.killDebugProxy",
-        "title": "Kill Debug Proxy Process",
-        "category": "DBOS"
-      },
-      {
-        "command": "dbos-ttdbg.launchDebugProxy",
-        "title": "Launch Debug Proxy Proceess",
+        "command": "dbos-ttdbg.helloWorld",
+        "title": "Hello World",
         "category": "DBOS"
       }
     ],
@@ -73,6 +68,7 @@
     "rimraf": "^5.0.5",
     "semver": "^7.6.0",
     "typescript": "^5.3.3",
+    "winston": "^3.11.0",
     "yaml": "^2.3.4"
   }
 }

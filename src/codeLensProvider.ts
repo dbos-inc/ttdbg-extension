@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import ts from 'typescript';
 import { getDbosMethodType, parse } from './sourceParser';
-import logger from './logger';
+import { logger } from './extension';
 import { startDebuggingCommandName } from './DebugProxy';
 
 export class TTDbgCodeLensProvider implements vscode.CodeLensProvider {

@@ -1,45 +1,60 @@
 import * as vscode from 'vscode';
-import { stringify } from './utils';
+import Transport from "winston-transport";
+import { LEVEL, MESSAGE, SPLAT } from "triple-beam";
+import winston from 'winston';
 
-// Logger class copied from https://github.com/microsoft/vscode-pull-request-github project
-class Logger {
-    private _outputChannel: vscode.LogOutputChannel;
+export class LogOutputChannelTransport extends Transport {
+    private outChannel: vscode.LogOutputChannel;
 
-    constructor() {
-        this._outputChannel = vscode.window.createOutputChannel('DBOS Time Travel Debugger', { log: true });
+    constructor(name: string, opts?: Transport.TransportStreamOptions) {
+        // VSCode provides UI to control which log levels are shown.
+        // At the transport layer, log everything and let VSCode filter.
+        super({ ...opts, level: 'trace' });
+        this.outChannel = vscode.window.createOutputChannel(name, { log: true });
     }
 
-    dispose() {
-        this._outputChannel.dispose();
-    }
+    close() { this.outChannel.dispose(); }
 
-    private logString(message: any, component?: string): string {
-        message = stringify(message);
-        return component ? `${component}> ${message}` : message;
-    }
+    log(info: winston.Logform.TransformableInfo, next: () => void) {
+        setImmediate(() => { this.emit('logged', info); });
 
-    public trace(message: any, component: string) {
-        this._outputChannel.trace(this.logString(message, component));
-    }
+        const { level, message, [LEVEL]: $level, [MESSAGE]: $message, [SPLAT]: $splat, ...properties } = info;
+        switch ($level ?? level) {
+            case "error": this.outChannel.error(message, properties); break;
+            case "warn": this.outChannel.warn(message, properties); break;
+            case "info": this.outChannel.info(message, properties); break;
+            case "debug": this.outChannel.debug(message, properties); break;
+            case "trace": this.outChannel.trace(message, properties); break;
+            default:
+                vscode.window.showErrorMessage(`Unknown log level: ${info[LEVEL]}`);
+        }
 
-    public debug(message: any, component: string) {
-        this._outputChannel.debug(this.logString(message, component));
-    }
-
-    public info(message: any, component?: string) {
-        this._outputChannel.info(this.logString(message, component));
-    }
-
-    public warn(message: any, component?: string) {
-        this._outputChannel.warn(this.logString(message, component));
-    }
-
-    public error(message: any, component?: string) {
-        const msg = this.logString(message, component);
-        this._outputChannel.error(msg);
-        console.error(msg);
+        next();
     }
 }
 
-const logger = new Logger();
-export default logger;
+export interface Logger {
+    log: winston.LogMethod;
+    error: winston.LeveledLogMethod;
+    warn: winston.LeveledLogMethod;
+    info: winston.LeveledLogMethod;
+    debug: winston.LeveledLogMethod;
+    trace: winston.LeveledLogMethod;
+    close(): void;
+}
+
+export function createLogger(...transports: winston.transport[]) {
+    // Using custom Winston logging levels to match VSCode's Log Levels 
+    // https://github.com/winstonjs/winston?tab=readme-ov-file#using-custom-logging-levels
+    const logger = winston.createLogger({
+        levels: {
+            error: 0,
+            warn: 1,
+            info: 2,
+            debug: 3,
+            trace: 4
+        },
+        transports
+    });
+    return logger as unknown as Logger;
+}

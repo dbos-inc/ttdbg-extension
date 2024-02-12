@@ -1,12 +1,16 @@
-import "reflect-metadata";
-
 import * as vscode from 'vscode';
 import { TTDbgCodeLensProvider } from './codeLensProvider';
-import logger from './logger';
-import { CloudStorage, S3CloudStorage } from './CloudStorage';
+import { LogOutputChannelTransport, Logger, createLogger } from './logger';
+import { S3CloudStorage } from './CloudStorage';
 import { DebugProxy, startDebuggingCommandName } from './DebugProxy';
 
+export let logger: Logger;
+
 export function activate(context: vscode.ExtensionContext) {
+
+  const transport = new LogOutputChannelTransport('DBOS Time Travel Debugger');
+  logger = createLogger(transport);
+  context.subscriptions.push({ dispose() { logger.close(); transport.close(); } });
 
   const cloudStorage = new S3CloudStorage();
   context.subscriptions.push(cloudStorage);
