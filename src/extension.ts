@@ -3,6 +3,7 @@ import { TTDbgCodeLensProvider } from './codeLensProvider';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { S3CloudStorage } from './CloudStorage';
 import { DebugProxy, deleteProvDBPasswordCommandName, launchDebugProxyCommandName, startDebuggingCommandName } from './DebugProxy';
+import { ConfigWatcher } from './ConfigWatcher';
 
 export let logger: Logger;
 
@@ -11,6 +12,9 @@ export function activate(context: vscode.ExtensionContext) {
   const transport = new LogOutputChannelTransport('DBOS Time Travel Debugger');
   logger = createLogger(transport);
   context.subscriptions.push({ dispose() { logger.close(); transport.close(); } });
+
+  const configWatcher = new ConfigWatcher(context.secrets);
+  context.subscriptions.push(configWatcher);
 
   const cloudStorage = new S3CloudStorage();
   context.subscriptions.push(cloudStorage);
