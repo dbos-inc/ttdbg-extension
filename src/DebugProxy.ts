@@ -4,13 +4,9 @@ import * as childProcess from "child_process";
 import { logger } from './extension';
 import jszip from 'jszip';
 import * as fsp from 'node:fs/promises';
-import { DbosMethodType } from "./sourceParser";
+import { DbosMethodType, getDbosWorkflowName } from "./sourceParser";
 import * as semver from 'semver';
-import { chain } from 'stream-chain';
-import { parser } from 'stream-json';
-import { pick } from 'stream-json/filters/Pick';
-import { ignore } from 'stream-json/filters/Ignore';
-import { streamValues } from 'stream-json/streamers/StreamValues';
+import { ClientConfig, Client } from 'pg';
 
 const IS_WINDOWS = process.platform === "win32";
 const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
@@ -51,6 +47,7 @@ export const deleteProvDBPasswordCommandName = "dbos-ttdbg.delete-prov-db-passwo
 
 export class DebugProxy {
     private _proxyProcess: childProcess.ChildProcessWithoutNullStreams | undefined;
+    private _prov_client: Client | undefined;
 
     constructor(private readonly cloudStorage: CloudStorage, private readonly secrets: vscode.SecretStorage, private readonly storageUri: vscode.Uri) {
     }
@@ -60,8 +57,20 @@ export class DebugProxy {
     }
 
     async getWorkflowStatuses(name: string, $type: DbosMethodType): Promise<workflow_status[]> {
-        // TODO 
-        return [];
+        // if (!this._db) { return []; }
+
+        // try {
+        //   const wfName = getDbosWorkflowName(name, $type);
+        //   const results = await this._db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1', [wfName]);
+        //   return results.rows;
+        // } catch (e) {
+        //   const msg = errorMsg(e);
+        //   vscode.window.showErrorMessage(msg);
+        //   logger.error(msg);
+        //   return [];
+        // }
+
+        throw new Error();
     }
 
     async startDebugging(name: string, $type: DbosMethodType) {
@@ -112,6 +121,32 @@ export class DebugProxy {
         await this.secrets.delete("prov_db_password");
     }
 
+    async getProvDbConfig(): Promise<ClientConfig | undefined> {
+        const cfg = vscode.workspace.getConfiguration("dbos-ttdbg");
+        const port = cfg.get<number>("prov_db_port", 5432);
+        const host = cfg.get<string>("prov_db_host");
+        const database = cfg.get<string>("prov_db_database");
+        const user = cfg.get<string>("prov_db_user");
+
+        if (!host || !database || !user) {
+            throw new Error("Invalid configuration");
+        }
+
+        const password = await this.#getPassword();
+        return password
+            ? {
+                host,
+                port,
+                database,
+                user,
+                password,
+                ssl: {
+                    rejectUnauthorized: false
+                }
+            }
+            : undefined;
+    }
+
     async launch() {
         const exeUri = exeFileName(this.storageUri);
         if (!(await exists(exeUri))) {
@@ -119,47 +154,48 @@ export class DebugProxy {
             vscode.window.showErrorMessage("Debug Proxy not installed");
         }
 
-        const cfg = vscode.workspace.getConfiguration("dbos-ttdbg");
-        const port = cfg.get<number>("prov_db_port", 5432);
-        const host = cfg.get<string>("prov_db_host");
-        const name = cfg.get<string>("prov_db_name");
-        const user = cfg.get<string>("prov_db_user");
+        try {
+            const cfg = await this.getProvDbConfig();
+            if (!cfg) { return; }
 
-        if (!host || !name || !user) {
-            logger.error("Invalid configuration");
-            vscode.window.showErrorMessage("Invalid configuration");
-            return;
+            this._prov_client = new Client(cfg);
+            await this._prov_client.connect();
+
+            const results = await this._prov_client.query<workflow_status>('SELECT * FROM dbos.workflow_status LIMIT 10');
+            logger.info("connected to prov DB");
+
+
+
+            // this._proxyProcess?.kill();
+
+            // this._proxyProcess = childProcess.spawn(exeUri.fsPath, [
+            //     "-json",
+            //     "-host", host,
+            //     "-port", `${port}`,
+            //     "-db", name,
+            //     "-user", user,
+            // ], {
+            //     env: {
+            //         "PGPASSWORD": password
+            //     }
+            // });
+
+            // this._proxyProcess.stdout.on("data", (data: Buffer) => {
+            //     const { time, level, msg, ...properties } = JSON.parse(data.toString()) as { time: string, level: string, msg: string, [key: string]: unknown };
+            //     logger.log(level.toLowerCase(), "Debug Proxy > " + msg, properties);
+            // });
+
+            // this._proxyProcess.on("error", e => {
+            //     logger.error(e);
+            // });
+
+            // this._proxyProcess.on("exit", (code, signal) => {
+            //     logger.warn("Debug Proxy exited", { code, signal });
+            // });
+        } catch (e) {
+            logger.error("Debug Proxy Launch Failed", e);
+            vscode.window.showErrorMessage("Debug Proxy Launch Failed");
         }
-
-        const password = await this.#getPassword();
-        if (!password) { return; }
-
-        this._proxyProcess?.kill();
-
-        this._proxyProcess = childProcess.spawn(exeUri.fsPath, [
-            "-json",
-            "-host", host,
-            "-port", `${port}`,
-            "-db", name,
-            "-user", user,
-        ], {
-            env: {
-                "PGPASSWORD": password
-            }
-        });
-
-        this._proxyProcess.stdout.on("data", (data: Buffer) => {
-            const { time, level, msg, ...properties } = JSON.parse(data.toString()) as { time: string, level: string, msg: string, [key: string]: unknown };
-            logger.log(level.toLowerCase(), "Debug Proxy > " + msg, properties);
-        });
-
-        this._proxyProcess.on("error", e => {
-            logger.error(e);
-        });
-
-        this._proxyProcess.on("exit", (code, signal) => {
-            logger.warn("Debug Proxy exited", { code, signal });
-        });
 
     }
 
@@ -181,8 +217,8 @@ export class DebugProxy {
         const localVersion = await this._getLocalVersion();
         if (localVersion && semver.valid(localVersion) !== null) {
             logger.info(`Debug Proxy local version v${localVersion}.`);
-            if (semver.satisfies(localVersion, `>=${remoteVersion}`, { includePrerelease: true })) { 
-                return; 
+            if (semver.satisfies(localVersion, `>=${remoteVersion}`, { includePrerelease: true })) {
+                return;
             }
         }
 
@@ -191,17 +227,19 @@ export class DebugProxy {
             : `Installing DBOS Debug Proxy v${remoteVersion}.`;
         logger.info(msg);
 
-        await vscode.window.withProgress({
-            location: vscode.ProgressLocation.Notification,
-            cancellable: true
-        }, async (progress, token) => {
-            progress.report({ message: msg });
-            await this._downloadRemoteVersion(remoteVersion, token);
-            logger.info(`Debug Proxy updated to v${remoteVersion}.`);
-        }).then(undefined, reason => {
-            logger.error("Failed to update Debug Proxy", reason);
+        try {
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                cancellable: true
+            }, async (progress, token) => {
+                progress.report({ message: msg });
+                await this._downloadRemoteVersion(remoteVersion, token);
+                logger.info(`Debug Proxy updated to v${remoteVersion}.`);
+            });
+        } catch (e) {
+            logger.error("Failed to update Debug Proxy", e);
             vscode.window.showErrorMessage("Failed to update Debug Proxy");
-        });
+        }
     }
 
     async _getLocalVersion() {
@@ -235,9 +273,9 @@ export class DebugProxy {
 
         let latestVersion: string | undefined = undefined;
         for await (const version of versions) {
-          if (latestVersion === undefined || semver.gt(version, latestVersion)) {
-            latestVersion = version;
-          }
+            if (latestVersion === undefined || semver.gt(version, latestVersion)) {
+                latestVersion = version;
+            }
         }
         return latestVersion;
     }

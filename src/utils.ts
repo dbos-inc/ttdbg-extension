@@ -1,3 +1,5 @@
+import * as vscode from 'vscode';
+
 export const PLATFORM = function () {
     switch (process.platform) {
         case "linux":
@@ -27,4 +29,9 @@ export function stringify(obj: unknown) {
     if (obj instanceof Error) { return obj.message; }
     if (typeof obj === 'object') { return JSON.stringify(obj); }
     return (obj as any).toString();
+}
+
+export async function exists(uri: vscode.Uri): Promise<boolean> {
+    return await vscode.workspace.fs.stat(uri)
+        .then(_value => true, () => false);
 }

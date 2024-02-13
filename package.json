@@ -48,7 +48,7 @@
           "type": "number",
           "default": 5432
         },
-        "dbos-ttdbg.prov_db_name": {
+        "dbos-ttdbg.prov_db_database": {
           "type": "string"
         },
         "dbos-ttdbg.prov_db_user": {
