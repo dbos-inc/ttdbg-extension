@@ -24,8 +24,13 @@
   "contributes": {
     "commands": [
       {
-        "command": "dbos-ttdbg.helloWorld",
-        "title": "Hello World",
+        "command": "dbos-ttdbg.launch-debug-proxy",
+        "title": "Launch Debug Proxy",
+        "category": "DBOS"
+      },
+      {
+        "command": "dbos-ttdbg.delete-prov-db-password",
+        "title": "Delete Stored Provenance DB Password",
         "category": "DBOS"
       }
     ],
@@ -35,6 +40,19 @@
         "dbos-ttdbg.debug_proxy_url": {
           "type": "string",
           "default": "http://localhost:2345"
+        },
+        "dbos-ttdbg.prov_db_host": {
+          "type": "string"
+        },
+        "dbos-ttdbg.prov_db_port": {
+          "type": "number",
+          "default": 5432
+        },
+        "dbos-ttdbg.prov_db_name": {
+          "type": "string"
+        },
+        "dbos-ttdbg.prov_db_user": {
+          "type": "string"
         }
       }
     }
@@ -55,6 +73,7 @@
     "@types/node": "18.x",
     "@types/pg": "^8.11.0",
     "@types/semver": "^7.5.6",
+    "@types/stream-json": "^1.7.7",
     "@types/vscode": "^1.86.0",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
@@ -67,6 +86,7 @@
     "pg": "^8.11.3",
     "rimraf": "^5.0.5",
     "semver": "^7.6.0",
+    "stream-json": "^1.8.0",
     "typescript": "^5.3.3",
     "winston": "^3.11.0",
     "yaml": "^2.3.4"
