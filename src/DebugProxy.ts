@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { CloudStorage } from './CloudStorage';
 import * as childProcess from "child_process";
-import { logger } from './extension';
+import { config, logger } from './extension';
 import jszip from 'jszip';
 import * as fsp from 'node:fs/promises';
 import { DbosMethodType, getDbosWorkflowName } from "./sourceParser";
@@ -13,19 +13,6 @@ const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
 
 function exeFileName(storageUri: vscode.Uri) {
     return vscode.Uri.joinPath(storageUri, EXE_FILE_NAME);
-}
-
-interface workflow_status {
-    workflow_uuid: string;
-    status: string;
-    name: string;
-    authenticated_user: string;
-    output: string;
-    error: string;
-    assumed_role: string;
-    authenticated_roles: string; // Serialized list of roles.
-    request: string; // Serialized HTTPRequest
-    executor_id: string; // Set to "local" for local deployment, set to microVM ID for cloud deployment.
 }
 
 async function exists(uri: vscode.Uri) {
@@ -41,162 +28,70 @@ function throwOnCancelled(token?: vscode.CancellationToken) {
     }
 }
 
-export const startDebuggingCommandName = "dbos-ttdbg.startDebugging";
-export const launchDebugProxyCommandName = "dbos-ttdbg.launch-debug-proxy";
-export const deleteProvDBPasswordCommandName = "dbos-ttdbg.delete-prov-db-password";
-
 export class DebugProxy {
     private _proxyProcess: childProcess.ChildProcessWithoutNullStreams | undefined;
-    private _prov_client: Client | undefined;
 
-    constructor(private readonly cloudStorage: CloudStorage, private readonly secrets: vscode.SecretStorage, private readonly storageUri: vscode.Uri) {
-    }
+    constructor(private readonly cloudStorage: CloudStorage, private readonly storageUri: vscode.Uri) { }
 
     dispose() {
         this._proxyProcess?.kill();
     }
 
-    async getWorkflowStatuses(name: string, $type: DbosMethodType): Promise<workflow_status[]> {
-        // if (!this._db) { return []; }
-
-        // try {
-        //   const wfName = getDbosWorkflowName(name, $type);
-        //   const results = await this._db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1', [wfName]);
-        //   return results.rows;
-        // } catch (e) {
-        //   const msg = errorMsg(e);
-        //   vscode.window.showErrorMessage(msg);
-        //   logger.error(msg);
-        //   return [];
-        // }
-
-        throw new Error();
-    }
-
-    async startDebugging(name: string, $type: DbosMethodType) {
-        try {
-            const statuses = await this.getWorkflowStatuses(name, $type);
-
-            // TODO: eventually, we'll need a better UI than "list all workflow IDs and let the user pick one"
-            const wfID = await vscode.window.showQuickPick(statuses.map(s => s.workflow_uuid), {
-                placeHolder: `Select a ${name} workflow ID to debug`,
-                canPickMany: false,
-            });
-
-            if (!wfID) { return; }
-
-            const proxyURL = "http://localhost:2345";
-
-            await vscode.debug.startDebugging(
-                vscode.workspace.getWorkspaceFolder(vscode.window.activeTextEditor!.document.uri),
-                {
-                    name: `Debug ${wfID}`,
-                    type: 'node-terminal',
-                    request: 'launch',
-                    command: `npx dbos-sdk debug -x ${proxyURL} -u ${wfID}`
-                }
-            );
-        } catch (e) {
-            logger.error(e);
-        }
-    }
-
-    async #getPassword() {
-        const secret = await this.secrets.get("prov_db_password");
-        if (secret) { return secret; }
-
-        const password = await vscode.window.showInputBox({
-            prompt: "Enter provenance database password",
-            password: true,
-        });
-
-        if (password) {
-            await this.secrets.store("prov_db_password", password);
+    async launch() {
+        const exeUri = exeFileName(this.storageUri);
+        const exeExists = await exists(exeUri);
+        if (!exeExists) {
+            throw new Error("Debug proxy not installed");
         }
 
-        return password;
-    }
+        const proxy = this._proxyProcess;
+        this._proxyProcess = undefined;
+        proxy?.kill();
 
-    async deleteStoredPassword() {
-        await this.secrets.delete("prov_db_password");
-    }
-
-    async getProvDbConfig(): Promise<ClientConfig | undefined> {
-        const cfg = vscode.workspace.getConfiguration("dbos-ttdbg");
-        const port = cfg.get<number>("prov_db_port", 5432);
-        const host = cfg.get<string>("prov_db_host");
-        const database = cfg.get<string>("prov_db_database");
-        const user = cfg.get<string>("prov_db_user");
-
-        if (!host || !database || !user) {
+        const proxy_port = config.proxyPort;
+        let { host, port, database, user, password } = config.provDbConfig;
+        if (typeof password === "function") {
+            password = await password();
+        }
+        if (!host || !database || !user || !password) {
             throw new Error("Invalid configuration");
         }
 
-        const password = await this.#getPassword();
-        return password
-            ? {
-                host,
-                port,
-                database,
-                user,
-                password,
-                ssl: {
-                    rejectUnauthorized: false
+        const args = [
+            "-json",
+            "-host", host,
+            "-db", database,
+            "-user", user,
+        ];
+        if (port) {
+            args.push("-port", `${port}`);
+        }
+        if (proxy_port) {
+            args.push("-listen", `${proxy_port}`);
+        }
+
+        this._proxyProcess = childProcess.spawn(
+            exeUri.fsPath,
+            args,
+            {
+                env: {
+                    "PGPASSWORD": password
                 }
             }
-            : undefined;
-    }
+        );
 
-    async launch() {
-        const exeUri = exeFileName(this.storageUri);
-        if (!(await exists(exeUri))) {
-            logger.error("Debug proxy not installed");
-            vscode.window.showErrorMessage("Debug Proxy not installed");
-        }
+        this._proxyProcess.stdout.on("data", (data: Buffer) => {
+            const { time, level, msg, ...properties } = JSON.parse(data.toString()) as { time: string, level: string, msg: string, [key: string]: unknown };
+            logger.log(level.toLowerCase(), "Debug Proxy > " + msg, properties);
+        });
 
-        try {
-            const cfg = await this.getProvDbConfig();
-            if (!cfg) { return; }
+        this._proxyProcess.on("error", e => {
+            logger.error(e);
+        });
 
-            this._prov_client = new Client(cfg);
-            await this._prov_client.connect();
-
-            const results = await this._prov_client.query<workflow_status>('SELECT * FROM dbos.workflow_status LIMIT 10');
-            logger.info("connected to prov DB");
-
-
-
-            // this._proxyProcess?.kill();
-
-            // this._proxyProcess = childProcess.spawn(exeUri.fsPath, [
-            //     "-json",
-            //     "-host", host,
-            //     "-port", `${port}`,
-            //     "-db", name,
-            //     "-user", user,
-            // ], {
-            //     env: {
-            //         "PGPASSWORD": password
-            //     }
-            // });
-
-            // this._proxyProcess.stdout.on("data", (data: Buffer) => {
-            //     const { time, level, msg, ...properties } = JSON.parse(data.toString()) as { time: string, level: string, msg: string, [key: string]: unknown };
-            //     logger.log(level.toLowerCase(), "Debug Proxy > " + msg, properties);
-            // });
-
-            // this._proxyProcess.on("error", e => {
-            //     logger.error(e);
-            // });
-
-            // this._proxyProcess.on("exit", (code, signal) => {
-            //     logger.warn("Debug Proxy exited", { code, signal });
-            // });
-        } catch (e) {
-            logger.error("Debug Proxy Launch Failed", e);
-            vscode.window.showErrorMessage("Debug Proxy Launch Failed");
-        }
-
+        this._proxyProcess.on("exit", (code, signal) => {
+            logger.warn("Debug Proxy exited", { code, signal });
+        });
     }
 
     async getVersion() {
@@ -269,10 +164,8 @@ export class DebugProxy {
     }
 
     async _getRemoteVersion(token?: vscode.CancellationToken) {
-        const versions = this.cloudStorage.getVersions(token);
-
         let latestVersion: string | undefined = undefined;
-        for await (const version of versions) {
+        for await (const version of this.cloudStorage.getVersions(token)) {
             if (latestVersion === undefined || semver.gt(version, latestVersion)) {
                 latestVersion = version;
             }

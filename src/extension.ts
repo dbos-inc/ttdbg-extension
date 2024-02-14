@@ -2,10 +2,14 @@ import * as vscode from 'vscode';
 import { TTDbgCodeLensProvider } from './codeLensProvider';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { S3CloudStorage } from './CloudStorage';
-import { DebugProxy, deleteProvDBPasswordCommandName, launchDebugProxyCommandName, startDebuggingCommandName } from './DebugProxy';
-import { ConfigWatcher } from './ConfigWatcher';
+import { DebugProxy,  } from './DebugProxy';
+import { ProvenanceDatabase } from './ProvenanceDatabase';
+import { deleteProvenanceDatabasePassword, deleteProvDBPasswordCommandName, launchDebugProxy, launchDebugProxyCommandName, startDebuggingCommandName, startDebugging } from './commands';
+import { DbosMethodType } from './sourceParser';
+import { Configuration } from './Configuration';
 
 export let logger: Logger;
+export let config: Configuration;
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -13,37 +17,36 @@ export function activate(context: vscode.ExtensionContext) {
   logger = createLogger(transport);
   context.subscriptions.push({ dispose() { logger.close(); transport.close(); } });
 
-  const configWatcher = new ConfigWatcher(context.secrets);
-  context.subscriptions.push(configWatcher);
+  config = new Configuration(context.secrets);
+
+  const provDB = new ProvenanceDatabase();
+  context.subscriptions.push(provDB);
 
   const cloudStorage = new S3CloudStorage();
   context.subscriptions.push(cloudStorage);
 
-  const debugProxy = new DebugProxy(cloudStorage, context.secrets, context.globalStorageUri);
+  const debugProxy = new DebugProxy(cloudStorage, context.globalStorageUri);
   context.subscriptions.push(debugProxy);
 
-  debugProxy.update().catch(e => logger.error(e));
+  debugProxy.update();
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
       startDebuggingCommandName,
-      debugProxy.startDebugging, debugProxy));
+      (name: string, $type: DbosMethodType) => startDebugging(provDB, name, $type)));
   context.subscriptions.push(
     vscode.commands.registerCommand(
       launchDebugProxyCommandName,
-      debugProxy.launch, debugProxy));
+      launchDebugProxy));
   context.subscriptions.push(
     vscode.commands.registerCommand(
       deleteProvDBPasswordCommandName,
-      debugProxy.deleteStoredPassword, debugProxy));
+      () => deleteProvenanceDatabasePassword(provDB)));
+
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider(
       { scheme: 'file', language: 'typescript' },
       new TTDbgCodeLensProvider()));
 }
 
-// export function deactivate(): Promise<void> { 
-//   return Promise.resolve();
-// }
-
-
+export function deactivate() {}
