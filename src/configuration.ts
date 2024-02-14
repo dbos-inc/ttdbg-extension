@@ -1,5 +1,5 @@
-import { ClientConfig } from 'pg';
 import * as vscode from 'vscode';
+import { ClientConfig } from 'pg';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
 const PROV_DB_HOST = "prov_db_host";

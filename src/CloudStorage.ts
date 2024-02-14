@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import * as semver from "semver";
 import { GetObjectCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import { HttpHandlerOptions } from "@aws-sdk/types";
+import * as semver from "semver";
 import { PLATFORM, ARCHITECTURE } from './utils';
 
 export interface CloudObject {

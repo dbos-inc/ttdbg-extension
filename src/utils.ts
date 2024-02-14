@@ -24,7 +24,7 @@ export const ARCHITECTURE = function () {
     }
 }();
 
-export function stringify(obj: unknown) {
+export function stringify(obj: unknown): string {
     if (typeof obj === 'string') { return obj; }
     if (obj instanceof Error) { return obj.message; }
     if (typeof obj === 'object') { return JSON.stringify(obj); }

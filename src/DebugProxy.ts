@@ -1,23 +1,17 @@
 import * as vscode from 'vscode';
-import { CloudStorage } from './CloudStorage';
-import * as childProcess from "child_process";
-import { config, logger } from './extension';
+import { ChildProcessWithoutNullStreams as ChildProcess, spawn, execFile } from "child_process";
 import jszip from 'jszip';
-import * as fsp from 'node:fs/promises';
-import { DbosMethodType, getDbosWorkflowName } from "./sourceParser";
+import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
-import { ClientConfig, Client } from 'pg';
+import { CloudStorage } from './CloudStorage';
+import { config, logger } from './extension';
+import { exists } from './utils';
 
 const IS_WINDOWS = process.platform === "win32";
 const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
 
 function exeFileName(storageUri: vscode.Uri) {
     return vscode.Uri.joinPath(storageUri, EXE_FILE_NAME);
-}
-
-async function exists(uri: vscode.Uri) {
-    const stat = await vscode.workspace.fs.stat(uri).then(stat => stat, () => undefined);
-    return stat !== undefined;
 }
 
 function throwOnCancelled(token?: vscode.CancellationToken) {
@@ -29,7 +23,7 @@ function throwOnCancelled(token?: vscode.CancellationToken) {
 }
 
 export class DebugProxy {
-    private _proxyProcess: childProcess.ChildProcessWithoutNullStreams | undefined;
+    private _proxyProcess: ChildProcess | undefined;
 
     constructor(private readonly cloudStorage: CloudStorage, private readonly storageUri: vscode.Uri) { }
 
@@ -70,7 +64,7 @@ export class DebugProxy {
             args.push("-listen", `${proxy_port}`);
         }
 
-        this._proxyProcess = childProcess.spawn(
+        this._proxyProcess = spawn(
             exeUri.fsPath,
             args,
             {
@@ -122,19 +116,14 @@ export class DebugProxy {
             : `Installing DBOS Debug Proxy v${remoteVersion}.`;
         logger.info(msg);
 
-        try {
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                cancellable: true
-            }, async (progress, token) => {
-                progress.report({ message: msg });
-                await this._downloadRemoteVersion(remoteVersion, token);
-                logger.info(`Debug Proxy updated to v${remoteVersion}.`);
-            });
-        } catch (e) {
-            logger.error("Failed to update Debug Proxy", e);
-            vscode.window.showErrorMessage("Failed to update Debug Proxy");
-        }
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            cancellable: true
+        }, async (progress, token) => {
+            progress.report({ message: msg });
+            await this._downloadRemoteVersion(remoteVersion, token);
+            logger.info(`Debug Proxy updated to v${remoteVersion}.`);
+        });
     }
 
     async _getLocalVersion() {
@@ -145,7 +134,7 @@ export class DebugProxy {
 
         try {
             return await new Promise<string | undefined>((resolve, reject) => {
-                childProcess.execFile(exeUri.fsPath, ["-version"], (error, stdout, stderr) => {
+                execFile(exeUri.fsPath, ["-version"], (error, stdout, stderr) => {
                     if (error) {
                         reject(error);
                     } else {
@@ -193,6 +182,6 @@ export class DebugProxy {
         throwOnCancelled(token);
 
         await vscode.workspace.fs.writeFile(exeUri, exeBuffer);
-        await fsp.chmod(exeUri.fsPath, 0o755);
+        await fs.chmod(exeUri.fsPath, 0o755);
     }
 }

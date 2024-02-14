@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import ts from 'typescript';
-import { getDbosMethodType, parse } from './sourceParser';
-import { logger } from './extension';
 import { startDebuggingCommandName } from './commands';
+import { logger } from './extension';
+import { getDbosMethodType, parse } from './sourceParser';
 
 export class TTDbgCodeLensProvider implements vscode.CodeLensProvider {
     provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
@@ -35,7 +35,7 @@ export class TTDbgCodeLensProvider implements vscode.CodeLensProvider {
                 })
                 .filter(<T>(x?: T): x is T => !!x);
         } catch (e) {
-            logger.error(e);
+            logger.error("provideCodeLenses", e);
         }
     }
 }

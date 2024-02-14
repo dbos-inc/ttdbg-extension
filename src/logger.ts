@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
+import winston from 'winston';
 import Transport from "winston-transport";
 import { LEVEL, MESSAGE, SPLAT } from "triple-beam";
-import winston from 'winston';
 
 export class LogOutputChannelTransport extends Transport {
     private outChannel: vscode.LogOutputChannel;

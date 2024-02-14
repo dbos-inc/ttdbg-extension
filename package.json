@@ -18,7 +18,7 @@
     "url": "https://github.com/dbos-inc/ttdbg-extension.git"
   },
   "activationEvents": [
-    "onLanguage:typescript"
+    "workspaceContains:**/dbos-config.yaml"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -37,9 +37,9 @@
     "configuration": {
       "title": "DBOS Time Travel Debugger",
       "properties": {
-        "dbos-ttdbg.debug_proxy_url": {
-          "type": "string",
-          "default": "http://localhost:2345"
+        "dbos-ttdbg.debug_proxy_port": {
+          "type": "number",
+          "default": 2345
         },
         "dbos-ttdbg.prov_db_host": {
           "type": "string"

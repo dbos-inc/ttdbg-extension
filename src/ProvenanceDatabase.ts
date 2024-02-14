@@ -1,8 +1,6 @@
-import * as vscode from 'vscode';
-import { DbosMethodType, getDbosWorkflowName } from './sourceParser';
 import { Client } from 'pg';
 import { config, logger } from './extension';
-
+import { DbosMethodType, getDbosWorkflowName } from './sourceParser';
 
 export interface workflow_status {
     workflow_uuid: string;
