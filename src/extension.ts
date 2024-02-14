@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { S3CloudStorage } from './CloudStorage';
 import { TTDbgCodeLensProvider } from './codeLensProvider';
-import { deleteProvenanceDatabasePassword, deleteProvenanceDatabasePasswordCommandName, launchDebugProxy, launchDebugProxyCommandName, startDebuggingCommandName, startDebugging } from './commands';
+import { deleteProvenanceDatabasePassword, deleteProvenanceDatabasePasswordCommandName, launchDebugProxy, launchDebugProxyCommandName, startDebuggingCommandName, startDebugging, shutdownDebugProxyCommandName, shutdownDebugProxy } from './commands';
 import { Configuration } from './configuration';
 import { DebugProxy, } from './DebugProxy';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
@@ -33,6 +33,8 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(startDebuggingCommandName, startDebugging));
   context.subscriptions.push(
     vscode.commands.registerCommand(launchDebugProxyCommandName, launchDebugProxy));
+  context.subscriptions.push(
+    vscode.commands.registerCommand(shutdownDebugProxyCommandName, shutdownDebugProxy));
   context.subscriptions.push(
     vscode.commands.registerCommand(deleteProvenanceDatabasePasswordCommandName, deleteProvenanceDatabasePassword));
 

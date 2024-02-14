@@ -23,24 +23,37 @@ function throwOnCancelled(token?: vscode.CancellationToken) {
 }
 
 export class DebugProxy {
+    private _outChannel: vscode.LogOutputChannel;
     private _proxyProcess: ChildProcess | undefined;
 
-    constructor(private readonly cloudStorage: CloudStorage, private readonly storageUri: vscode.Uri) { }
+    constructor(private readonly cloudStorage: CloudStorage, private readonly storageUri: vscode.Uri) {
+        this._outChannel = vscode.window.createOutputChannel("DBOS Debug Proxy", { log: true });
+    }
 
     dispose() {
-        this._proxyProcess?.kill();
+        this.shutdown();
+    }
+
+    shutdown() {
+        if (this._proxyProcess) {
+            const process = this._proxyProcess;
+            this._proxyProcess = undefined;
+            logger.info(`Debug Proxy shutting down`, { pid: process.pid });
+            process.stdout.removeAllListeners();
+            process.stderr.removeAllListeners();
+            process.removeAllListeners();
+            process.kill();
+        }
     }
 
     async launch() {
+        if (this._proxyProcess) { return; }
+
         const exeUri = exeFileName(this.storageUri);
         const exeExists = await exists(exeUri);
         if (!exeExists) {
             throw new Error("Debug proxy not installed");
         }
-
-        const proxy = this._proxyProcess;
-        this._proxyProcess = undefined;
-        proxy?.kill();
 
         const proxy_port = config.proxyPort;
         let { host, port, database, user, password } = config.provDbConfig;
@@ -73,18 +86,35 @@ export class DebugProxy {
                 }
             }
         );
+        logger.info(`Debug Proxy launched`, { port: proxy_port, pid: this._proxyProcess.pid });
 
         this._proxyProcess.stdout.on("data", (data: Buffer) => {
             const { time, level, msg, ...properties } = JSON.parse(data.toString()) as { time: string, level: string, msg: string, [key: string]: unknown };
-            logger.log(level.toLowerCase(), "Debug Proxy > " + msg, properties);
+            switch (level.toLowerCase()) {
+                case "debug":
+                    this._outChannel.debug(msg, properties);
+                    break;
+                case "info":
+                    this._outChannel.info(msg, properties);
+                    break;
+                case "warn":
+                    this._outChannel.warn(msg, properties);
+                    break;
+                case "error":
+                    this._outChannel.error(msg, properties);
+                    break;
+                default:
+                    this._outChannel.appendLine(`${time} [${level}] ${msg} ${JSON.stringify(properties)}`);
+                    break;
+            }
         });
 
         this._proxyProcess.on("error", e => {
-            logger.error(e);
+            this._outChannel.error(e);
         });
 
-        this._proxyProcess.on("exit", (code, signal) => {
-            logger.warn("Debug Proxy exited", { code, signal });
+        this._proxyProcess.on("exit", (code, _signal) => {
+            this._outChannel.info(`Debug Proxy exited with exit code ${code}`);
         });
     }
 

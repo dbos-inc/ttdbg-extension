@@ -4,10 +4,12 @@ import { DbosMethodType } from "./sourceParser";
 
 export const startDebuggingCommandName = "dbos-ttdbg.startDebugging";
 export const launchDebugProxyCommandName = "dbos-ttdbg.launch-debug-proxy";
+export const shutdownDebugProxyCommandName = "dbos-ttdbg.shutdown-debug-proxy";
 export const deleteProvenanceDatabasePasswordCommandName = "dbos-ttdbg.delete-prov-db-password";
 
 export async function startDebugging(name: string, $type: DbosMethodType) {
     try {
+        await debugProxy.launch();
         const statuses = await provDB.getWorkflowStatuses(name, $type);
 
         // TODO: eventually, we'll need a better UI than "list all workflow IDs and let the user pick one"
@@ -39,9 +41,18 @@ export async function startDebugging(name: string, $type: DbosMethodType) {
 export async function launchDebugProxy() {
     try {
         await debugProxy.launch();
+        vscode.window.showInformationMessage("Debug proxy launched");
     } catch (e) {
         logger.error("launchDebugProxy", e);
         vscode.window.showErrorMessage("Failed to launch debug proxy");
+    }
+}
+
+export async function shutdownDebugProxy() {
+    try {
+        await debugProxy.shutdown();
+    } catch (e) {
+        logger.error("shutdownDebugProxy", e);
     }
 }
 

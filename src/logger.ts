@@ -4,27 +4,27 @@ import Transport from "winston-transport";
 import { LEVEL, MESSAGE, SPLAT } from "triple-beam";
 
 export class LogOutputChannelTransport extends Transport {
-    private outChannel: vscode.LogOutputChannel;
+    private _outChannel: vscode.LogOutputChannel;
 
     constructor(name: string, opts?: Transport.TransportStreamOptions) {
         // VSCode provides UI to control which log levels are shown.
         // At the transport layer, log everything and let VSCode filter.
         super({ ...opts, level: 'trace' });
-        this.outChannel = vscode.window.createOutputChannel(name, { log: true });
+        this._outChannel = vscode.window.createOutputChannel(name, { log: true });
     }
 
-    close() { this.outChannel.dispose(); }
+    close() { this._outChannel.dispose(); }
 
     log(info: winston.Logform.TransformableInfo, next: () => void) {
         setImmediate(() => { this.emit('logged', info); });
 
         const { level, message, [LEVEL]: $level, [MESSAGE]: $message, [SPLAT]: $splat, ...properties } = info;
         switch ($level ?? level) {
-            case "error": this.outChannel.error(message, properties); break;
-            case "warn": this.outChannel.warn(message, properties); break;
-            case "info": this.outChannel.info(message, properties); break;
-            case "debug": this.outChannel.debug(message, properties); break;
-            case "trace": this.outChannel.trace(message, properties); break;
+            case "error": this._outChannel.error(message, properties); break;
+            case "warn": this._outChannel.warn(message, properties); break;
+            case "info": this._outChannel.info(message, properties); break;
+            case "debug": this._outChannel.debug(message, properties); break;
+            case "trace": this._outChannel.trace(message, properties); break;
             default:
                 vscode.window.showErrorMessage(`Unknown log level: ${info[LEVEL]}`);
         }

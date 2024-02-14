@@ -34,7 +34,7 @@ export class ProvenanceDatabase {
     async getWorkflowStatuses(name: string, $type: DbosMethodType): Promise<workflow_status[]> {
         const wfName = getDbosWorkflowName(name, $type);
         const db = await this.connect();
-        const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1', [wfName]);
+        const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1 LIMIT 10', [wfName]);
         return results.rows;
     }
 }

@@ -29,6 +29,12 @@
         "category": "DBOS"
       },
       {
+        "command": "dbos-ttdbg.shutdown-debug-proxy",
+        "title": "Shutdown Debug Proxy",
+        "category": "DBOS"
+      },
+
+      {
         "command": "dbos-ttdbg.delete-prov-db-password",
         "title": "Delete Stored Provenance DB Password",
         "category": "DBOS"

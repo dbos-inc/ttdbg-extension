@@ -14,19 +14,21 @@ export class Configuration {
 
     get provDbConfig(): ClientConfig {
         const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION);
-        const port = cfg.get<number>(PROV_DB_PORT);
         return {
             host: cfg.get<string>(PROV_DB_HOST),
-            port,
+            port: cfg.get<number>(PROV_DB_PORT),
             database: cfg.get<string>(PROV_DB_DATABASE),
             user: cfg.get<string>(PROV_DB_USER),
             password: () => this.#getPassword(),
+            ssl: {
+                rejectUnauthorized: false,
+            }
         };
     }
 
-    get proxyPort(): number | undefined {
+    get proxyPort(): number {
         const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION);
-        return cfg.get<number>(DEBUG_PROXY_PORT);
+        return cfg.get<number>(DEBUG_PROXY_PORT, 2345);
     }
 
     async #getPassword(): Promise<string> {
