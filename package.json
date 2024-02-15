@@ -18,16 +18,47 @@
     "url": "https://github.com/dbos-inc/ttdbg-extension.git"
   },
   "activationEvents": [
-    "onLanguage:typescript"
+    "workspaceContains:**/dbos-config.yaml"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "dbos-ttdbg.launch-debug-proxy",
+        "title": "Launch Debug Proxy",
+        "category": "DBOS"
+      },
+      {
+        "command": "dbos-ttdbg.shutdown-debug-proxy",
+        "title": "Shutdown Debug Proxy",
+        "category": "DBOS"
+      },
+
+      {
+        "command": "dbos-ttdbg.delete-prov-db-password",
+        "title": "Delete Stored Provenance DB Password",
+        "category": "DBOS"
+      }
+    ],
     "configuration": {
       "title": "DBOS Time Travel Debugger",
       "properties": {
-        "dbos-ttdbg.debug_proxy_url": {
-          "type": "string",
-          "default": "http://localhost:2345"
+        "dbos-ttdbg.debug_proxy_port": {
+          "type": "number",
+          "default": 2345
+        },
+        "dbos-ttdbg.prov_db_host": {
+          "type": "string"
+        },
+        "dbos-ttdbg.prov_db_port": {
+          "type": "number",
+          "default": 5432
+        },
+        "dbos-ttdbg.prov_db_database": {
+          "type": "string"
+        },
+        "dbos-ttdbg.prov_db_user": {
+          "type": "string"
         }
       }
     }
@@ -43,8 +74,12 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.504.0",
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
+    "@types/pg": "^8.11.0",
+    "@types/semver": "^7.5.6",
+    "@types/stream-json": "^1.7.7",
     "@types/vscode": "^1.86.0",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
@@ -53,9 +88,13 @@
     "@vscode/vsce": "^2.23.0",
     "esbuild": "^0.20.0",
     "eslint": "^8.56.0",
+    "jszip": "^3.10.1",
     "pg": "^8.11.3",
     "rimraf": "^5.0.5",
+    "semver": "^7.6.0",
+    "stream-json": "^1.8.0",
     "typescript": "^5.3.3",
+    "winston": "^3.11.0",
     "yaml": "^2.3.4"
   }
 }
