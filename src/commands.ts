@@ -20,9 +20,9 @@ export async function startDebugging(name: string, $type: DbosMethodType) {
 
         if (!wfID) { return; }
 
-        const proxy_port = config.proxyPort ?? 2345;
-        const proxyURL = `http://localhost:${proxy_port}`;
+        logger.info(`Starting debugging for ${name} workflow ${wfID}`);
 
+        const proxyURL = `http://localhost:${config.proxyPort ?? 2345}`;
         await vscode.debug.startDebugging(
             vscode.workspace.getWorkspaceFolder(vscode.window.activeTextEditor!.document.uri),
             {
