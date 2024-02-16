@@ -14,7 +14,7 @@ export let debugProxy: DebugProxy;
 
 export async function activate(context: vscode.ExtensionContext) {
 
-  const transport = new LogOutputChannelTransport('DBOS Time Travel Debugger');
+  const transport = new LogOutputChannelTransport('DBOS');
   logger = createLogger(transport);
   context.subscriptions.push({ dispose() { logger.close(); transport.close(); } });
 
