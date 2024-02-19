@@ -5,7 +5,7 @@ import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 import { CloudStorage } from './CloudStorage';
 import { config, logger } from './extension';
-import { exists } from './utils';
+import { exec, exists } from './utils';
 
 const IS_WINDOWS = process.platform === "win32";
 const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
@@ -163,19 +163,7 @@ export class DebugProxy {
         }
 
         try {
-            return await new Promise<string | undefined>((resolve, reject) => {
-                execFile(exeUri.fsPath, ["-version"], (error, stdout, stderr) => {
-                    if (error) {
-                        reject(error);
-                    } else {
-                        if (stderr) {
-                            reject(stderr);
-                        } else {
-                            resolve(stdout.trim());
-                        }
-                    }
-                });
-            });
+            return await exec(exeUri.fsPath, ["-version"]);
         } catch (e) {
             logger.error("Failed to get local debug proxy version", e);
             return undefined;
