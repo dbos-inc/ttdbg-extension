@@ -1,11 +1,14 @@
 import * as vscode from 'vscode';
-import { ChildProcessWithoutNullStreams as ChildProcess, spawn, execFile } from "child_process";
+import { ChildProcessWithoutNullStreams as ChildProcess, spawn, execFile as cpExecFile } from "child_process";
+import util from 'util';
 import jszip from 'jszip';
 import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 import { CloudStorage } from './CloudStorage';
 import { config, logger } from './extension';
-import { exec, exists } from './utils';
+import { exists } from './utils';
+
+const execFile = util.promisify(cpExecFile);
 
 const IS_WINDOWS = process.platform === "win32";
 const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
@@ -163,7 +166,9 @@ export class DebugProxy {
         }
 
         try {
-            return await exec(exeUri.fsPath, ["-version"]);
+            const {stdout, stderr} = await execFile(exeUri.fsPath, ["-version"]);
+            if (stderr) { throw new Error(stderr); }
+            return stdout.trim();
         } catch (e) {
             logger.error("Failed to get local debug proxy version", e);
             return undefined;

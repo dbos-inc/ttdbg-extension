@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { execFile } from "child_process";
 
 export const PLATFORM = function () {
     switch (process.platform) {
@@ -35,20 +34,4 @@ export function stringify(obj: unknown): string {
 export async function exists(uri: vscode.Uri): Promise<boolean> {
     return await vscode.workspace.fs.stat(uri)
         .then(_value => true, () => false);
-}
-
-export function exec(file: string, args: string[]): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-        execFile(file, args, (error, stdout, stderr) => {
-            if (error) {
-                reject(error);
-            } else {
-                if (stderr) {
-                    reject(stderr);
-                } else {
-                    resolve(stdout.trim());
-                }
-            }
-        });
-    });
 }
