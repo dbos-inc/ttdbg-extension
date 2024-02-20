@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import { execFile as cpExecFile } from "child_process";
+import util from 'util';
 
 export const PLATFORM = function () {
     switch (process.platform) {
@@ -35,3 +37,6 @@ export async function exists(uri: vscode.Uri): Promise<boolean> {
     return await vscode.workspace.fs.stat(uri)
         .then(_value => true, () => false);
 }
+
+
+export const execFile = util.promisify(cpExecFile);

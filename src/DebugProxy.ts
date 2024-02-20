@@ -1,14 +1,11 @@
 import * as vscode from 'vscode';
-import { ChildProcessWithoutNullStreams as ChildProcess, spawn, execFile as cpExecFile } from "child_process";
-import util from 'util';
+import { ChildProcessWithoutNullStreams as ChildProcess, spawn } from "child_process";
 import jszip from 'jszip';
 import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 import { CloudStorage } from './CloudStorage';
 import { config, logger } from './extension';
-import { exists } from './utils';
-
-const execFile = util.promisify(cpExecFile);
+import { execFile, exists } from './utils';
 
 const IS_WINDOWS = process.platform === "win32";
 const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
