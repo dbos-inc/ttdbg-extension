@@ -45,8 +45,7 @@
           "type": "string"
         },
         "dbos-ttdbg.prov_db_port": {
-          "type": "number",
-          "default": 5432
+          "type": "number"
         },
         "dbos-ttdbg.prov_db_database": {
           "type": "string"
