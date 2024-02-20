@@ -25,7 +25,8 @@ export class ProvenanceDatabase {
     async connect(): Promise<Client> {
         if (this._db) { return this._db; }
 
-        const db = new Client(config.provDbConfig);
+        const provDbConfig = await config.getProvDbConfig();
+        const db = new Client(provDbConfig);
         await db.connect();
         this._db = db;
         return db;

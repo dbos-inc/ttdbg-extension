@@ -59,7 +59,7 @@ export class DebugProxy {
         }
 
         const proxy_port = config.proxyPort;
-        let { host, port, database, user, password } = config.provDbConfig;
+        let { host, port, database, user, password } = await config.getProvDbConfig();
         if (typeof password === "function") {
             password = await password();
         }

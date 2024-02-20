@@ -12,7 +12,7 @@ const DEBUG_PROXY_PORT = "debug_proxy_port";
 export class Configuration {
     constructor(private readonly secrets: vscode.SecretStorage) { }
 
-    get provDbConfig(): ClientConfig {
+    async getProvDbConfig(): Promise<ClientConfig> {
         const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION);
         return {
             host: cfg.get<string>(PROV_DB_HOST),
