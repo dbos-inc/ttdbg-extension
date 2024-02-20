@@ -7,6 +7,9 @@ import { getDbosMethodType, parse } from './sourceParser';
 export class TTDbgCodeLensProvider implements vscode.CodeLensProvider {
     provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
         try {
+            const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+            if (!folder) { return; }
+
             const text = document.getText();
             const file = ts.createSourceFile(
                 document.fileName,
@@ -30,7 +33,7 @@ export class TTDbgCodeLensProvider implements vscode.CodeLensProvider {
                         title: '⏳ Time Travel Debug',
                         tooltip: `Debug ${methodInfo.name} with the DBOS Time Travel Debugger`,
                         command: startDebuggingCommandName,
-                        arguments: [methodInfo.name, methodType]
+                        arguments: [folder, methodInfo.name, methodType]
                     });
                 })
                 .filter(<T>(x?: T): x is T => !!x);

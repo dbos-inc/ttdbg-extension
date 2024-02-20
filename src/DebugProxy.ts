@@ -24,7 +24,7 @@ function throwOnCancelled(token?: vscode.CancellationToken) {
 
 export class DebugProxy {
     private _outChannel: vscode.LogOutputChannel;
-    private _proxyProcess: ChildProcess | undefined;
+    private _proxyProcesses: Map<string, ChildProcess> = new Map();
 
     constructor(private readonly cloudStorage: CloudStorage, private readonly storageUri: vscode.Uri) {
         this._outChannel = vscode.window.createOutputChannel("DBOS Debug Proxy", { log: true });
@@ -35,10 +35,9 @@ export class DebugProxy {
     }
 
     shutdown() {
-        if (this._proxyProcess) {
-            const process = this._proxyProcess;
-            this._proxyProcess = undefined;
-            logger.info(`Debug Proxy shutting down`, { pid: process.pid });
+        for (const [key, process] of this._proxyProcesses.entries()) {
+            this._proxyProcesses.delete(key);
+            logger.info(`Debug Proxy shutting down`, { folder: key, pid: process.pid });
             process.stdout.removeAllListeners();
             process.stderr.removeAllListeners();
             process.removeAllListeners();
@@ -46,8 +45,8 @@ export class DebugProxy {
         }
     }
 
-    async launch() {
-        if (this._proxyProcess) { return; }
+    async launch(folder: vscode.WorkspaceFolder) {
+        if (this._proxyProcesses.has(folder.uri.fsPath)) { return; }
 
         const exeUri = exeFileName(this.storageUri);
         const exeExists = await exists(exeUri);
@@ -56,9 +55,12 @@ export class DebugProxy {
         }
 
         const proxy_port = config.proxyPort;
-        let { host, port, database, user, password } = await config.getProvDbConfig();
+        let { host, port, database, user, password } = await config.getProvDbConfig(folder);
         if (typeof password === "function") {
             password = await password();
+            if (!password) {
+                throw new Error("Provenance database password is required");
+            }
         }
         if (!host || !database || !user || !password) {
             throw new Error("Invalid configuration");
@@ -77,7 +79,7 @@ export class DebugProxy {
             args.push("-listen", `${proxy_port}`);
         }
 
-        this._proxyProcess = spawn(
+        const proxyProcess = spawn(
             exeUri.fsPath,
             args,
             {
@@ -86,35 +88,36 @@ export class DebugProxy {
                 }
             }
         );
-        logger.info(`Debug Proxy launched`, { port: proxy_port, pid: this._proxyProcess.pid });
+        logger.info(`Debug Proxy launched`, { port: proxy_port, pid: proxyProcess.pid, folder: folder.name });
 
-        this._proxyProcess.stdout.on("data", (data: Buffer) => {
+        proxyProcess.stdout.on("data", (data: Buffer) => {
             const { time, level, msg, ...properties } = JSON.parse(data.toString()) as { time: string, level: string, msg: string, [key: string]: unknown };
+            const $properties = { ...properties, folder: folder.name };
             switch (level.toLowerCase()) {
                 case "debug":
-                    this._outChannel.debug(msg, properties);
+                    this._outChannel.debug(msg, $properties);
                     break;
                 case "info":
-                    this._outChannel.info(msg, properties);
+                    this._outChannel.info(msg, $properties);
                     break;
                 case "warn":
-                    this._outChannel.warn(msg, properties);
+                    this._outChannel.warn(msg, $properties);
                     break;
                 case "error":
-                    this._outChannel.error(msg, properties);
+                    this._outChannel.error(msg, $properties);
                     break;
                 default:
-                    this._outChannel.appendLine(`${time} [${level}] ${msg} ${JSON.stringify(properties)}`);
+                    this._outChannel.appendLine(`${time} [${level}] ${msg} ${JSON.stringify($properties)}`);
                     break;
             }
         });
 
-        this._proxyProcess.on("error", e => {
-            this._outChannel.error(e);
+        proxyProcess.on("error", e => {
+            this._outChannel.error(e, { folder: folder.name });
         });
 
-        this._proxyProcess.on("exit", (code, _signal) => {
-            this._outChannel.info(`Debug Proxy exited with exit code ${code}`);
+        proxyProcess.on("exit", (code, _signal) => {
+            this._outChannel.info(`Debug Proxy exited with exit code ${code}`, { folder: folder.name });
         });
     }
 
@@ -163,7 +166,7 @@ export class DebugProxy {
         }
 
         try {
-            const {stdout, stderr} = await execFile(exeUri.fsPath, ["-version"]);
+            const { stdout, stderr } = await execFile(exeUri.fsPath, ["-version"]);
             if (stderr) { throw new Error(stderr); }
             return stdout.trim();
         } catch (e) {

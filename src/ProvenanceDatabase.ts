@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { Client } from 'pg';
 import { config, logger } from './extension';
 import { DbosMethodType, getDbosWorkflowName } from './sourceParser';
@@ -16,25 +17,28 @@ export interface workflow_status {
 }
 
 export class ProvenanceDatabase {
-    private _db: Client | undefined;
+    private _databases: Map<string, Client> = new Map();
 
     dispose() {
-        this._db?.end(e => logger.error(e));
+        for (const db of this._databases.values()) {
+            db.end(e => logger.error(e));
+        }
     }
 
-    async connect(): Promise<Client> {
-        if (this._db) { return this._db; }
+    private async connect(folder: vscode.WorkspaceFolder): Promise<Client> {
+        const existingDB = this._databases.get(folder.uri.fsPath);
+        if (existingDB) { return existingDB; }
 
-        const provDbConfig = await config.getProvDbConfig();
+        const provDbConfig = await config.getProvDbConfig(folder);
         const db = new Client(provDbConfig);
         await db.connect();
-        this._db = db;
+        this._databases.set(folder.uri.fsPath, db);
         return db;
     }
 
-    async getWorkflowStatuses(name: string, $type: DbosMethodType): Promise<workflow_status[]> {
+    async getWorkflowStatuses(folder: vscode.WorkspaceFolder, name: string, $type: DbosMethodType): Promise<workflow_status[]> {
         const wfName = getDbosWorkflowName(name, $type);
-        const db = await this.connect();
+        const db = await this.connect(folder);
         const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1 LIMIT 10', [wfName]);
         return results.rows;
     }

@@ -12,14 +12,19 @@ const DEBUG_PROXY_PORT = "debug_proxy_port";
 export class Configuration {
     constructor(private readonly secrets: vscode.SecretStorage) { }
 
-    async getProvDbConfig(): Promise<ClientConfig> {
-        const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION);
+    async getProvDbConfig(folder: vscode.WorkspaceFolder): Promise<ClientConfig> {
+        const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
+        const host = cfg.get<string>(PROV_DB_HOST);
+        const port = cfg.get<number>(PROV_DB_PORT);
+        const database = cfg.get<string>(PROV_DB_DATABASE);
+        const user = cfg.get<string>(PROV_DB_USER); 
+
         return {
-            host: cfg.get<string>(PROV_DB_HOST),
-            port: cfg.get<number>(PROV_DB_PORT),
-            database: cfg.get<string>(PROV_DB_DATABASE),
-            user: cfg.get<string>(PROV_DB_USER),
-            password: () => this.#getPassword(),
+            host,
+            port,
+            database,
+            user,
+            password: () => this.#getPassword(folder),
             ssl: {
                 rejectUnauthorized: false,
             }
@@ -31,8 +36,13 @@ export class Configuration {
         return cfg.get<number>(DEBUG_PROXY_PORT, 2345);
     }
 
-    async #getPassword(): Promise<string> {
-        let password = await this.secrets.get(PROV_DB_PASSWORD);
+    #getPasswordKey(folder: vscode.WorkspaceFolder): string {
+        return `${PROV_DB_PASSWORD}.${folder.uri.fsPath}`;
+    }
+
+    async #getPassword(folder: vscode.WorkspaceFolder): Promise<string> {
+        const passwordKey = this.#getPasswordKey(folder);
+        let password = await this.secrets.get(passwordKey);
         if (!password) {
             password = await vscode.window.showInputBox({
                 prompt: "Enter provenance database password",
@@ -46,7 +56,10 @@ export class Configuration {
         return password;
     }
 
-    async deletePassword() {
-        await this.secrets.delete(PROV_DB_PASSWORD);
+    async deletePasswords() {
+        for (const folder of vscode.workspace.workspaceFolders ?? []) {
+            const passwordKey = this.#getPasswordKey(folder);
+            await this.secrets.delete(passwordKey);
+        }
     }
 }
