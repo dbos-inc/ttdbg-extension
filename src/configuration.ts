@@ -12,7 +12,7 @@ const PROV_DB_USER = "prov_db_user";
 const DEBUG_PROXY_PORT = "debug_proxy_port";
 
 async function dbos_cloud_app_get(folder: vscode.WorkspaceFolder) {
-    const { stdout } = await execFile("npx", ["dbos-cloud", "applications", "get", "--json"], {
+    const { stdout } = await execFile("npx", ["dbos-cloud", "application", "status", "--json"], {
         cwd: folder.uri.fsPath,
     });
     return JSON.parse(stdout) as {
@@ -26,7 +26,7 @@ async function dbos_cloud_app_get(folder: vscode.WorkspaceFolder) {
 }
 
 async function dbos_cloud_userdb_status(folder: vscode.WorkspaceFolder, databaseName: string) {
-    const { stdout } = await execFile("npx", ["dbos-cloud", "userdb", "status", databaseName, "--json"], {
+    const { stdout } = await execFile("npx", ["dbos-cloud", "database", "status", databaseName, "--json"], {
         cwd: folder.uri.fsPath,
     });
     return JSON.parse(stdout) as {
@@ -68,6 +68,7 @@ async function getDbConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Promise
     } catch (e) {
         if (isExecFileError(e)) {
             if (e.stdout.trim().endsWith("Error: not logged in")) {
+                // TODO: initiate login
                 vscode.window.showErrorMessage("Not logged in to DBOS Cloud");
             }
         }
