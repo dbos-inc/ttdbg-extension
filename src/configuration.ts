@@ -94,20 +94,6 @@ async function getDbConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): Prom
     };
 }
 
-async function getUserName(folder: vscode.WorkspaceFolder) {
-    const credPath = vscode.Uri.joinPath(folder.uri, ".dbos/credentials");
-    if (!await exists(credPath)) { return undefined; }
-
-    try {
-        const creds = await fs.readFile(credPath.fsPath, "utf-8").catch(() => "");
-        const { userName } = JSON.parse(creds) as { userName: string };
-        return userName;
-    } catch (e) {
-        logger.error("getUserName", e);
-        return undefined;
-    }
-}
-
 export class Configuration {
     constructor(private readonly secrets: vscode.SecretStorage) { }
 
