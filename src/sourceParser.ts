@@ -24,12 +24,12 @@ export function getDbosMethodType(decorators: readonly ImportInfo[]): DbosMethod
 }
 
 export function getDbosWorkflowName(name: string, $type: DbosMethodType): string {
-	switch ($type) {
-		case "Workflow": return name;
-		case "Transaction": return `temp_workflow-transaction-${name}`;
-		case "Communicator": return `temp_workflow-external-${name}`;
-		default: throw new Error(`Unsupported DbosMethodType: ${$type}`);
-	}
+    switch ($type) {
+        case "Workflow": return name;
+        case "Transaction": return `temp_workflow-transaction-${name}`;
+        case "Communicator": return `temp_workflow-external-${name}`;
+        default: throw new Error(`Unsupported DbosMethodType: ${$type}`);
+    }
 }
 
 export function parse(file: ts.SourceFile): readonly MethodInfo[] {

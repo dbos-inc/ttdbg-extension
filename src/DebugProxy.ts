@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
-import { ChildProcessWithoutNullStreams as ChildProcess, spawn, execFile } from "child_process";
+import { ChildProcessWithoutNullStreams as ChildProcess, spawn } from "child_process";
 import jszip from 'jszip';
 import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 import { CloudStorage } from './CloudStorage';
 import { config, logger } from './extension';
-import { exists } from './utils';
+import { execFile, exists, hashClientConfig } from './utils';
+import { ClientConfig } from 'pg';
 
 const IS_WINDOWS = process.platform === "win32";
 const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
@@ -24,7 +25,7 @@ function throwOnCancelled(token?: vscode.CancellationToken) {
 
 export class DebugProxy {
     private _outChannel: vscode.LogOutputChannel;
-    private _proxyProcess: ChildProcess | undefined;
+    private _proxyProcesses: Map<number, ChildProcess> = new Map();
 
     constructor(private readonly cloudStorage: CloudStorage, private readonly storageUri: vscode.Uri) {
         this._outChannel = vscode.window.createOutputChannel("DBOS Debug Proxy", { log: true });
@@ -35,10 +36,9 @@ export class DebugProxy {
     }
 
     shutdown() {
-        if (this._proxyProcess) {
-            const process = this._proxyProcess;
-            this._proxyProcess = undefined;
-            logger.info(`Debug Proxy shutting down`, { pid: process.pid });
+        for (const [key, process] of this._proxyProcesses.entries()) {
+            this._proxyProcesses.delete(key);
+            logger.info(`Debug Proxy shutting down`, { folder: key, pid: process.pid });
             process.stdout.removeAllListeners();
             process.stderr.removeAllListeners();
             process.removeAllListeners();
@@ -46,8 +46,11 @@ export class DebugProxy {
         }
     }
 
-    async launch() {
-        if (this._proxyProcess) { return; }
+    async launch(clientConfig: ClientConfig) {
+        const configHash = hashClientConfig(clientConfig);
+
+        if (!configHash) { throw new Error("Invalid configuration"); }
+        if (this._proxyProcesses.has(configHash)) { return; }
 
         const exeUri = exeFileName(this.storageUri);
         const exeExists = await exists(exeUri);
@@ -56,9 +59,12 @@ export class DebugProxy {
         }
 
         const proxy_port = config.proxyPort;
-        let { host, port, database, user, password } = config.provDbConfig;
+        let { host, port, database, user, password } = clientConfig;
         if (typeof password === "function") {
             password = await password();
+            if (!password) {
+                throw new Error("Provenance database password is required");
+            }
         }
         if (!host || !database || !user || !password) {
             throw new Error("Invalid configuration");
@@ -77,7 +83,7 @@ export class DebugProxy {
             args.push("-listen", `${proxy_port}`);
         }
 
-        this._proxyProcess = spawn(
+        const proxyProcess = spawn(
             exeUri.fsPath,
             args,
             {
@@ -86,35 +92,38 @@ export class DebugProxy {
                 }
             }
         );
-        logger.info(`Debug Proxy launched`, { port: proxy_port, pid: this._proxyProcess.pid });
+        logger.info(`Debug Proxy launched`, { port: proxy_port, pid: proxyProcess.pid, database });
+        this._proxyProcesses.set(configHash, proxyProcess);
 
-        this._proxyProcess.stdout.on("data", (data: Buffer) => {
+        proxyProcess.stdout.on("data", (data: Buffer) => {
             const { time, level, msg, ...properties } = JSON.parse(data.toString()) as { time: string, level: string, msg: string, [key: string]: unknown };
+            const $properties = { ...properties, database };
             switch (level.toLowerCase()) {
                 case "debug":
-                    this._outChannel.debug(msg, properties);
+                    this._outChannel.debug(msg, $properties);
                     break;
                 case "info":
-                    this._outChannel.info(msg, properties);
+                    this._outChannel.info(msg, $properties);
                     break;
                 case "warn":
-                    this._outChannel.warn(msg, properties);
+                    this._outChannel.warn(msg, $properties);
                     break;
                 case "error":
-                    this._outChannel.error(msg, properties);
+                    this._outChannel.error(msg, $properties);
                     break;
                 default:
-                    this._outChannel.appendLine(`${time} [${level}] ${msg} ${JSON.stringify(properties)}`);
+                    this._outChannel.appendLine(`${time} [${level}] ${msg} ${JSON.stringify($properties)}`);
                     break;
             }
         });
 
-        this._proxyProcess.on("error", e => {
-            this._outChannel.error(e);
+        proxyProcess.on("error", e => {
+            this._outChannel.error(e, { database });
         });
 
-        this._proxyProcess.on("exit", (code, _signal) => {
-            this._outChannel.info(`Debug Proxy exited with exit code ${code}`);
+        proxyProcess.on("exit", (code, _signal) => {
+            this._proxyProcesses.delete(configHash);
+            this._outChannel.info(`Debug Proxy exited with exit code ${code}`, { database });
         });
     }
 
@@ -163,19 +172,8 @@ export class DebugProxy {
         }
 
         try {
-            return await new Promise<string | undefined>((resolve, reject) => {
-                execFile(exeUri.fsPath, ["-version"], (error, stdout, stderr) => {
-                    if (error) {
-                        reject(error);
-                    } else {
-                        if (stderr) {
-                            reject(stderr);
-                        } else {
-                            resolve(stdout.trim());
-                        }
-                    }
-                });
-            });
+            const { stdout } = await execFile(exeUri.fsPath, ["-version"]);
+            return stdout.trim();
         } catch (e) {
             logger.error("Failed to get local debug proxy version", e);
             return undefined;

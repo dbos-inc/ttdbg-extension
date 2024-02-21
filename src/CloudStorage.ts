@@ -39,7 +39,7 @@ export class S3CloudStorage implements CloudStorage {
       signer: { sign: (request) => Promise.resolve(request) }
     });
   }
-  
+
   dispose() {
     this.s3.destroy();
   }
@@ -84,7 +84,7 @@ export class S3CloudStorage implements CloudStorage {
       if (!IsTruncated) { break; }
       if (!NextContinuationToken) { break; } // (should not happen, but just in case...)
       cmd.input.ContinuationToken = NextContinuationToken;
-    } 
+    }
   }
 }
 

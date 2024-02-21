@@ -1,6 +1,8 @@
-import { Client } from 'pg';
+import * as vscode from 'vscode';
+import { Client, ClientConfig } from 'pg';
 import { config, logger } from './extension';
 import { DbosMethodType, getDbosWorkflowName } from './sourceParser';
+import { hashClientConfig } from './utils';
 
 export interface workflow_status {
     workflow_uuid: string;
@@ -16,24 +18,29 @@ export interface workflow_status {
 }
 
 export class ProvenanceDatabase {
-    private _db: Client | undefined;
+    private _databases: Map<number, Client> = new Map();
 
     dispose() {
-        this._db?.end(e => logger.error(e));
+        for (const db of this._databases.values()) {
+            db.end(e => logger.error(e));
+        }
     }
 
-    async connect(): Promise<Client> {
-        if (this._db) { return this._db; }
+    private async connect(clientConfig: ClientConfig): Promise<Client> {
+        const configHash = hashClientConfig(clientConfig);
+        if (!configHash) { throw new Error("Invalid configuration"); }
+        const existingDB = this._databases.get(configHash);
+        if (existingDB) { return existingDB; }
 
-        const db = new Client(config.provDbConfig);
+        const db = new Client(clientConfig);
         await db.connect();
-        this._db = db;
+        this._databases.set(configHash, db);
         return db;
     }
 
-    async getWorkflowStatuses(name: string, $type: DbosMethodType): Promise<workflow_status[]> {
+    async getWorkflowStatuses(clientConfig: ClientConfig, name: string, $type: DbosMethodType): Promise<workflow_status[]> {
         const wfName = getDbosWorkflowName(name, $type);
-        const db = await this.connect();
+        const db = await this.connect(clientConfig);
         const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1 LIMIT 10', [wfName]);
         return results.rows;
     }

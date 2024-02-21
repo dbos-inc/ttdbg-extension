@@ -24,19 +24,13 @@
   "contributes": {
     "commands": [
       {
-        "command": "dbos-ttdbg.launch-debug-proxy",
-        "title": "Launch Debug Proxy",
-        "category": "DBOS"
-      },
-      {
         "command": "dbos-ttdbg.shutdown-debug-proxy",
         "title": "Shutdown Debug Proxy",
         "category": "DBOS"
       },
-
       {
-        "command": "dbos-ttdbg.delete-prov-db-password",
-        "title": "Delete Stored Provenance DB Password",
+        "command": "dbos-ttdbg.delete-prov-db-passwords",
+        "title": "Delete Stored Provenance DB Passwords",
         "category": "DBOS"
       }
     ],
@@ -51,8 +45,7 @@
           "type": "string"
         },
         "dbos-ttdbg.prov_db_port": {
-          "type": "number",
-          "default": 5432
+          "type": "number"
         },
         "dbos-ttdbg.prov_db_database": {
           "type": "string"
@@ -75,6 +68,7 @@
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.504.0",
+    "@types/fnv-plus": "^1.3.2",
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
     "@types/pg": "^8.11.0",
@@ -88,6 +82,7 @@
     "@vscode/vsce": "^2.23.0",
     "esbuild": "^0.20.0",
     "eslint": "^8.56.0",
+    "fnv-plus": "^1.3.1",
     "jszip": "^3.10.1",
     "pg": "^8.11.3",
     "rimraf": "^5.0.5",
