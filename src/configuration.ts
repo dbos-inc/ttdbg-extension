@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ClientConfig } from 'pg';
-import { execFile } from './utils';
+import * as fs from 'node:fs/promises';
+import { execFile, exists } from './utils';
 import { logger } from './extension';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
@@ -11,10 +12,9 @@ const PROV_DB_USER = "prov_db_user";
 const DEBUG_PROXY_PORT = "debug_proxy_port";
 
 async function dbos_cloud_app_get(folder: vscode.WorkspaceFolder) {
-    const { stdout, stderr } = await execFile("npx", ["dbos-cloud", "applications", "get", "--json"], {
+    const { stdout } = await execFile("npx", ["dbos-cloud", "applications", "get", "--json"], {
         cwd: folder.uri.fsPath,
     });
-    if (stderr) { throw new Error(stderr); }
     return JSON.parse(stdout) as {
         Name: string;
         ID: string;
@@ -26,10 +26,9 @@ async function dbos_cloud_app_get(folder: vscode.WorkspaceFolder) {
 }
 
 async function dbos_cloud_userdb_status(folder: vscode.WorkspaceFolder, databaseName: string) {
-    const { stdout, stderr } = await execFile("npx", ["dbos-cloud", "userdb", "status", databaseName, "--json"], {
+    const { stdout } = await execFile("npx", ["dbos-cloud", "userdb", "status", databaseName, "--json"], {
         cwd: folder.uri.fsPath,
     });
-    if (stderr) { throw new Error(stderr); }
     return JSON.parse(stdout) as {
         PostgresInstanceName: string;
         HostName: string;
@@ -37,6 +36,23 @@ async function dbos_cloud_userdb_status(folder: vscode.WorkspaceFolder, database
         Port: number;
         AdminUsername: string;
     };
+}
+
+interface ExecFileError {
+    cmd: string;
+    code: number;
+    killed: boolean;
+    stdout: string;
+    stderr: string;
+    message: string;
+    stack: string;
+}
+
+function isExecFileError(e: unknown): e is ExecFileError {
+    if (e instanceof Error) {
+        return "stdout" in e && "stderr" in e && "cmd" in e;
+    }
+    return false;
 }
 
 async function getDbConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Promise<ClientConfig> {
@@ -50,6 +66,12 @@ async function getDbConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Promise
             user: db.AdminUsername
         };
     } catch (e) {
+        if (isExecFileError(e)) {
+            if (e.stdout.trim().endsWith("Error: not logged in")) {
+                vscode.window.showErrorMessage("Not logged in to DBOS Cloud");
+            }
+        }
+
         logger.error("getDbosCloudInfo", e);
         return {};
     }
@@ -69,6 +91,20 @@ async function getDbConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): Prom
         database: database?.length ?? 0 > 0 ? database : undefined,
         user: user?.length ?? 0 > 0 ? user : undefined,
     };
+}
+
+async function getUserName(folder: vscode.WorkspaceFolder) {
+    const credPath = vscode.Uri.joinPath(folder.uri, ".dbos/credentials");
+    if (!await exists(credPath)) { return undefined; }
+
+    try {
+        const creds = await fs.readFile(credPath.fsPath, "utf-8").catch(() => "");
+        const { userName } = JSON.parse(creds) as { userName: string };
+        return userName;
+    } catch (e) {
+        logger.error("getUserName", e);
+        return undefined;
+    }
 }
 
 export class Configuration {

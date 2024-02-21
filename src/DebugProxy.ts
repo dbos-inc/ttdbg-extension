@@ -166,8 +166,7 @@ export class DebugProxy {
         }
 
         try {
-            const { stdout, stderr } = await execFile(exeUri.fsPath, ["-version"]);
-            if (stderr) { throw new Error(stderr); }
+            const { stdout } = await execFile(exeUri.fsPath, ["-version"]);
             return stdout.trim();
         } catch (e) {
             logger.error("Failed to get local debug proxy version", e);

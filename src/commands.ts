@@ -9,7 +9,7 @@ export const deleteProvenanceDatabasePasswordCommandName = "dbos-ttdbg.delete-pr
 
 export async function startDebugging(folder: vscode.WorkspaceFolder, name: string, $type: DbosMethodType) {
     try {
-        const launchPromise = debugProxy.launch(folder);
+        await debugProxy.launch(folder);
         const statuses = await provDB.getWorkflowStatuses(folder, name, $type);
 
         // TODO: eventually, we'll need a better UI than "list all workflow IDs and let the user pick one"
@@ -20,8 +20,6 @@ export async function startDebugging(folder: vscode.WorkspaceFolder, name: strin
 
         if (!wfID) { return; }
 
-        await launchPromise;
-        
         logger.info(`Starting debugging for ${name} workflow ${wfID}`);
 
         const proxyURL = `http://localhost:${config.proxyPort ?? 2345}`;
