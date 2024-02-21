@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
-import { Client } from 'pg';
+import { Client, ClientConfig } from 'pg';
 import { config, logger } from './extension';
 import { DbosMethodType, getDbosWorkflowName } from './sourceParser';
+import { hashClientConfig } from './utils';
 
 export interface workflow_status {
     workflow_uuid: string;
@@ -17,7 +18,7 @@ export interface workflow_status {
 }
 
 export class ProvenanceDatabase {
-    private _databases: Map<string, Client> = new Map();
+    private _databases: Map<number, Client> = new Map();
 
     dispose() {
         for (const db of this._databases.values()) {
@@ -25,20 +26,21 @@ export class ProvenanceDatabase {
         }
     }
 
-    private async connect(folder: vscode.WorkspaceFolder): Promise<Client> {
-        const existingDB = this._databases.get(folder.uri.fsPath);
+    private async connect(clientConfig: ClientConfig): Promise<Client> {
+        const configHash = hashClientConfig(clientConfig);
+        if (!configHash) { throw new Error("Invalid configuration"); }
+        const existingDB = this._databases.get(configHash);
         if (existingDB) { return existingDB; }
 
-        const provDbConfig = await config.getProvDbConfig(folder);
-        const db = new Client(provDbConfig);
+        const db = new Client(clientConfig);
         await db.connect();
-        this._databases.set(folder.uri.fsPath, db);
+        this._databases.set(configHash, db);
         return db;
     }
 
-    async getWorkflowStatuses(folder: vscode.WorkspaceFolder, name: string, $type: DbosMethodType): Promise<workflow_status[]> {
+    async getWorkflowStatuses(clientConfig: ClientConfig, name: string, $type: DbosMethodType): Promise<workflow_status[]> {
         const wfName = getDbosWorkflowName(name, $type);
-        const db = await this.connect(folder);
+        const db = await this.connect(clientConfig);
         const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1 LIMIT 10', [wfName]);
         return results.rows;
     }

@@ -5,7 +5,8 @@ import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 import { CloudStorage } from './CloudStorage';
 import { config, logger } from './extension';
-import { execFile, exists } from './utils';
+import { execFile, exists, hashClientConfig } from './utils';
+import { ClientConfig } from 'pg';
 
 const IS_WINDOWS = process.platform === "win32";
 const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
@@ -24,7 +25,7 @@ function throwOnCancelled(token?: vscode.CancellationToken) {
 
 export class DebugProxy {
     private _outChannel: vscode.LogOutputChannel;
-    private _proxyProcesses: Map<string, ChildProcess> = new Map();
+    private _proxyProcesses: Map<number, ChildProcess> = new Map();
 
     constructor(private readonly cloudStorage: CloudStorage, private readonly storageUri: vscode.Uri) {
         this._outChannel = vscode.window.createOutputChannel("DBOS Debug Proxy", { log: true });
@@ -45,8 +46,11 @@ export class DebugProxy {
         }
     }
 
-    async launch(folder: vscode.WorkspaceFolder) {
-        if (this._proxyProcesses.has(folder.uri.fsPath)) { return; }
+    async launch(clientConfig: ClientConfig) {
+        const configHash = hashClientConfig(clientConfig);
+
+        if (!configHash) { throw new Error("Invalid configuration"); }
+        if (this._proxyProcesses.has(configHash)) { return; }
 
         const exeUri = exeFileName(this.storageUri);
         const exeExists = await exists(exeUri);
@@ -55,7 +59,7 @@ export class DebugProxy {
         }
 
         const proxy_port = config.proxyPort;
-        let { host, port, database, user, password } = await config.getProvDbConfig(folder);
+        let { host, port, database, user, password } = clientConfig;
         if (typeof password === "function") {
             password = await password();
             if (!password) {
@@ -88,11 +92,12 @@ export class DebugProxy {
                 }
             }
         );
-        logger.info(`Debug Proxy launched`, { port: proxy_port, pid: proxyProcess.pid, folder: folder.name });
+        logger.info(`Debug Proxy launched`, { port: proxy_port, pid: proxyProcess.pid, database });
+        this._proxyProcesses.set(configHash, proxyProcess);
 
         proxyProcess.stdout.on("data", (data: Buffer) => {
             const { time, level, msg, ...properties } = JSON.parse(data.toString()) as { time: string, level: string, msg: string, [key: string]: unknown };
-            const $properties = { ...properties, folder: folder.name };
+            const $properties = { ...properties, database };
             switch (level.toLowerCase()) {
                 case "debug":
                     this._outChannel.debug(msg, $properties);
@@ -113,11 +118,12 @@ export class DebugProxy {
         });
 
         proxyProcess.on("error", e => {
-            this._outChannel.error(e, { folder: folder.name });
+            this._outChannel.error(e, { database });
         });
 
         proxyProcess.on("exit", (code, _signal) => {
-            this._outChannel.info(`Debug Proxy exited with exit code ${code}`, { folder: folder.name });
+            this._proxyProcesses.delete(configHash);
+            this._outChannel.info(`Debug Proxy exited with exit code ${code}`, { database });
         });
     }
 
