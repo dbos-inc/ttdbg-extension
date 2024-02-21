@@ -40,26 +40,6 @@ export async function startDebugging(folder: vscode.WorkspaceFolder, name: strin
     }
 }
 
-// export async function launchDebugProxy() {
-//     try {
-//         const folder = await getWorkspaceFolder();
-//         if (folder) {
-//             await debugProxy.launch(folder);
-//             vscode.window.showInformationMessage(`Debug proxy launched for ${folder.name}`);
-//         }
-//     } catch (e) {
-//         logger.error("launchDebugProxy", e);
-//         vscode.window.showErrorMessage("Failed to launch debug proxy");
-//     }
-
-//     async function getWorkspaceFolder() {
-//         const folders = vscode.workspace.workspaceFolders ?? [];
-//         if (folders.length === 0) { throw new Error("No workspace folders found"); }
-//         if (folders.length === 1) { return folders[0]; }
-//         return await vscode.window.showWorkspaceFolderPick();
-//     }
-// }
-
 export async function shutdownDebugProxy() {
     try {
         await debugProxy.shutdown();
