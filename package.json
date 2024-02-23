@@ -24,13 +24,18 @@
   "contributes": {
     "commands": [
       {
-        "command": "dbos-ttdbg.shutdown-debug-proxy",
-        "title": "Shutdown Debug Proxy",
+        "command": "dbos-ttdbg.cloud-login",
+        "title": "Log into DBOS Cloud",
         "category": "DBOS"
       },
       {
         "command": "dbos-ttdbg.delete-prov-db-passwords",
         "title": "Delete Stored Provenance DB Passwords",
+        "category": "DBOS"
+      },
+      {
+        "command": "dbos-ttdbg.shutdown-debug-proxy",
+        "title": "Shutdown Debug Proxy",
         "category": "DBOS"
       }
     ],

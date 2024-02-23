@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
+import { spawn, ChildProcessWithoutNullStreams as ChildProcess } from "child_process";
 import { ClientConfig } from 'pg';
-import * as fs from 'node:fs/promises';
-import { execFile, exists } from './utils';
+import { execFile } from './utils';
 import { logger } from './extension';
+import { kill } from 'process';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
 const PROV_DB_HOST = "prov_db_host";
@@ -11,31 +12,127 @@ const PROV_DB_DATABASE = "prov_db_database";
 const PROV_DB_USER = "prov_db_user";
 const DEBUG_PROXY_PORT = "debug_proxy_port";
 
-async function dbos_cloud_app_get(folder: vscode.WorkspaceFolder) {
-    const { stdout } = await execFile("npx", ["dbos-cloud", "application", "status", "--json"], {
-        cwd: folder.uri.fsPath,
-    });
-    return JSON.parse(stdout) as {
-        Name: string;
-        ID: string;
-        PostgresInstanceName: string;
-        ApplicationDatabaseName: string;
-        Status: string;
-        Version: string;
-    };
+export interface DbosCloudApp {
+    Name: string;
+    ID: string;
+    PostgresInstanceName: string;
+    ApplicationDatabaseName: string;
+    Status: string;
+    Version: string;
 }
 
-async function dbos_cloud_userdb_status(folder: vscode.WorkspaceFolder, databaseName: string) {
-    const { stdout } = await execFile("npx", ["dbos-cloud", "database", "status", databaseName, "--json"], {
+export interface DbosCloudDatabase {
+    PostgresInstanceName: string;
+    HostName: string;
+    Status: string;
+    Port: number;
+    AdminUsername: string;
+}
+
+async function dbos_cloud_cli<T>(folder: vscode.WorkspaceFolder, ...args: string[]): Promise<T> {
+    const { stdout } = await execFile("npx", ["dbos-cloud", ...args, "--json"], {
         cwd: folder.uri.fsPath,
     });
-    return JSON.parse(stdout) as {
-        PostgresInstanceName: string;
-        HostName: string;
-        Status: string;
-        Port: number;
-        AdminUsername: string;
-    };
+    return JSON.parse(stdout) as T;
+}
+
+async function dbos_cloud_app_status(folder: vscode.WorkspaceFolder) {
+    return dbos_cloud_cli<DbosCloudApp>(folder, "application", "status");
+}
+
+async function dbos_cloud_db_status(folder: vscode.WorkspaceFolder, databaseName: string) {
+    return dbos_cloud_cli<DbosCloudDatabase>(folder, "database", "status", databaseName);
+}
+
+export async function getUserName(folder: vscode.WorkspaceFolder): Promise<string | undefined> {
+    try {
+        const credsPath = vscode.Uri.joinPath(folder.uri, ".dbos", "credentials");
+        const credsBuffer = await vscode.workspace.fs.readFile(credsPath);
+        const creds = new TextDecoder().decode(credsBuffer);
+        const { userName } = JSON.parse(creds) as { userName: string };
+        return userName;
+    } catch {
+        return undefined;
+    }
+}
+
+function sleep(ms: number) {
+    return new Promise<void>(resolve => setTimeout(resolve, ms));
+}
+
+// Login URL: https://login.dbos.dev/activate?user_code=GSDG-DGQD
+export async function dbos_cloud_login(folder: vscode.WorkspaceFolder, userName: string) {
+    logger.info("dbos_cloud_login", { folder: folder.uri.fsPath, userName });
+
+    const proc = spawn(
+        "npx",
+        ["dbos-cloud", "login", "-u", userName],
+        { cwd: folder.uri.fsPath, });
+
+    try {
+        const killEvent = new vscode.EventEmitter<void>();
+        const killEventPromise = new Promise<void>(resolve => {
+            killEvent.event(() => { resolve(); });
+        });
+
+        proc.on("exit", (code, signal) => {
+            logger.debug("dbos_cloud on exit", { code, signal, killed: proc.killed });
+            killEvent.fire();
+        });
+
+        proc.stdout.on("data", async (data: Buffer) => {
+            const $data = data.toString().trim();
+            logger.debug("dbos_cloud stdout on data", { data: $data });
+
+            const loginUrlMatch = /Login URL: (http.*\/activate\?user_code=([A-Z][A-Z][A-Z][A-Z]-[A-Z][A-Z][A-Z][A-Z]))/.exec($data);
+            if (loginUrlMatch && loginUrlMatch.length === 3) {
+                const [, loginUri, userCode] = loginUrlMatch;
+                logger.info("dbos_cloud Login URL", { loginUri, userCode });
+
+                const result = await vscode.window.showInformationMessage(`Login to DBOS Cloud as ${userName} with user code: ${userCode}?`, "Login via Browser", "Cancel");
+                if (result === "Login via Browser") {
+                    logger.info("dbos_cloud Login via Browser", { loginUri, userCode });
+
+                    const openResult = await vscode.env.openExternal(vscode.Uri.parse(loginUri));
+                    if (openResult) {
+                        await vscode.window.withProgress({
+                            cancellable: true,
+                            location: vscode.ProgressLocation.Notification,
+                            title: `Logging into DBOS Cloud as ${userName} with code ${userCode}...`
+                        }, async (_, token) => {
+                            logger.info("dbos_cloud login cancelled", { loginUri, result: openResult });
+                            token.onCancellationRequested(() => killEvent.fire());
+                            await killEventPromise;
+                        });
+                    } else {
+                        logger.error("dbos_cloud failed to open external browser", { loginUri });
+                        killEvent.fire();
+                        vscode.window.showErrorMessage(`Failed to open external browser for ${loginUri}`);
+                    }
+                } else {
+                    logger.info("dbos_cloud login cancelled", { loginUri, result });
+                    killEvent.fire();
+                }
+            }
+
+            const successfulLoginMatch = /Successfully logged in as user: (.*)/.exec($data);
+            if (successfulLoginMatch && successfulLoginMatch.length === 2) {
+                const [, user] = successfulLoginMatch;
+                logger.info("dbos_cloud Login Successfully", { user });
+                vscode.window.showInformationMessage(`Successfully logged in to DBOS Cloud as ${user}`);
+                killEvent.fire();
+            }
+        });
+
+        await killEventPromise;
+
+    } finally {
+        proc.stdout.removeAllListeners();
+        proc.stderr.removeAllListeners();
+        proc.removeAllListeners();
+        proc.kill();
+        logger.info("dbos_cloud_login exit", { killed: proc.killed });
+    }
 }
 
 interface ExecFileError {
@@ -57,8 +154,8 @@ function isExecFileError(e: unknown): e is ExecFileError {
 
 async function getDbConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Promise<ClientConfig> {
     try {
-        const app = await dbos_cloud_app_get(folder);
-        const db = await dbos_cloud_userdb_status(folder, app.PostgresInstanceName);
+        const app = await dbos_cloud_app_status(folder);
+        const db = await dbos_cloud_db_status(folder, app.PostgresInstanceName);
         return {
             host: db.HostName,
             port: db.Port,
