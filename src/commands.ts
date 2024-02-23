@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { logger, config, provDB, debugProxy } from './extension';
 import { DbosMethodType } from "./sourceParser";
 import { stringify } from './utils';
-import { dbos_cloud_login, getUserName } from './configuration';
+import { dbos_cloud_login } from './configuration';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
 export const startDebuggingCommandName = "dbos-ttdbg.startDebugging";
@@ -58,23 +58,11 @@ export async function deleteProvenanceDatabasePasswords() {
     }
 }
 
-async function $cloudLogin(folder: vscode.WorkspaceFolder) {
-    var userName = await getUserName(folder);
-    if (!userName) {
-        userName = await vscode.window.showInputBox({
-            prompt: "Enter your DBOS Cloud username",
-        });
-    }
-
-    if (!userName) { return; }
-    dbos_cloud_login(folder, userName);
-}
-
 export async function cloudLogin() {
     try {
         const folders = vscode.workspace.workspaceFolders ?? [];
         if (folders.length === 1) {
-            await $cloudLogin(folders[0]);
+            await dbos_cloud_login(folders[0]);
         } else {
             throw new Error("This command only works when exactly one workspace folder is open");
         }
