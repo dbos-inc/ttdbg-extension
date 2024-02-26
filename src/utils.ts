@@ -49,3 +49,15 @@ export function hashClientConfig(clientConfig: ClientConfig) {
         : undefined;
 }
 
+export async function getWorkspaceFolder() {
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    if (folders.length === 1) { return folders[0]; }
+
+	if (vscode.window.activeTextEditor) {
+		const folder = vscode.workspace.getWorkspaceFolder(vscode.window.activeTextEditor.document.uri);
+		if (folder) {
+			return folder;
+		}
+	}
+	return await vscode.window.showWorkspaceFolderPick();
+}

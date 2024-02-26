@@ -15,6 +15,8 @@ export interface workflow_status {
     authenticated_roles: string; // Serialized list of roles.
     request: string; // Serialized HTTPRequest
     executor_id: string; // Set to "local" for local deployment, set to microVM ID for cloud deployment.
+    created_at: string;
+    updated_at: string;
 }
 
 export class ProvenanceDatabase {
@@ -42,6 +44,12 @@ export class ProvenanceDatabase {
         const wfName = getDbosWorkflowName(name, $type);
         const db = await this.connect(clientConfig);
         const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1 LIMIT 10', [wfName]);
+        return results.rows;
+    }
+
+    async getWorkflowStatus(clientConfig: ClientConfig, wfid: string): Promise<workflow_status[]> {
+        const db = await this.connect(clientConfig);
+        const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE workflow_uuid = $1 LIMIT 10', [wfid]);
         return results.rows;
     }
 }
