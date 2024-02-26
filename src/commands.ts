@@ -31,7 +31,7 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
                 return await vscode.debug.startDebugging(
                     folder,
                     {
-                        name: `Debug ${workflowID}`,
+                        name: `Time-Travel Debug ${workflowID}`,
                         type: 'node-terminal',
                         request: 'launch',
                         command: `npx dbos-sdk debug -x ${proxyURL} -u ${workflowID}`
@@ -68,8 +68,8 @@ export async function startDebuggingFromUri(wfid: string) {
 
     logger.info(`startDebuggingFromUri`, { folder: folder.uri.fsPath, wfid });
     await startDebugging(folder, async (clientConfig) => {
-        const validStatus = await provDB.getWorkflowStatus(clientConfig, wfid);
-        if (validStatus.length === 0) {
+        const wfStatus = await provDB.getWorkflowStatus(clientConfig, wfid);
+        if (!wfStatus) {
             vscode.window.showErrorMessage(`Workflow ID ${wfid} not found in provenance database`);
             return undefined;
         } else {

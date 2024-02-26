@@ -2,12 +2,6 @@ import * as vscode from 'vscode';
 import { logger } from './extension';
 import { startDebuggingUriCommandName } from './commands';
 
-function sleep(ms: number) {
-	return new Promise((resolve) => {
-		setTimeout(resolve, ms);
-	});
-}
-
 export class TTDbgUriHandler implements vscode.UriHandler {
 	async handleUri(uri: vscode.Uri): Promise<void> {
 		logger.debug(`TTDbgUriHandler.handleUri`, { uri: uri.toString() });
