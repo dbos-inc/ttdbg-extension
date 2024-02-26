@@ -204,21 +204,19 @@ export class Configuration {
                 return { host, port, database, user };
             });
 
-        if (!dbConfig.host || !dbConfig.database || !dbConfig.user) {
+        if (dbConfig.host && dbConfig.database && dbConfig.user) {
+            return {
+                host: dbConfig.host,
+                port: dbConfig.port,
+                database: dbConfig.database,
+                user: dbConfig.user,
+                password: () => this.#getPassword(folder),
+                ssl: { rejectUnauthorized: false }
+            };
+        } else {
             startInvalidCredentialsFlow(folder).catch(e => logger.error("startInvalidCredentialsFlow", e));
             return undefined;
         }
-
-        return {
-            host: dbConfig.host,
-            port: dbConfig.port,
-            database: dbConfig.database,
-            user: dbConfig.user,
-            password: () => this.#getPassword(folder),
-            ssl: {
-                rejectUnauthorized: false,
-            }
-        };
     }
 
     get proxyPort(): number {

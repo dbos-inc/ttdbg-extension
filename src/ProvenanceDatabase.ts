@@ -15,6 +15,8 @@ export interface workflow_status {
     authenticated_roles: string; // Serialized list of roles.
     request: string; // Serialized HTTPRequest
     executor_id: string; // Set to "local" for local deployment, set to microVM ID for cloud deployment.
+    created_at: string;
+    updated_at: string;
 }
 
 export class ProvenanceDatabase {
@@ -43,5 +45,12 @@ export class ProvenanceDatabase {
         const db = await this.connect(clientConfig);
         const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1 LIMIT 10', [wfName]);
         return results.rows;
+    }
+
+    async getWorkflowStatus(clientConfig: ClientConfig, wfid: string): Promise<workflow_status | undefined> {
+        const db = await this.connect(clientConfig);
+        const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE workflow_uuid = $1 LIMIT 10', [wfid]);
+        if (results.rows.length > 1) { throw new Error(`Multiple workflow status records found for workflow ID ${wfid}`); }
+        return results.rows.length === 1 ? results.rows[0] : undefined;
     }
 }

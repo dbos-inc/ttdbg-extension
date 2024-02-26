@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import { S3CloudStorage } from './CloudStorage';
 import { TTDbgCodeLensProvider } from './codeLensProvider';
-import { deleteProvenanceDatabasePasswords, deleteProvDbPasswordsCommandName, startDebuggingCommandName, startDebugging, shutdownDebugProxyCommandName, shutdownDebugProxy, cloudLoginCommandName, cloudLogin } from './commands';
+import { deleteProvenanceDatabasePasswords, deleteProvDbPasswordsCommandName, shutdownDebugProxyCommandName, shutdownDebugProxy, cloudLoginCommandName, cloudLogin, startDebuggingCodeLensCommandName, startDebuggingFromCodeLens, startDebuggingFromUri, startDebuggingUriCommandName } from './commands';
 import { Configuration } from './configuration';
 import { DebugProxy, } from './DebugProxy';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { ProvenanceDatabase } from './ProvenanceDatabase';
+import { TTDbgUriHandler } from './uriHandler';
 
 export let logger: Logger;
 export let config: Configuration;
@@ -30,7 +31,9 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(debugProxy);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand(startDebuggingCommandName, startDebugging));
+    vscode.commands.registerCommand(startDebuggingCodeLensCommandName, startDebuggingFromCodeLens));
+  context.subscriptions.push(
+    vscode.commands.registerCommand(startDebuggingUriCommandName, startDebuggingFromUri));
   context.subscriptions.push(
     vscode.commands.registerCommand(shutdownDebugProxyCommandName, shutdownDebugProxy));
   context.subscriptions.push(
@@ -42,6 +45,9 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.languages.registerCodeLensProvider(
       { scheme: 'file', language: 'typescript' },
       new TTDbgCodeLensProvider()));
+
+  context.subscriptions.push(
+    vscode.window.registerUriHandler(new TTDbgUriHandler()));
 
   await debugProxy.update().catch(e => {
     logger.error("Debug Proxy Update Failed", e);

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import ts from 'typescript';
-import { startDebuggingCommandName } from './commands';
+import { startDebuggingCodeLensCommandName } from './commands';
 import { logger } from './extension';
 import { getDbosMethodType, parse } from './sourceParser';
 
@@ -32,7 +32,7 @@ export class TTDbgCodeLensProvider implements vscode.CodeLensProvider {
                     return new vscode.CodeLens(range, {
                         title: '⏳ Time Travel Debug',
                         tooltip: `Debug ${methodInfo.name} with the DBOS Time Travel Debugger`,
-                        command: startDebuggingCommandName,
+                        command: startDebuggingCodeLensCommandName,
                         arguments: [folder, methodInfo.name, methodType]
                     });
                 })
