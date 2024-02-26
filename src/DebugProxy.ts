@@ -121,6 +121,11 @@ export class DebugProxy {
             this._outChannel.error(e, { database });
         });
 
+        proxyProcess.on('close', (code, signal) => {
+            this._proxyProcesses.delete(configHash);
+            this._outChannel.info(`Debug Proxy closed with exit code ${code}`, { database });
+        });
+
         proxyProcess.on("exit", (code, _signal) => {
             this._proxyProcesses.delete(configHash);
             this._outChannel.info(`Debug Proxy exited with exit code ${code}`, { database });
