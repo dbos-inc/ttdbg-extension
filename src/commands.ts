@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { logger, config, provDB, debugProxy } from './extension';
 import { DbosMethodType } from "./sourceParser";
-import { getWorkspaceFolder, stringify } from './utils';
+import { getWorkspaceFolder, isQuickPickItem, showQuickPick } from './utils';
 import { dbos_cloud_login } from './configuration';
 import { ClientConfig } from 'pg';
 
@@ -15,9 +15,9 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
     try {
         const clientConfig = await config.getProvDbConfig(folder);
         if (!clientConfig) { return; }
-    
-        const debuggerStarted = await vscode.window.withProgress(
-            { 
+
+        await vscode.window.withProgress(
+            {
                 location: vscode.ProgressLocation.Window,
                 title: "Launching DBOS Time Travel Debugger",
             },
@@ -26,9 +26,15 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
                 const workflowID = await getWorkflowID(clientConfig);
                 if (!workflowID) { return; }
 
+                const workflowStatus = await provDB.getWorkflowStatus(clientConfig, workflowID);
+                if (!workflowStatus) {
+                    vscode.window.showErrorMessage(`Workflow ID ${workflowID} not found in provenance database`);
+                    return;
+                }
+
                 const proxyURL = `http://localhost:${config.proxyPort ?? 2345}`;
                 logger.info(`startDebugging`, { folder: folder.uri.fsPath, database: clientConfig.database, workflowID });
-                return await vscode.debug.startDebugging(
+                const debuggerStarted = await vscode.debug.startDebugging(
                     folder,
                     {
                         name: `Time-Travel Debug ${workflowID}`,
@@ -37,12 +43,13 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
                         command: `npx dbos-sdk debug -x ${proxyURL} -u ${workflowID}`
                     }
                 );
+
+                if (!debuggerStarted) {
+                    throw new Error("vscode.debug.startDebugging returned false");
+                }
             }
         );
 
-        if (!debuggerStarted) {
-            throw new Error("vscode.debug.startDebugging returned false");
-        }
 
     } catch (e) {
         logger.error("startDebugging", e);
@@ -53,12 +60,39 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
 export async function startDebuggingFromCodeLens(folder: vscode.WorkspaceFolder, name: string, $type: DbosMethodType) {
     logger.info(`startDebuggingFromCodeLens`, { folder: folder.uri.fsPath, name, type: $type });
     await startDebugging(folder, async (clientConfig) => {
-        // TODO: eventually, we'll need a better UI than "list all workflow IDs and let the user pick one"
         const statuses = await provDB.getWorkflowStatuses(clientConfig, name, $type);
-        return await vscode.window.showQuickPick(statuses.map(s => s.workflow_uuid), {
-            placeHolder: `Select a ${name} workflow ID to debug`,
-            canPickMany: false,
+        const items = statuses.map(s => <vscode.QuickPickItem>{
+            label: new Date(parseInt(s.created_at)).toLocaleString(),
+            description: `${s.authenticated_user.length === 0 ? "<anonymous>" : s.authenticated_user} (${s.status})`,
+            detail: s.workflow_uuid,
         });
+
+        const editButton: vscode.QuickInputButton = {
+            iconPath: new vscode.ThemeIcon("edit"),
+            tooltip: "Specify workflow id directly"
+        };
+
+        // TODO: add dashboard launch support
+        // const dashboardButton: vscode.QuickInputButton = {
+        //     iconPath: new vscode.ThemeIcon("server"),
+        //     tooltip: "Select workflow via DBOS User Dashboard"
+        // };
+
+        const pickResult = await showQuickPick({
+            buttons : [editButton],
+            items,
+            canSelectMany: false,
+            title: "Select a workflow ID to debug"
+        });
+        if (pickResult === undefined) { return undefined; }
+        if (isQuickPickItem(pickResult)) {
+            return pickResult.detail;
+        }
+        if (pickResult === editButton) {
+            return await vscode.window.showInputBox({ prompt: "Enter the workflow ID" });
+        } else {
+            throw new Error(`Unexpected button: ${pickResult.tooltip ?? "<unknown>"}`);
+        }
     });
 }
 
@@ -67,15 +101,7 @@ export async function startDebuggingFromUri(wfid: string) {
     if (!folder) { return; }
 
     logger.info(`startDebuggingFromUri`, { folder: folder.uri.fsPath, wfid });
-    await startDebugging(folder, async (clientConfig) => {
-        const wfStatus = await provDB.getWorkflowStatus(clientConfig, wfid);
-        if (!wfStatus) {
-            vscode.window.showErrorMessage(`Workflow ID ${wfid} not found in provenance database`);
-            return undefined;
-        } else {
-            return wfid;
-        }
-    });
+    await startDebugging(folder, async () => { return wfid; });
 }
 
 export function shutdownDebugProxy() {

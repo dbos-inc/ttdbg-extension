@@ -61,3 +61,53 @@ export async function getWorkspaceFolder() {
 	}
 	return await vscode.window.showWorkspaceFolderPick();
 }
+
+export interface QuickPickOptions {
+    title?: string;
+    items?: vscode.QuickPickItem[];
+    buttons?: vscode.QuickInputButton[];
+    canSelectMany?: boolean;
+    placeHolder?: string;
+}
+
+export type QuickPickResult = vscode.QuickPickItem | vscode.QuickInputButton;
+
+export function isQuickPickItem(item?: QuickPickResult): item is vscode.QuickPickItem {
+    return item !== undefined && "label" in item;
+}
+
+export async function showQuickPick(options: QuickPickOptions) {
+    const disposables: { dispose(): any }[] = [];
+    try {
+        return await new Promise<QuickPickResult | undefined>((resolve, reject) => {
+            const input = vscode.window.createQuickPick();
+            input.title = options.title;
+            input.placeholder = options.placeHolder;
+            input.canSelectMany = options.canSelectMany ?? false;
+            input.items = options.items ?? [];
+            input.buttons = options.buttons ?? [];
+
+            disposables.push(
+                input.onDidTriggerButton(async (button) => {
+                    resolve(button);
+                    input.hide();
+                }),
+                input.onDidChangeSelection(items => {
+                    const item = items[0];
+                    if (item) {
+                        resolve(item);
+                        input.hide();
+                    }
+                }),
+                input.onDidHide(() => {
+                    resolve(undefined);
+                    input.dispose();
+                }),
+            );
+
+            input.show();
+        });
+    } finally {
+        disposables.forEach(d => d.dispose());
+    }
+}
