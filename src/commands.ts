@@ -1,10 +1,9 @@
 import * as vscode from 'vscode';
 import { logger, config, provDB, debugProxy } from './extension';
 import { DbosMethodType } from "./sourceParser";
-import { getWorkspaceFolder, stringify } from './utils';
+import { getWorkspaceFolder, isQuickPickItem, showQuickPick } from './utils';
 import { dbos_cloud_login } from './configuration';
 import { ClientConfig } from 'pg';
-import { wrap } from 'node:module';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
 export const startDebuggingCodeLensCommandName = "dbos-ttdbg.start-debugging-code-lens";
@@ -58,54 +57,6 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
     }
 }
 
-function isQuickPickItem(item: vscode.QuickPickItem | vscode.QuickInputButton | undefined): item is vscode.QuickPickItem {
-    return item !== undefined && "label" in item;
-}
-
-interface QuickPickOptions {
-    title?: string;
-    items?: vscode.QuickPickItem[];
-    buttons?: vscode.QuickInputButton[];
-    canSelectMany?: boolean;
-    placeHolder?: string;
-}
-
-async function showQuickPick(options: QuickPickOptions) {
-    const disposables: { dispose(): any }[] = [];
-    try {
-        return await new Promise<vscode.QuickPickItem | vscode.QuickInputButton | undefined>((resolve, reject) => {
-            const input = vscode.window.createQuickPick();
-            input.title = options.title;
-            input.placeholder = options.placeHolder;
-            input.canSelectMany = options.canSelectMany ?? false;
-            input.items = options.items ?? [];
-            input.buttons = options.buttons ?? [];
-
-            disposables.push(
-                input.onDidTriggerButton(async (button) => {
-                    resolve(button);
-                    input.hide();
-                }),
-                input.onDidChangeSelection(items => {
-                    const item = items[0];
-                    if (item) {
-                        resolve(item);
-                        input.hide();
-                    }
-                }),
-                input.onDidHide(() => {
-                    resolve(undefined);
-                    input.dispose();
-                }),
-            );
-
-            input.show();
-        });
-    } finally {
-        disposables.forEach(d => d.dispose());
-    }
-}
-
 export async function startDebuggingFromCodeLens(folder: vscode.WorkspaceFolder, name: string, $type: DbosMethodType) {
     logger.info(`startDebuggingFromCodeLens`, { folder: folder.uri.fsPath, name, type: $type });
     await startDebugging(folder, async (clientConfig) => {
@@ -118,16 +69,17 @@ export async function startDebuggingFromCodeLens(folder: vscode.WorkspaceFolder,
 
         const editButton: vscode.QuickInputButton = {
             iconPath: new vscode.ThemeIcon("edit"),
-            tooltip: "Specify workflow by operation uuid"
-        };
-        
-        const searchButton: vscode.QuickInputButton = {
-            iconPath: new vscode.ThemeIcon("search"),
-            tooltip: "Select workflow via DBOS User Dashboard"
+            tooltip: "Specify workflow id directly"
         };
 
+        // TODO: add dashboard launch support
+        // const dashboardButton: vscode.QuickInputButton = {
+        //     iconPath: new vscode.ThemeIcon("server"),
+        //     tooltip: "Select workflow via DBOS User Dashboard"
+        // };
+
         const pickResult = await showQuickPick({
-            buttons : [editButton, searchButton],
+            buttons : [editButton],
             items,
             canSelectMany: false,
             title: "Select a workflow ID to debug"
@@ -138,9 +90,6 @@ export async function startDebuggingFromCodeLens(folder: vscode.WorkspaceFolder,
         }
         if (pickResult === editButton) {
             return await vscode.window.showInputBox({ prompt: "Enter the workflow ID" });
-        } else if (pickResult === searchButton) {
-            vscode.window.showInformationMessage("TODO: open user dashboard");
-            return undefined;
         } else {
             throw new Error(`Unexpected button: ${pickResult.tooltip ?? "<unknown>"}`);
         }
