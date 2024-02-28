@@ -43,6 +43,7 @@ export class ProvenanceDatabase {
             database: dbConfig.database,
             user: dbConfig.user,
             password,
+            ssl: { rejectUnauthorized: false }
         });
         await db.connect();
         this._databases.set(configHash, db);
