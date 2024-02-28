@@ -3,7 +3,7 @@ import { logger, config, provDB, debugProxy } from './extension';
 import { DbosMethodType } from "./sourceParser";
 import { getWorkspaceFolder, isQuickPickItem, showQuickPick } from './utils';
 import { dbos_cloud_login } from './cloudCli';
-import { ClientConfig } from 'pg';
+import { ProvenanceDatabaseConfig } from './configuration';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
 export const startDebuggingCodeLensCommandName = "dbos-ttdbg.start-debugging-code-lens";
@@ -11,29 +11,40 @@ export const startDebuggingUriCommandName = "dbos-ttdbg.start-debugging-uri";
 export const shutdownDebugProxyCommandName = "dbos-ttdbg.shutdown-debug-proxy";
 export const deleteProvDbPasswordsCommandName = "dbos-ttdbg.delete-prov-db-passwords";
 
-async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (clientConfig: ClientConfig) => Promise<string | undefined>) {
+async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (clientConfig: ProvenanceDatabaseConfig) => Promise<string | undefined>) {
     try {
-        const clientConfig = await config.getProvDbConfig(folder);
-        if (!clientConfig) { return; }
-
         await vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Window,
                 title: "Launching DBOS Time Travel Debugger",
             },
             async () => {
-                await debugProxy.launch(clientConfig);
-                const workflowID = await getWorkflowID(clientConfig);
-                if (!workflowID) { return; }
+                const dbConfig = await config.getProvDBConfig(folder);
+                if (!dbConfig) { 
+                    logger.warn("startDebugging: config.getProvDBConfig returned undefined");
+                    return; 
+                }
+        
+                const proxyLaunched = await debugProxy.launch(dbConfig);
+                if (!proxyLaunched) { 
+                    logger.warn("startDebugging: debugProxy.launch returned false");
+                    return; 
+                }
+                
+                const workflowID = await getWorkflowID(dbConfig);
+                if (!workflowID) { 
+                    logger.warn("startDebugging: getWorkflowID returned undefined");
+                    return; 
+                }
 
-                const workflowStatus = await provDB.getWorkflowStatus(clientConfig, workflowID);
+                const workflowStatus = await provDB.getWorkflowStatus(dbConfig, workflowID);
                 if (!workflowStatus) {
                     vscode.window.showErrorMessage(`Workflow ID ${workflowID} not found`);
                     return;
                 }
 
                 const proxyURL = `http://localhost:${config.proxyPort ?? 2345}`;
-                logger.info(`startDebugging`, { folder: folder.uri.fsPath, database: clientConfig.database, workflowID });
+                logger.info(`startDebugging`, { folder: folder.uri.fsPath, database: dbConfig.database, workflowID });
                 const debuggerStarted = await vscode.debug.startDebugging(
                     folder,
                     {
@@ -57,8 +68,8 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
 
 export async function startDebuggingFromCodeLens(folder: vscode.WorkspaceFolder, name: string, $type: DbosMethodType) {
     logger.info(`startDebuggingFromCodeLens`, { folder: folder.uri.fsPath, name, type: $type });
-    await startDebugging(folder, async (clientConfig) => {
-        const statuses = await provDB.getWorkflowStatuses(clientConfig, name, $type);
+    await startDebugging(folder, async (dbConfig) => {
+        const statuses = await provDB.getWorkflowStatuses(dbConfig, name, $type);
         const items = statuses.map(s => <vscode.QuickPickItem>{
             label: new Date(parseInt(s.created_at)).toLocaleString(),
             description: `${s.authenticated_user.length === 0 ? "<anonymous>" : s.authenticated_user} (${s.status})`,

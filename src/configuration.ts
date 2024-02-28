@@ -11,14 +11,7 @@ const PROV_DB_DATABASE = "prov_db_database";
 const PROV_DB_USER = "prov_db_user";
 const DEBUG_PROXY_PORT = "debug_proxy_port";
 
-interface DatabaseConfig {
-    host: string | undefined;
-    port: number | undefined;
-    database: string | undefined;
-    user: string | undefined;
-}
-
-async function getDbConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Promise<DatabaseConfig | undefined> {
+async function getProvDBConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Promise<ProvenanceDatabaseConfig | undefined> {
     try {
         const app = await dbos_cloud_app_status(folder);
         const db = await dbos_cloud_db_status(folder, app.PostgresInstanceName);
@@ -38,7 +31,7 @@ async function getDbConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Promise
     }
 }
 
-function getDbConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): DatabaseConfig {
+function getProvDBConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): ProvenanceDatabaseConfig {
     const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
 
     const host = cfg.get<string>(PROV_DB_HOST);
@@ -70,21 +63,29 @@ async function startInvalidCredentialsFlow(folder: vscode.WorkspaceFolder): Prom
     const result = await vscode.window.showWarningMessage(message, ...items);
     switch (result) {
         // case "Register": break;
-        case "Login": 
-            await dbos_cloud_login(folder); 
+        case "Login":
+            await dbos_cloud_login(folder);
             break;
     }
+}
+
+export interface ProvenanceDatabaseConfig {
+    user?: string | undefined;
+    database?: string | undefined;
+    password?: string | undefined | (() => Promise<string | undefined>);
+    port?: number | undefined;
+    host?: string | undefined;
 }
 
 export class Configuration {
     constructor(private readonly secrets: vscode.SecretStorage) { }
 
-    async getProvDbConfig(folder: vscode.WorkspaceFolder): Promise<ClientConfig | undefined> {
+    async getProvDBConfig(folder: vscode.WorkspaceFolder): Promise<ProvenanceDatabaseConfig | undefined> {
         const dbConfig = await vscode.window.withProgress(
             { location: vscode.ProgressLocation.Window },
             async () => {
-                const cloudConfig = await getDbConfigFromDbosCloud(folder);
-                const localConfig = getDbConfigFromVSCodeConfig(folder);
+                const cloudConfig = await getProvDBConfigFromDbosCloud(folder);
+                const localConfig = getProvDBConfigFromVSCodeConfig(folder);
 
                 const host = localConfig?.host ?? cloudConfig?.host;
                 const port = localConfig?.port ?? cloudConfig?.port ?? 5432;
@@ -101,7 +102,6 @@ export class Configuration {
                 database: dbConfig.database,
                 user: dbConfig.user,
                 password: () => this.#getPassword(folder),
-                ssl: { rejectUnauthorized: false }
             };
         } else {
             startInvalidCredentialsFlow(folder).catch(e => logger.error("startInvalidCredentialsFlow", e));
@@ -118,7 +118,7 @@ export class Configuration {
         return `${TTDBG_CONFIG_SECTION}.prov_db_password.${folder.uri.fsPath}`;
     }
 
-    async #getPassword(folder: vscode.WorkspaceFolder): Promise<string> {
+    async #getPassword(folder: vscode.WorkspaceFolder): Promise<string | undefined> {
         const passwordKey = this.#getPasswordKey(folder);
         let password = await this.secrets.get(passwordKey);
         if (!password) {
@@ -126,10 +126,9 @@ export class Configuration {
                 prompt: "Enter application database password",
                 password: true,
             });
-            if (!password) {
-                throw new Error('Application database password is required');
+            if (password) {
+                await this.secrets.store(passwordKey, password);
             }
-            await this.secrets.store(passwordKey, password);
         }
         return password;
     }

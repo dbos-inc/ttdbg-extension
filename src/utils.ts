@@ -3,6 +3,7 @@ import { execFile as cpExecFile } from "child_process";
 import util from 'util';
 import { fast1a32 } from 'fnv-plus';
 import { ClientConfig } from 'pg';
+import { ProvenanceDatabaseConfig } from './configuration';
 
 export const PLATFORM = function () {
     switch (process.platform) {
@@ -42,7 +43,7 @@ export async function exists(uri: vscode.Uri): Promise<boolean> {
 
 export const execFile = util.promisify(cpExecFile);
 
-export function hashClientConfig(clientConfig: ClientConfig) {
+export function hashClientConfig(clientConfig: ClientConfig | ProvenanceDatabaseConfig) {
     const { host, port, database, user } = clientConfig;
     return host && port && database && user
         ? fast1a32(`${host}:${port}:${database}:${user}`)
