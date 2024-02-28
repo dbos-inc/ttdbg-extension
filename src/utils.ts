@@ -70,16 +70,16 @@ export interface QuickPickOptions {
     placeHolder?: string;
 }
 
-export type QuickPickResult = vscode.QuickPickItem | vscode.QuickInputButton;
+export type QuickPickResult = vscode.QuickPickItem | vscode.QuickInputButton | undefined;
 
-export function isQuickPickItem(item?: QuickPickResult): item is vscode.QuickPickItem {
+export function isQuickPickItem(item: QuickPickResult): item is vscode.QuickPickItem {
     return item !== undefined && "label" in item;
 }
 
 export async function showQuickPick(options: QuickPickOptions) {
     const disposables: { dispose(): any }[] = [];
     try {
-        return await new Promise<QuickPickResult | undefined>((resolve, reject) => {
+        return await new Promise<QuickPickResult>((resolve, reject) => {
             const input = vscode.window.createQuickPick();
             input.title = options.title;
             input.placeholder = options.placeHolder;

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { SpawnOptions, spawn as cpSpawn } from "child_process";
+import { spawn as cpSpawn } from "child_process";
 import { ClientConfig } from 'pg';
 import { execFile, exists } from './utils';
 import { logger } from './extension';
