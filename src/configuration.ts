@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { ClientConfig } from 'pg';
 import { exists, isExecFileError } from './utils';
 import { logger } from './extension';
-import { dbos_cloud_app_status, dbos_cloud_db_status, dbos_cloud_login } from './cloud-cli';
+import { dbos_cloud_app_status, dbos_cloud_db_status, dbos_cloud_login } from './cloudCli';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
 const PROV_DB_HOST = "prov_db_host";
