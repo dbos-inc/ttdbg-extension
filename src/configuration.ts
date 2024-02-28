@@ -148,11 +148,12 @@ async function getDbConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Promise
             user: db.AdminUsername
         };
     } catch (e) {
-        if (isExecFileError(e) && e.stdout.includes("Error: not logged in")) {
-            return undefined;
-        } else {
-            throw e;
+        if (isExecFileError(e)) {
+            if (e.stdout.includes("Error: not logged in") || e.stdout.includes("Error: Login expired")) {
+                return undefined;
+            }
         }
+        throw e;
     }
 }
 
