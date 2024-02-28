@@ -233,11 +233,11 @@ export class Configuration {
         let password = await this.secrets.get(passwordKey);
         if (!password) {
             password = await vscode.window.showInputBox({
-                prompt: "Enter provenance database password",
+                prompt: "Enter application database password",
                 password: true,
             });
             if (!password) {
-                throw new Error('Provenance database password is required');
+                throw new Error('Application database password is required');
             }
             await this.secrets.store(passwordKey, password);
         }
@@ -251,3 +251,4 @@ export class Configuration {
         }
     }
 }
+

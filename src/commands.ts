@@ -28,7 +28,7 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
 
                 const workflowStatus = await provDB.getWorkflowStatus(clientConfig, workflowID);
                 if (!workflowStatus) {
-                    vscode.window.showErrorMessage(`Workflow ID ${workflowID} not found in provenance database`);
+                    vscode.window.showErrorMessage(`Workflow ID ${workflowID} not found`);
                     return;
                 }
 
@@ -49,8 +49,6 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
                 }
             }
         );
-
-
     } catch (e) {
         logger.error("startDebugging", e);
         vscode.window.showErrorMessage(`Failed to start debugging`);

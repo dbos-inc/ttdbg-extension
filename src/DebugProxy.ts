@@ -63,7 +63,7 @@ export class DebugProxy {
         if (typeof password === "function") {
             password = await password();
             if (!password) {
-                throw new Error("Provenance database password is required");
+                throw new Error("Application database password is required");
             }
         }
         if (!host || !database || !user || !password) {

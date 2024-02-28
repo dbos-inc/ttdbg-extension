@@ -30,7 +30,7 @@
       },
       {
         "command": "dbos-ttdbg.delete-prov-db-passwords",
-        "title": "Delete Stored Provenance DB Passwords",
+        "title": "Delete Stored Application Database Passwords",
         "category": "DBOS"
       },
       {
