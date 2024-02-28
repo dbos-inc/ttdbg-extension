@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { logger, config, provDB, debugProxy } from './extension';
 import { DbosMethodType } from "./sourceParser";
 import { getWorkspaceFolder, isQuickPickItem, showQuickPick } from './utils';
-import { dbos_cloud_login } from './configuration';
+import { dbos_cloud_login } from './cloud-cli';
 import { ClientConfig } from 'pg';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";

@@ -111,3 +111,20 @@ export async function showQuickPick(options: QuickPickOptions) {
         disposables.forEach(d => d.dispose());
     }
 }
+
+export interface ExecFileError {
+    cmd: string;
+    code: number;
+    killed: boolean;
+    stdout: string;
+    stderr: string;
+    message: string;
+    stack: string;
+}
+
+export function isExecFileError(e: unknown): e is ExecFileError {
+    if (e instanceof Error) {
+        return "stdout" in e && "stderr" in e && "cmd" in e;
+    }
+    return false;
+}
