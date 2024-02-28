@@ -3,6 +3,7 @@ import { execFile as cpExecFile } from "child_process";
 import util from 'util';
 import { fast1a32 } from 'fnv-plus';
 import { ClientConfig } from 'pg';
+import { ProvenanceDatabaseConfig } from './configuration';
 
 export const PLATFORM = function () {
     switch (process.platform) {
@@ -42,7 +43,7 @@ export async function exists(uri: vscode.Uri): Promise<boolean> {
 
 export const execFile = util.promisify(cpExecFile);
 
-export function hashClientConfig(clientConfig: ClientConfig) {
+export function hashClientConfig(clientConfig: ClientConfig | ProvenanceDatabaseConfig) {
     const { host, port, database, user } = clientConfig;
     return host && port && database && user
         ? fast1a32(`${host}:${port}:${database}:${user}`)
@@ -70,16 +71,16 @@ export interface QuickPickOptions {
     placeHolder?: string;
 }
 
-export type QuickPickResult = vscode.QuickPickItem | vscode.QuickInputButton;
+export type QuickPickResult = vscode.QuickPickItem | vscode.QuickInputButton | undefined;
 
-export function isQuickPickItem(item?: QuickPickResult): item is vscode.QuickPickItem {
+export function isQuickPickItem(item: QuickPickResult): item is vscode.QuickPickItem {
     return item !== undefined && "label" in item;
 }
 
 export async function showQuickPick(options: QuickPickOptions) {
     const disposables: { dispose(): any }[] = [];
     try {
-        return await new Promise<QuickPickResult | undefined>((resolve, reject) => {
+        return await new Promise<QuickPickResult>((resolve, reject) => {
             const input = vscode.window.createQuickPick();
             input.title = options.title;
             input.placeholder = options.placeHolder;
@@ -110,4 +111,21 @@ export async function showQuickPick(options: QuickPickOptions) {
     } finally {
         disposables.forEach(d => d.dispose());
     }
+}
+
+export interface ExecFileError {
+    cmd: string;
+    code: number;
+    killed: boolean;
+    stdout: string;
+    stderr: string;
+    message: string;
+    stack: string;
+}
+
+export function isExecFileError(e: unknown): e is ExecFileError {
+    if (e instanceof Error) {
+        return "stdout" in e && "stderr" in e && "cmd" in e;
+    }
+    return false;
 }

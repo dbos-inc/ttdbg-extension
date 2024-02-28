@@ -3,9 +3,11 @@
   "displayName": "DBOS Time Travel Debugger",
   "publisher": "dbos-inc",
   "version": "0.0.0-placeholder",
+  "icon": "dbos-logo-128.png",
   "engines": {
     "vscode": "^1.86.0"
   },
+  "preview": true,
   "categories": [
     "Other"
   ],
@@ -30,7 +32,7 @@
       },
       {
         "command": "dbos-ttdbg.delete-prov-db-passwords",
-        "title": "Delete Stored Provenance DB Passwords",
+        "title": "Delete Stored Application Database Passwords",
         "category": "DBOS"
       },
       {

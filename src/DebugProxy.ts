@@ -6,7 +6,7 @@ import * as semver from 'semver';
 import { CloudStorage } from './CloudStorage';
 import { config, logger } from './extension';
 import { execFile, exists, hashClientConfig } from './utils';
-import { ClientConfig } from 'pg';
+import { ProvenanceDatabaseConfig } from './configuration';
 
 const IS_WINDOWS = process.platform === "win32";
 const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
@@ -46,11 +46,11 @@ export class DebugProxy {
         }
     }
 
-    async launch(clientConfig: ClientConfig) {
+    async launch(clientConfig: ProvenanceDatabaseConfig): Promise<boolean> {
         const configHash = hashClientConfig(clientConfig);
 
         if (!configHash) { throw new Error("Invalid configuration"); }
-        if (this._proxyProcesses.has(configHash)) { return; }
+        if (this._proxyProcesses.has(configHash)) { return true; }
 
         const exeUri = exeFileName(this.storageUri);
         const exeExists = await exists(exeUri);
@@ -60,12 +60,15 @@ export class DebugProxy {
 
         const proxy_port = config.proxyPort;
         let { host, port, database, user, password } = clientConfig;
-        if (typeof password === "function") {
-            password = await password();
-            if (!password) {
-                throw new Error("Provenance database password is required");
+        if (typeof password === "function") { 
+            const $password = await password();
+            if ($password) { 
+                password = $password; 
+            } else {
+                return false;
             }
         }
+
         if (!host || !database || !user || !password) {
             throw new Error("Invalid configuration");
         }
@@ -130,6 +133,8 @@ export class DebugProxy {
             this._proxyProcesses.delete(configHash);
             this._outChannel.info(`Debug Proxy exited with exit code ${code}`, { database });
         });
+
+        return true;
     }
 
     async getVersion() {
