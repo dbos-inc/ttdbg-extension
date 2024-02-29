@@ -6,7 +6,7 @@ import * as semver from 'semver';
 import { CloudStorage } from './CloudStorage';
 import { config, logger } from './extension';
 import { execFile, exists, hashClientConfig } from './utils';
-import { ProvenanceDatabaseConfig } from './configuration';
+import { CloudConfig } from './configuration';
 
 const IS_WINDOWS = process.platform === "win32";
 const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
@@ -46,7 +46,7 @@ export class DebugProxy {
         }
     }
 
-    async launch(clientConfig: ProvenanceDatabaseConfig): Promise<boolean> {
+    async launch(clientConfig: CloudConfig): Promise<boolean> {
         const configHash = hashClientConfig(clientConfig);
 
         if (!configHash) { throw new Error("Invalid configuration"); }

@@ -3,7 +3,7 @@ import { logger, config, provDB, debugProxy } from './extension';
 import { DbosMethodType } from "./sourceParser";
 import { getWorkspaceFolder, isQuickPickItem, showQuickPick } from './utils';
 import { dbos_cloud_login } from './cloudCli';
-import { ProvenanceDatabaseConfig } from './configuration';
+import { CloudConfig } from './configuration';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
 export const startDebuggingCodeLensCommandName = "dbos-ttdbg.start-debugging-code-lens";
@@ -11,7 +11,7 @@ export const startDebuggingUriCommandName = "dbos-ttdbg.start-debugging-uri";
 export const shutdownDebugProxyCommandName = "dbos-ttdbg.shutdown-debug-proxy";
 export const deleteProvDbPasswordsCommandName = "dbos-ttdbg.delete-prov-db-passwords";
 
-async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (clientConfig: ProvenanceDatabaseConfig) => Promise<string | undefined>) {
+async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (clientConfig: CloudConfig) => Promise<string | undefined>) {
     try {
         await vscode.window.withProgress(
             {
@@ -19,7 +19,7 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
                 title: "Launching DBOS Time Travel Debugger",
             },
             async () => {
-                const dbConfig = await config.getProvDBConfig(folder);
+                const dbConfig = await config.getCloudConfig(folder);
                 if (!dbConfig) { 
                     logger.warn("startDebugging: config.getProvDBConfig returned undefined");
                     return; 

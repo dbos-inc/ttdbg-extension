@@ -2,7 +2,7 @@ import { Client, ClientConfig } from 'pg';
 import { logger } from './extension';
 import { DbosMethodType, getDbosWorkflowName } from './sourceParser';
 import { hashClientConfig } from './utils';
-import { ProvenanceDatabaseConfig } from './configuration';
+import { CloudConfig } from './configuration';
 
 export interface workflow_status {
     workflow_uuid: string;
@@ -28,7 +28,7 @@ export class ProvenanceDatabase {
         }
     }
 
-    private async connect(dbConfig: ProvenanceDatabaseConfig): Promise<Client> {
+    private async connect(dbConfig: CloudConfig): Promise<Client> {
         const configHash = hashClientConfig(dbConfig);
         if (!configHash) { throw new Error("Invalid configuration"); }
         const existingDB = this._databases.get(configHash);
@@ -50,14 +50,14 @@ export class ProvenanceDatabase {
         return db;
     }
 
-    async getWorkflowStatuses(clientConfig: ProvenanceDatabaseConfig, name: string, $type: DbosMethodType): Promise<workflow_status[]> {
+    async getWorkflowStatuses(clientConfig: CloudConfig, name: string, $type: DbosMethodType): Promise<workflow_status[]> {
         const wfName = getDbosWorkflowName(name, $type);
         const db = await this.connect(clientConfig);
         const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1 ORDER BY created_at DESC LIMIT 10', [wfName]);
         return results.rows;
     }
 
-    async getWorkflowStatus(clientConfig: ProvenanceDatabaseConfig, wfid: string): Promise<workflow_status | undefined> {
+    async getWorkflowStatus(clientConfig: CloudConfig, wfid: string): Promise<workflow_status | undefined> {
         const db = await this.connect(clientConfig);
         const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE workflow_uuid = $1', [wfid]);
         if (results.rows.length > 1) { throw new Error(`Multiple workflow status records found for workflow ID ${wfid}`); }

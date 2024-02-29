@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { ClientConfig } from 'pg';
 import { exists, isExecFileError } from './utils';
 import { logger } from './extension';
 import { dbos_cloud_app_status, dbos_cloud_db_status, dbos_cloud_login } from './cloudCli';
@@ -11,7 +10,16 @@ const PROV_DB_DATABASE = "prov_db_database";
 const PROV_DB_USER = "prov_db_user";
 const DEBUG_PROXY_PORT = "debug_proxy_port";
 
-async function getProvDBConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Promise<ProvenanceDatabaseConfig | undefined> {
+export interface CloudConfig {
+    user?: string | undefined;
+    database?: string | undefined;
+    password?: string | undefined | (() => Promise<string | undefined>);
+    port?: number | undefined;
+    host?: string | undefined;
+    appName?: string | undefined;
+}
+
+async function getProvDBConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Promise<CloudConfig | undefined> {
     try {
         const app = await dbos_cloud_app_status(folder);
         const db = await dbos_cloud_db_status(folder, app.PostgresInstanceName);
@@ -19,7 +27,8 @@ async function getProvDBConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Pro
             host: db.HostName,
             port: db.Port,
             database: app.ApplicationDatabaseName + "_dbos_prov",
-            user: db.AdminUsername
+            user: db.AdminUsername,
+            appName: app.Name,
         };
     } catch (e) {
         if (isExecFileError(e)) {
@@ -31,7 +40,7 @@ async function getProvDBConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Pro
     }
 }
 
-function getProvDBConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): ProvenanceDatabaseConfig {
+function getProvDBConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): CloudConfig {
     const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
 
     const host = cfg.get<string>(PROV_DB_HOST);
@@ -69,30 +78,23 @@ async function startInvalidCredentialsFlow(folder: vscode.WorkspaceFolder): Prom
     }
 }
 
-export interface ProvenanceDatabaseConfig {
-    user?: string | undefined;
-    database?: string | undefined;
-    password?: string | undefined | (() => Promise<string | undefined>);
-    port?: number | undefined;
-    host?: string | undefined;
-}
-
 export class Configuration {
     constructor(private readonly secrets: vscode.SecretStorage) { }
 
-    async getProvDBConfig(folder: vscode.WorkspaceFolder): Promise<ProvenanceDatabaseConfig | undefined> {
+    async getCloudConfig(folder: vscode.WorkspaceFolder): Promise<CloudConfig | undefined> {
         const dbConfig = await vscode.window.withProgress(
             { location: vscode.ProgressLocation.Window },
             async () => {
                 const cloudConfig = await getProvDBConfigFromDbosCloud(folder);
                 const localConfig = getProvDBConfigFromVSCodeConfig(folder);
 
-                const host = localConfig?.host ?? cloudConfig?.host;
-                const port = localConfig?.port ?? cloudConfig?.port ?? 5432;
-                const database = localConfig?.database ?? cloudConfig?.database;
-                const user = localConfig?.user ?? cloudConfig?.user;
-
-                return { host, port, database, user };
+                return { 
+                    host: localConfig.host ?? cloudConfig?.host, 
+                    port: localConfig.port ?? cloudConfig?.port ?? 5432, 
+                    database: localConfig.database ?? cloudConfig?.database, 
+                    user: localConfig.user ?? cloudConfig?.user, 
+                    appName: localConfig.appName ?? cloudConfig?.appName
+                };
             });
 
         if (dbConfig.host && dbConfig.database && dbConfig.user) {

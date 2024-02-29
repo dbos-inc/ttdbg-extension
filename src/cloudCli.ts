@@ -10,6 +10,7 @@ export interface DbosCloudApp {
     ApplicationDatabaseName: string;
     Status: string;
     Version: string;
+    AppURL: string;
 }
 
 export interface DbosCloudDatabase {
