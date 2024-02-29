@@ -44,6 +44,7 @@ export async function dbos_cloud_login(folder: vscode.WorkspaceFolder) {
 
     const regexLoginInfo = /Login URL: (http.*\/activate\?user_code=([A-Z][A-Z][A-Z][A-Z]-[A-Z][A-Z][A-Z][A-Z]))/;
     const regexSuccessfulLogin = /Successfully logged in as (.*)!/;
+    const regexFailedToLogin = /Failed to login:(.*)/;
 
     try {
         const ctsPromise = new Promise<void>(resolve => {
@@ -76,6 +77,14 @@ export async function dbos_cloud_login(folder: vscode.WorkspaceFolder) {
                 const [, user] = successfulLoginMatch;
                 logger.info("dbos-dbos_cloud_login successful login", { user });
                 vscode.window.showInformationMessage(`Successfully logged in to DBOS Cloud as ${user}`);
+            }
+
+            const failedLoginMatch = regexFailedToLogin.exec(data);
+            if (failedLoginMatch && failedLoginMatch.length === 2) {
+                const [, $reason] = failedLoginMatch;
+                const reason = $reason.trim();
+                logger.error("dbos-dbos_cloud_login failed to login", { reason });
+                vscode.window.showErrorMessage(`Failed to log in to DBOS Cloud: ${reason}`);
             }
         });
 
