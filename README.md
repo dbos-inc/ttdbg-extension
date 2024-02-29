@@ -5,7 +5,7 @@ DBOS Cloud allows time travel debugging of any DBOS application execution that h
 
 ## Time Travel Debug CodeLens 
 
-The DBOS Time Travel Debugger extension installed automatically attaches a "⏳ Time Travel Debug" 
+The DBOS Time Travel Debugger extension attaches a "⏳ Time Travel Debug" 
 [CodeLens](https://code.visualstudio.com/blogs/2017/02/12/code-lens-roundup)
 to every DBOS [workflow](https://docs.dbos.dev/tutorials/workflow-tutorial),
 [transaction](https://docs.dbos.dev/tutorials/transaction-tutorial)
