@@ -55,8 +55,6 @@ export async function dbos_cloud_dashboard_launch(folder: vscode.WorkspaceFolder
 }
 
 export async function dbos_cloud_dashboard_url(folder: vscode.WorkspaceFolder) {
-    // temporary stub out while waiting for 
-    // return "https://g-43fe52e945.grafana-workspace.us-east-1.amazonaws.com/d/X_Ve73TIz/dbos-logs-and-traces";
     try {
         const { stdout } = await execFile("npx", ["dbos-cloud", "dashboard", "url"], {
             cwd: folder.uri.fsPath,
