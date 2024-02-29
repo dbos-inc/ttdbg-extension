@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
-import { exists, isExecFileError } from './utils';
+import { isExecFileError } from './utils';
 import { logger } from './extension';
-import { dbos_cloud_app_status, dbos_cloud_db_status, dbos_cloud_login } from './cloudCli';
+import { dbos_cloud_app_status, dbos_cloud_db_status } from './cloudCli';
+import { startInvalidCredentialsFlow } from './commands';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
 const PROV_DB_HOST = "prov_db_host";
@@ -11,15 +12,16 @@ const PROV_DB_USER = "prov_db_user";
 const DEBUG_PROXY_PORT = "debug_proxy_port";
 
 export interface CloudConfig {
-    user?: string | undefined;
-    database?: string | undefined;
-    password?: string | undefined | (() => Promise<string | undefined>);
-    port?: number | undefined;
-    host?: string | undefined;
-    appName?: string | undefined;
+    user?: string;
+    database?: string;
+    password?: string | (() => Promise<string | undefined>);
+    port?: number;
+    host?: string;
+    appName?: string;
+    appId?: string;
 }
 
-async function getProvDBConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Promise<CloudConfig | undefined> {
+async function getCloudConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Promise<CloudConfig | undefined> {
     try {
         const app = await dbos_cloud_app_status(folder);
         const db = await dbos_cloud_db_status(folder, app.PostgresInstanceName);
@@ -29,6 +31,7 @@ async function getProvDBConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Pro
             database: app.ApplicationDatabaseName + "_dbos_prov",
             user: db.AdminUsername,
             appName: app.Name,
+            appId: app.ID,
         };
     } catch (e) {
         if (isExecFileError(e)) {
@@ -40,7 +43,7 @@ async function getProvDBConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Pro
     }
 }
 
-function getProvDBConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): CloudConfig {
+function getCloudConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): CloudConfig {
     const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
 
     const host = cfg.get<string>(PROV_DB_HOST);
@@ -56,55 +59,28 @@ function getProvDBConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): CloudC
     };
 }
 
-async function startInvalidCredentialsFlow(folder: vscode.WorkspaceFolder): Promise<void> {
-    const credentialsPath = vscode.Uri.joinPath(folder.uri, ".dbos", "credentials");
-    const credentialsExists = await exists(credentialsPath);
-
-    const message = credentialsExists
-        ? "DBOS Cloud credentials have expired. Please login again."
-        : "You need to login to DBOS Cloud.";
-
-    const items = ["Login", "Cancel"];
-
-    // TODO: Register support
-    // if (!credentialsExists) { items.unshift("Register"); }
-
-    const result = await vscode.window.showWarningMessage(message, ...items);
-    switch (result) {
-        // case "Register": break;
-        case "Login":
-            await dbos_cloud_login(folder);
-            break;
-    }
-}
-
 export class Configuration {
     constructor(private readonly secrets: vscode.SecretStorage) { }
 
     async getCloudConfig(folder: vscode.WorkspaceFolder): Promise<CloudConfig | undefined> {
-        const dbConfig = await vscode.window.withProgress(
+        const cloudConfig = await vscode.window.withProgress(
             { location: vscode.ProgressLocation.Window },
             async () => {
-                const cloudConfig = await getProvDBConfigFromDbosCloud(folder);
-                const localConfig = getProvDBConfigFromVSCodeConfig(folder);
+                const dbosConfig = await getCloudConfigFromDbosCloud(folder);
+                const localConfig = getCloudConfigFromVSCodeConfig(folder);
 
-                return { 
-                    host: localConfig.host ?? cloudConfig?.host, 
-                    port: localConfig.port ?? cloudConfig?.port ?? 5432, 
-                    database: localConfig.database ?? cloudConfig?.database, 
-                    user: localConfig.user ?? cloudConfig?.user, 
-                    appName: localConfig.appName ?? cloudConfig?.appName
+                return <CloudConfig>{ 
+                    host: localConfig.host ?? dbosConfig?.host, 
+                    port: localConfig.port ?? dbosConfig?.port ?? 5432, 
+                    database: localConfig.database ?? dbosConfig?.database, 
+                    user: localConfig.user ?? dbosConfig?.user, 
+                    appName: localConfig.appName ?? dbosConfig?.appName,
+                    appId: localConfig.appId ?? dbosConfig?.appId,                    
                 };
             });
 
-        if (dbConfig.host && dbConfig.database && dbConfig.user) {
-            return {
-                host: dbConfig.host,
-                port: dbConfig.port,
-                database: dbConfig.database,
-                user: dbConfig.user,
-                password: () => this.#getPassword(folder),
-            };
+        if (cloudConfig.host && cloudConfig.database && cloudConfig.user) {
+            return { ...cloudConfig, password: () => this.#getPassword(folder) };
         } else {
             startInvalidCredentialsFlow(folder).catch(e => logger.error("startInvalidCredentialsFlow", e));
             return undefined;
@@ -142,4 +118,5 @@ export class Configuration {
         }
     }
 }
+
 
