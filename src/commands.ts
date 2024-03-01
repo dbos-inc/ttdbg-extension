@@ -72,7 +72,7 @@ export async function startDebuggingFromCodeLens(folder: vscode.WorkspaceFolder,
         const statuses = await provDB.getWorkflowStatuses(cloudConfig, methodName, $type);
         const items = statuses.map(s => <vscode.QuickPickItem>{
             label: new Date(parseInt(s.created_at)).toLocaleString(),
-            description: `${s.authenticated_user.length === 0 ? "<anonymous>" : s.authenticated_user} (${s.status})`,
+            description: `${s.status}${s.authenticated_user.length !== 0 ? ` (${s.authenticated_user})` : ""}`,
             detail: s.workflow_uuid,
         });
 
