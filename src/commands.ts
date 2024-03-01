@@ -24,13 +24,7 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
                     logger.warn("startDebugging: config.getProvDBConfig returned undefined");
                     return; 
                 }
-        
-                const proxyLaunched = await debugProxy.launch(cloudConfig);
-                if (!proxyLaunched) { 
-                    logger.warn("startDebugging: debugProxy.launch returned false");
-                    return; 
-                }
-                
+               
                 const workflowID = await getWorkflowID(cloudConfig);
                 if (!workflowID) { 
                     logger.warn("startDebugging: getWorkflowID returned undefined");
@@ -43,15 +37,23 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
                     return;
                 }
 
+                const proxyLaunched = await debugProxy.launch(cloudConfig);
+                if (!proxyLaunched) { 
+                    logger.warn("startDebugging: debugProxy.launch returned false");
+                    return; 
+                }
+                
                 const proxyURL = `http://localhost:${config.proxyPort ?? 2345}`;
-                logger.info(`startDebugging`, { folder: folder.uri.fsPath, database: cloudConfig.database, workflowID });
+                const preLaunchTask = config.preLaunchTask;
+                logger.info(`startDebugging`, { folder: folder.uri.fsPath, database: cloudConfig.database, preLaunchTask, workflowID });
                 const debuggerStarted = await vscode.debug.startDebugging(
                     folder,
                     {
                         name: `Time-Travel Debug ${workflowID}`,
                         type: 'node-terminal',
                         request: 'launch',
-                        command: `npx dbos-sdk debug -x ${proxyURL} -u ${workflowID}`
+                        command: `npx dbos-sdk debug -x ${proxyURL} -u ${workflowID}`,
+                        preLaunchTask,
                     }
                 );
 
