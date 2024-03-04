@@ -44,19 +44,23 @@ async function getCloudConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Prom
     }
 }
 
+function cfgString(value: string | undefined) {
+    return value?.length ?? 0 > 0 ? value : undefined;
+}
+
 function getCloudConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): CloudConfig {
     const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
 
     const host = cfg.get<string | undefined>(PROV_DB_HOST, undefined);
     const port = cfg.get<number | undefined>(PROV_DB_PORT, undefined);
     const database = cfg.get<string | undefined>(PROV_DB_DATABASE, undefined);
-    const user = cfg.get<string| undefined>(PROV_DB_USER, undefined);
+    const user = cfg.get<string | undefined>(PROV_DB_USER, undefined);
 
     return {
-        host: host?.length ?? 0 > 0 ? host : undefined,
+        host: cfgString(host),
         port: port !== 0 ? port : undefined,
-        database: database?.length ?? 0 > 0 ? database : undefined,
-        user: user?.length ?? 0 > 0 ? user : undefined,
+        database: cfgString(database),
+        user: cfgString(user),
     };
 }
 
@@ -70,13 +74,13 @@ export class Configuration {
                 const dbosConfig = await getCloudConfigFromDbosCloud(folder);
                 const localConfig = getCloudConfigFromVSCodeConfig(folder);
 
-                return <CloudConfig>{ 
-                    host: localConfig.host ?? dbosConfig?.host, 
-                    port: localConfig.port ?? dbosConfig?.port ?? 5432, 
-                    database: localConfig.database ?? dbosConfig?.database, 
-                    user: localConfig.user ?? dbosConfig?.user, 
+                return <CloudConfig>{
+                    host: localConfig.host ?? dbosConfig?.host,
+                    port: localConfig.port ?? dbosConfig?.port ?? 5432,
+                    database: localConfig.database ?? dbosConfig?.database,
+                    user: localConfig.user ?? dbosConfig?.user,
                     appName: localConfig.appName ?? dbosConfig?.appName,
-                    appId: localConfig.appId ?? dbosConfig?.appId,                    
+                    appId: localConfig.appId ?? dbosConfig?.appId,
                 };
             });
 
@@ -88,15 +92,14 @@ export class Configuration {
         }
     }
 
-    get proxyPort(): number {
-        const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION);
+    getProxyPort(folder: vscode.WorkspaceFolder): number {
+        const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
         return cfg.get<number>(DEBUG_PROXY_PORT, 2345);
     }
 
-    get preLaunchTask(): string | undefined {
-        const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION);
-        const value =  cfg.get<string | undefined>(DEBUG_PRE_LAUNCH_TASK, undefined);
-        return value?.length ?? 0 > 0 ? value : undefined;
+    getPreLaunchTask(folder: vscode.WorkspaceFolder) {
+        const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
+        return cfgString(cfg.get<string | undefined>(DEBUG_PRE_LAUNCH_TASK, undefined));
     }
 
     #getPasswordKey(folder: vscode.WorkspaceFolder): string {
@@ -125,5 +128,3 @@ export class Configuration {
         }
     }
 }
-
-
