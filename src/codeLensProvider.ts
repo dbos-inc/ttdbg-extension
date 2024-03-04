@@ -3,6 +3,7 @@ import ts from 'typescript';
 import { startDebuggingCodeLensCommandName } from './commands';
 import { logger } from './extension';
 import { getDbosMethodType, parse } from './sourceParser';
+import { DbosMethodInfo } from './ProvenanceDatabase';
 
 export class TTDbgCodeLensProvider implements vscode.CodeLensProvider {
     provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
@@ -33,7 +34,7 @@ export class TTDbgCodeLensProvider implements vscode.CodeLensProvider {
                         title: '⏳ Time Travel Debug',
                         tooltip: `Debug ${methodInfo.name} with the DBOS Time Travel Debugger`,
                         command: startDebuggingCodeLensCommandName,
-                        arguments: [folder, methodInfo.name, methodType]
+                        arguments: [folder, { name: methodInfo.name, type: methodType }]
                     });
                 })
                 .filter(<T>(x?: T): x is T => !!x);
