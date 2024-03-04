@@ -102,6 +102,25 @@ export class Configuration {
         return cfgString(cfg.get<string | undefined>(DEBUG_PRE_LAUNCH_TASK, undefined));
     }
 
+    getDebugConfig(folder: vscode.WorkspaceFolder, workflowID: string) {
+        const debugConfigs = vscode.workspace.getConfiguration("launch", folder).get('configurations') as ReadonlyArray<vscode.DebugConfiguration> | undefined;
+        for (const config of debugConfigs ?? []) {
+            const command = config["command"] as string | undefined;
+            if (command && command.includes("npx dbos-sdk debug")) {
+                const newCommand = command.replace("${command:dbos-ttdbg.pick-workflow-id}", `${workflowID}`);
+                return { ...config, command: newCommand };
+            }
+        }
+
+        return <vscode.DebugConfiguration>{
+            name: `Time-Travel Debug ${workflowID}`,
+            type: 'node-terminal',
+            request: 'launch',
+            command: `npx dbos-sdk debug -x http://localhost:${this.getProxyPort(folder)} -u ${workflowID}`,
+            preLaunchTask: this.getPreLaunchTask(folder),
+        };
+    }
+
     #getPasswordKey(folder: vscode.WorkspaceFolder): string {
         return `${TTDBG_CONFIG_SECTION}.prov_db_password.${folder.uri.fsPath}`;
     }
