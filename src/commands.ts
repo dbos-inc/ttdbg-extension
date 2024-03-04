@@ -1,10 +1,9 @@
 import * as vscode from 'vscode';
 import { logger, config, provDB, debugProxy } from './extension';
-import { DbosMethodType } from "./sourceParser";
-import { exists, getWorkspaceFolder, isQuickPickItem, showQuickPick } from './utils';
+import { exists, getWorkspaceFolder } from './utils';
 import { dbos_cloud_dashboard_launch, dbos_cloud_dashboard_url, dbos_cloud_login } from './cloudCli';
 import { CloudConfig } from './configuration';
-import { DbosMethodInfo, workflow_status } from './ProvenanceDatabase';
+import { DbosMethodInfo } from './ProvenanceDatabase';
 
 interface LaunchConfig {
     // actual launch configs have more fields, but this extension only uses rootPath
@@ -62,8 +61,8 @@ export async function getProxyUrl(cfg?: LaunchConfig) {
 export const pickWorkflowIdCommandName = "dbos-ttdbg.pick-workflow-id";
 export async function pickWorkflowId(cfg?: LaunchConfig) {
     const folder = await getWorkspaceFolder(cfg?.rootPath);
-    if (!folder) { 
-        return; 
+    if (!folder) {
+        return;
     }
 
     const cloudConfig = await config.getCloudConfig(folder);
@@ -154,9 +153,6 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
     }
 }
 
-
-
-
 async function showWorkflowPick(
     folder: vscode.WorkspaceFolder,
     options?: {
@@ -188,41 +184,45 @@ async function showWorkflowPick(
         tooltip: "Select workflow via DBOS User Dashboard"
     };
 
-    const pickResult = await showQuickPick({
-        buttons: options?.showDashboardButton ?? false ? [editButton, dashboardButton] : [editButton],
-        items,
-        canSelectMany: false,
-        title: "Select a workflow ID to debug"
-    });
-    if (pickResult === undefined) { return undefined; }
-    if (isQuickPickItem(pickResult)) {
-        return pickResult.detail;
-    }
-    if (pickResult === editButton) {
-        return await vscode.window.showInputBox({ prompt: "Enter the workflow ID" });
-    } else if (pickResult === dashboardButton) {
-        startOpenDashboardFlow(folder, cloudConfig.appName, options?.method)
-            .catch(e => logger.error("startOpenDashboard", e));
-        return undefined;
-    } else {
-        throw new Error(`Unexpected button: ${pickResult.tooltip ?? "<unknown>"}`);
+    const buttons = options?.showDashboardButton ?? false ? [editButton, dashboardButton] : [editButton];
+    const disposables: { dispose(): any }[] = [];
+    try {
+        const result = await new Promise<vscode.QuickInputButton | vscode.QuickPickItem | undefined>(resolve => {
+            const input = vscode.window.createQuickPick();
+            input.title = "Select a workflow ID to debug";
+            input.canSelectMany =  false;
+            input.items = items;
+            input.buttons = buttons;
+            disposables.push(
+                input.onDidTriggerButton(item => { resolve(item); input.hide(); }),
+                input.onDidHide(() => { resolve(undefined); input.dispose(); }),
+                input.onDidChangeSelection(() => {
+                    const item = items[0];
+                    if (item) {
+                        resolve(item);
+                        input.hide();
+                    }
+                }),
+            );
+            input.show();
+        });
+        if (result === undefined) { return undefined; }
+        if ("label" in result) {
+            return result.detail;
+        }
+        if (result === editButton) {
+            return await vscode.window.showInputBox({ prompt: "Enter the workflow ID" });
+        } else if (result === dashboardButton) {
+            startOpenDashboardFlow(folder, cloudConfig.appName, options?.method)
+                .catch(e => logger.error("startOpenDashboard", e));
+            return undefined;
+        } else {
+            throw new Error(`Unexpected button: ${result.tooltip ?? "<unknown>"}`);
+        }
+    } finally {
+        disposables.forEach(d => d.dispose());
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 async function startOpenDashboardFlow(folder: vscode.WorkspaceFolder, appName: string | undefined, method?: DbosMethodInfo): Promise<void> {
     const dashboardUrl = await dbos_cloud_dashboard_url(folder);
