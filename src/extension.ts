@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { S3CloudStorage } from './CloudStorage';
 import { TTDbgCodeLensProvider } from './codeLensProvider';
-import { deleteProvenanceDatabasePasswords, deleteProvDbPasswordsCommandName, shutdownDebugProxyCommandName, shutdownDebugProxy, cloudLoginCommandName, cloudLogin, startDebuggingCodeLensCommandName, startDebuggingFromCodeLens, startDebuggingFromUri, startDebuggingUriCommandName } from './commands';
+import { deleteProvenanceDatabasePasswords, deleteProvDbPasswordsCommandName, shutdownDebugProxyCommandName, shutdownDebugProxy, cloudLoginCommandName, cloudLogin, startDebuggingCodeLensCommandName, startDebuggingFromCodeLens, startDebuggingFromUri, startDebuggingUriCommandName, getProxyUrl, getProxyUrlCommandName, pickWorkflowIdCommandName, pickWorkflowId } from './commands';
 import { Configuration } from './configuration';
 import { DebugProxy, } from './DebugProxy';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
@@ -31,23 +31,20 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(debugProxy);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand(startDebuggingCodeLensCommandName, startDebuggingFromCodeLens));
-  context.subscriptions.push(
-    vscode.commands.registerCommand(startDebuggingUriCommandName, startDebuggingFromUri));
-  context.subscriptions.push(
-    vscode.commands.registerCommand(shutdownDebugProxyCommandName, shutdownDebugProxy));
-  context.subscriptions.push(
-    vscode.commands.registerCommand(deleteProvDbPasswordsCommandName, deleteProvenanceDatabasePasswords));
-  context.subscriptions.push(
-    vscode.commands.registerCommand(cloudLoginCommandName, cloudLogin));
+    vscode.commands.registerCommand(cloudLoginCommandName, cloudLogin),
+    vscode.commands.registerCommand(deleteProvDbPasswordsCommandName, deleteProvenanceDatabasePasswords),
+    vscode.commands.registerCommand(shutdownDebugProxyCommandName, shutdownDebugProxy),
+    vscode.commands.registerCommand(startDebuggingCodeLensCommandName, startDebuggingFromCodeLens),
+    vscode.commands.registerCommand(startDebuggingUriCommandName, startDebuggingFromUri),
 
-  context.subscriptions.push(
+    vscode.commands.registerCommand(getProxyUrlCommandName, getProxyUrl),
+    vscode.commands.registerCommand(pickWorkflowIdCommandName, pickWorkflowId),
+
     vscode.languages.registerCodeLensProvider(
       { scheme: 'file', language: 'typescript' },
-      new TTDbgCodeLensProvider()));
-
-  context.subscriptions.push(
-    vscode.window.registerUriHandler(new TTDbgUriHandler()));
+      new TTDbgCodeLensProvider()),
+    vscode.window.registerUriHandler(new TTDbgUriHandler())
+  );
 
   await debugProxy.update().catch(e => {
     logger.error("Debug Proxy Update Failed", e);
