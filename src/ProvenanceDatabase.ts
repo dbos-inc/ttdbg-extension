@@ -19,6 +19,8 @@ export interface workflow_status {
     updated_at: string;
 }
 
+export type DbosMethodInfo = { name: string; type: DbosMethodType };
+
 export class ProvenanceDatabase {
     private _databases: Map<number, Client> = new Map();
 
@@ -50,7 +52,7 @@ export class ProvenanceDatabase {
         return db;
     }
 
-    async getWorkflowStatuses(clientConfig: CloudConfig, method?: { name: string; type: DbosMethodType }): Promise<workflow_status[]> {
+    async getWorkflowStatuses(clientConfig: CloudConfig, method?: DbosMethodInfo): Promise<workflow_status[]> {
         const db = await this.connect(clientConfig);
         const results = method
             ? await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1 ORDER BY created_at DESC LIMIT 10', [getDbosWorkflowName(method.name, method.type)])
