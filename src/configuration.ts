@@ -10,6 +10,7 @@ const PROV_DB_PORT = "prov_db_port";
 const PROV_DB_DATABASE = "prov_db_database";
 const PROV_DB_USER = "prov_db_user";
 const DEBUG_PROXY_PORT = "debug_proxy_port";
+const DEBUG_PRE_LAUNCH_TASK = "debug_pre_launch_task";
 
 export interface CloudConfig {
     user?: string;
@@ -43,19 +44,23 @@ async function getCloudConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Prom
     }
 }
 
+function cfgString(value: string | undefined) {
+    return value?.length ?? 0 > 0 ? value : undefined;
+}
+
 function getCloudConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): CloudConfig {
     const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
 
-    const host = cfg.get<string>(PROV_DB_HOST);
-    const port = cfg.get<number>(PROV_DB_PORT);
-    const database = cfg.get<string>(PROV_DB_DATABASE);
-    const user = cfg.get<string>(PROV_DB_USER);
+    const host = cfg.get<string | undefined>(PROV_DB_HOST, undefined);
+    const port = cfg.get<number | undefined>(PROV_DB_PORT, undefined);
+    const database = cfg.get<string | undefined>(PROV_DB_DATABASE, undefined);
+    const user = cfg.get<string | undefined>(PROV_DB_USER, undefined);
 
     return {
-        host: host?.length ?? 0 > 0 ? host : undefined,
+        host: cfgString(host),
         port: port !== 0 ? port : undefined,
-        database: database?.length ?? 0 > 0 ? database : undefined,
-        user: user?.length ?? 0 > 0 ? user : undefined,
+        database: cfgString(database),
+        user: cfgString(user),
     };
 }
 
@@ -69,13 +74,13 @@ export class Configuration {
                 const dbosConfig = await getCloudConfigFromDbosCloud(folder);
                 const localConfig = getCloudConfigFromVSCodeConfig(folder);
 
-                return <CloudConfig>{ 
-                    host: localConfig.host ?? dbosConfig?.host, 
-                    port: localConfig.port ?? dbosConfig?.port ?? 5432, 
-                    database: localConfig.database ?? dbosConfig?.database, 
-                    user: localConfig.user ?? dbosConfig?.user, 
+                return <CloudConfig>{
+                    host: localConfig.host ?? dbosConfig?.host,
+                    port: localConfig.port ?? dbosConfig?.port ?? 5432,
+                    database: localConfig.database ?? dbosConfig?.database,
+                    user: localConfig.user ?? dbosConfig?.user,
                     appName: localConfig.appName ?? dbosConfig?.appName,
-                    appId: localConfig.appId ?? dbosConfig?.appId,                    
+                    appId: localConfig.appId ?? dbosConfig?.appId,
                 };
             });
 
@@ -87,9 +92,33 @@ export class Configuration {
         }
     }
 
-    get proxyPort(): number {
-        const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION);
+    getProxyPort(folder: vscode.WorkspaceFolder): number {
+        const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
         return cfg.get<number>(DEBUG_PROXY_PORT, 2345);
+    }
+
+    getPreLaunchTask(folder: vscode.WorkspaceFolder) {
+        const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
+        return cfgString(cfg.get<string | undefined>(DEBUG_PRE_LAUNCH_TASK, undefined));
+    }
+
+    getDebugConfig(folder: vscode.WorkspaceFolder, workflowID: string) {
+        const debugConfigs = vscode.workspace.getConfiguration("launch", folder).get('configurations') as ReadonlyArray<vscode.DebugConfiguration> | undefined;
+        for (const config of debugConfigs ?? []) {
+            const command = config["command"] as string | undefined;
+            if (command && command.includes("npx dbos-sdk debug")) {
+                const newCommand = command.replace("${command:dbos-ttdbg.pick-workflow-id}", `${workflowID}`);
+                return { ...config, command: newCommand };
+            }
+        }
+
+        return <vscode.DebugConfiguration>{
+            name: `Time-Travel Debug ${workflowID}`,
+            type: 'node-terminal',
+            request: 'launch',
+            command: `npx dbos-sdk debug -x http://localhost:${this.getProxyPort(folder)} -u ${workflowID}`,
+            preLaunchTask: this.getPreLaunchTask(folder),
+        };
     }
 
     #getPasswordKey(folder: vscode.WorkspaceFolder): string {
@@ -118,5 +147,3 @@ export class Configuration {
         }
     }
 }
-
-

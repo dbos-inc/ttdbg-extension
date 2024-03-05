@@ -44,18 +44,21 @@
     "configuration": {
       "title": "DBOS Time Travel Debugger",
       "properties": {
+        "dbos-ttdbg.debug_pre_launch_task": {
+          "type": "string"
+        },
         "dbos-ttdbg.debug_proxy_port": {
           "type": "number",
           "default": 2345
+        },
+        "dbos-ttdbg.prov_db_database": {
+          "type": "string"
         },
         "dbos-ttdbg.prov_db_host": {
           "type": "string"
         },
         "dbos-ttdbg.prov_db_port": {
           "type": "number"
-        },
-        "dbos-ttdbg.prov_db_database": {
-          "type": "string"
         },
         "dbos-ttdbg.prov_db_user": {
           "type": "string"

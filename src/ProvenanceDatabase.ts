@@ -1,4 +1,4 @@
-import { Client, ClientConfig } from 'pg';
+import { Client } from 'pg';
 import { logger } from './extension';
 import { DbosMethodType, getDbosWorkflowName } from './sourceParser';
 import { hashClientConfig } from './utils';
@@ -18,6 +18,8 @@ export interface workflow_status {
     created_at: string;
     updated_at: string;
 }
+
+export type DbosMethodInfo = { name: string; type: DbosMethodType };
 
 export class ProvenanceDatabase {
     private _databases: Map<number, Client> = new Map();
@@ -50,17 +52,18 @@ export class ProvenanceDatabase {
         return db;
     }
 
-    async getWorkflowStatuses(clientConfig: CloudConfig, name: string, $type: DbosMethodType): Promise<workflow_status[]> {
-        const wfName = getDbosWorkflowName(name, $type);
+    async getWorkflowStatuses(clientConfig: CloudConfig, method?: DbosMethodInfo): Promise<workflow_status[]> {
         const db = await this.connect(clientConfig);
-        const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1 ORDER BY created_at DESC LIMIT 10', [wfName]);
+        const results = method
+            ? await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1 ORDER BY created_at DESC LIMIT 10', [getDbosWorkflowName(method.name, method.type)])
+            : await db.query<workflow_status>('SELECT * FROM dbos.workflow_status ORDER BY created_at DESC LIMIT 10');
         return results.rows;
     }
 
-    async getWorkflowStatus(clientConfig: CloudConfig, wfid: string): Promise<workflow_status | undefined> {
+    async getWorkflowStatus(clientConfig: CloudConfig, workflowID: string): Promise<workflow_status | undefined> {
         const db = await this.connect(clientConfig);
-        const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE workflow_uuid = $1', [wfid]);
-        if (results.rows.length > 1) { throw new Error(`Multiple workflow status records found for workflow ID ${wfid}`); }
+        const results = await db.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE workflow_uuid = $1', [workflowID]);
+        if (results.rows.length > 1) { throw new Error(`Multiple workflow status records found for workflow ID ${workflowID}`); }
         return results.rows.length === 1 ? results.rows[0] : undefined;
     }
 }

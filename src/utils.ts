@@ -50,9 +50,21 @@ export function hashClientConfig(clientConfig: ClientConfig | CloudConfig) {
         : undefined;
 }
 
-export async function getWorkspaceFolder() {
+export async function getWorkspaceFolder(rootPath?: string | vscode.Uri) {
+    if (rootPath) { 
+        if (typeof rootPath === "string") { 
+            rootPath = vscode.Uri.file(rootPath); 
+        }
+        const folder = vscode.workspace.getWorkspaceFolder(rootPath);
+        if (folder) { 
+            return folder; 
+        }
+    }
+
     const folders = vscode.workspace.workspaceFolders ?? [];
-    if (folders.length === 1) { return folders[0]; }
+    if (folders.length === 1) { 
+        return folders[0]; 
+    }
 
 	if (vscode.window.activeTextEditor) {
 		const folder = vscode.workspace.getWorkspaceFolder(vscode.window.activeTextEditor.document.uri);
@@ -60,57 +72,8 @@ export async function getWorkspaceFolder() {
 			return folder;
 		}
 	}
+
 	return await vscode.window.showWorkspaceFolderPick();
-}
-
-export interface QuickPickOptions {
-    title?: string;
-    items?: vscode.QuickPickItem[];
-    buttons?: vscode.QuickInputButton[];
-    canSelectMany?: boolean;
-    placeHolder?: string;
-}
-
-export type QuickPickResult = vscode.QuickPickItem | vscode.QuickInputButton | undefined;
-
-export function isQuickPickItem(item: QuickPickResult): item is vscode.QuickPickItem {
-    return item !== undefined && "label" in item;
-}
-
-export async function showQuickPick(options: QuickPickOptions) {
-    const disposables: { dispose(): any }[] = [];
-    try {
-        return await new Promise<QuickPickResult>((resolve, reject) => {
-            const input = vscode.window.createQuickPick();
-            input.title = options.title;
-            input.placeholder = options.placeHolder;
-            input.canSelectMany = options.canSelectMany ?? false;
-            input.items = options.items ?? [];
-            input.buttons = options.buttons ?? [];
-
-            disposables.push(
-                input.onDidTriggerButton(async (button) => {
-                    resolve(button);
-                    input.hide();
-                }),
-                input.onDidChangeSelection(items => {
-                    const item = items[0];
-                    if (item) {
-                        resolve(item);
-                        input.hide();
-                    }
-                }),
-                input.onDidHide(() => {
-                    resolve(undefined);
-                    input.dispose();
-                }),
-            );
-
-            input.show();
-        });
-    } finally {
-        disposables.forEach(d => d.dispose());
-    }
 }
 
 export interface ExecFileError {
