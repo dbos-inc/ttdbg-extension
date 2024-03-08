@@ -52,7 +52,7 @@ jobs:
               : `${SIMPLE_VERSION}-g${GIT_COMMIT_ID_SHORT}`;
 
             // releases from main branch are marked as pre-release 
-            const preRelease = !onReleaseBranch;
+            const preRelease = onMainBranch;
   
             core.setOutput('onPublicationBranch', onPublicationBranch)
             core.setOutput('preRelease', preRelease);
