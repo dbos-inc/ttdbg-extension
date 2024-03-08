@@ -3,12 +3,8 @@ name: Build
 on:
   workflow_call:
     outputs:
-      dev-branch:
-        value: ${{ jobs.build.outputs.dev-branch }}
       pre-release:
         value: ${{ jobs.build.outputs.pre-release }}
-      release-branch:
-          value: ${{ jobs.build.outputs.release-branch }}
       version: 
         value: ${{ jobs.build.outputs.version }}
 
@@ -17,10 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       # convert PublicRelease to a boolean by comparing the string value to 'true'
-      dev-branch: ${{ steps.relInfo.outputs.onDevelopBranch == 'true'}}
       pre-release: ${{ steps.relInfo.outputs.preRelease == 'true'}}
-      release-branch: ${{ steps.relInfo.outputs.onReleaseBranch == 'true'}}
-      version: ${{ steps.relInfo.outputs.extensionVersion }}
+      version: ${{ steps.relInfo.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.0
