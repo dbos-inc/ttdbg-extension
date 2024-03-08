@@ -54,7 +54,6 @@ jobs:
             // releases from main branch are marked as pre-release 
             const preRelease = onMainBranch ? true : false;
   
-            // GH Action outputs can only be strings, so convert booleans to 0 or 1
             core.setOutput('onPublicationBranch', onPublicationBranch ? 1 : 0)
             core.setOutput('preRelease', preRelease ? 1 : 0);
             core.setOutput('version', version);
@@ -64,10 +63,10 @@ jobs:
           REL_INFO: ${{ toJson(steps.relInfo.outputs) }}
         run: echo "$REL_INFO"
       - name: Pack Extension
-        if: ${{ !steps.relInfo.outputs.preRelease }}
+        if: ${{ ! fromJSON(steps.relInfo.outputs.preRelease) }}
         run: npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version 
       - name: Pack Pre-Release Extension
-        if: ${{ steps.relInfo.outputs.preRelease }} 
+        if: ${{ fromJSON(steps.relInfo.outputs.preRelease) }} 
         run: npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version --pre-release  
       - name: Upload Extension Artifact
         uses: actions/upload-artifact@v4.3.0
