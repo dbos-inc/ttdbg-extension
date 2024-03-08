@@ -52,10 +52,10 @@ jobs:
               : `${SIMPLE_VERSION}-g${GIT_COMMIT_ID_SHORT}`;
 
             // releases from main branch are marked as pre-release 
-            const preRelease = onMainBranch ? true : false;
+            const preRelease = !onReleaseBranch;
   
-            core.setOutput('onPublicationBranch', onPublicationBranch ? 1 : 0)
-            core.setOutput('preRelease', preRelease ? 1 : 0);
+            core.setOutput('onPublicationBranch', onPublicationBranch)
+            core.setOutput('preRelease', preRelease);
             core.setOutput('version', version);
 
       - name: Dump Release Info
