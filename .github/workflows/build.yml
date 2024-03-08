@@ -51,9 +51,10 @@ jobs:
               ? SIMPLE_VERSION 
               : `${SIMPLE_VERSION}-g${GIT_COMMIT_ID_SHORT}`;
 
-            // releases from any non-release branch are marked as pre-release 
-            const preRelease = !onReleaseBranch;
-
+            // releases from main branch are marked as pre-release 
+            const preRelease = onMainBranch ? true : false;
+  
+            // GH Action outputs can only be strings, so convert booleans to 0 or 1
             core.setOutput('onPublicationBranch', onPublicationBranch ? 1 : 0)
             core.setOutput('preRelease', preRelease ? 1 : 0);
             core.setOutput('version', version);
