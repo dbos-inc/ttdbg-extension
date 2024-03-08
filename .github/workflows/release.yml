@@ -28,4 +28,4 @@ jobs:
         files: |
           ./extension/*
     - name: Publish debug extension to VSCode Marketplace
-      run: npx vsce publish -i ${{ format('./artifacts/dbos-ttdbg-{0}.vsix', needs.build.outputs.version) }} -p ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+      run: npx vsce publish -i ${{ format('./extension/dbos-ttdbg-{0}.vsix', needs.build.outputs.version) }} -p ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
