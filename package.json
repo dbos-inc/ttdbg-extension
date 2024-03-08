@@ -7,13 +7,12 @@
   "engines": {
     "vscode": "^1.86.0"
   },
-  "preview": true,
   "categories": [
     "Other"
   ],
-  "homepage": "https://github.com/dbos-inc/ttdbg-extension/README.md",
+  "homepage": "https://dbos.dev/",
   "bugs": {
-    "url": "https://github.com/dbos-inc/ttdbg-extension"
+    "url": "https://github.com/dbos-inc/ttdbg-extension/issues"
   },
   "repository": {
     "type": "git",

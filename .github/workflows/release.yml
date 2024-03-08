@@ -19,13 +19,12 @@ jobs:
         name: Extension
         path: ./extension      
     - name: Create GitHub release
-      uses: marvinpinto/action-automatic-releases@v1.2.1
+      uses: softprops/action-gh-release@v0.1.15
       with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        name: Release ${{ needs.build.outputs.version }}
         prerelease: ${{ fromJson(needs.build.outputs.preRelease) }}
-        title: Release ${{ needs.build.outputs.version }}
-        automatic_release_tag: ${{ needs.build.outputs.version }}
-        files: |
-          ./extension/*
+        tag_name: ${{ needs.build.outputs.version }}
+        files: ./extension/*
+        token: ${{ secrets.GITHUB_TOKEN }}
     - name: Publish debug extension to VSCode Marketplace
       run: npx vsce publish -i ${{ format('./extension/dbos-ttdbg-{0}.vsix', needs.build.outputs.version) }} -p ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
