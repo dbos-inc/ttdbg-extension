@@ -5,7 +5,7 @@ on:
     outputs:
       preRelease:
         value: ${{ jobs.build.outputs.preRelease }}
-      publication_branch:
+      onPublicationBranch:
         value: ${{ jobs.build.outputs.onPublicationBranch }}
       version: 
         value: ${{ jobs.build.outputs.version }}
