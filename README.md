@@ -51,16 +51,12 @@ for handling version numbers:
 > `major.ODD_NUMBER.patch` for pre-release versions. 
 > For example: `0.2.*` for release and `0.3.*` for pre-release.
 
-The `main` branch of this repo tracks release quality work. 
-As such, the `main` branch will always have an even minor version number.
-Pre-release quality work (when happening) will be tracked in the `dev` branch.
-The `dev` branch minor version number will always be odd and one greater than the current `main` branch minor version number.
+The `main` branch of this repo tracks unreleased work.
+Extension releases published to the VS Code marketplace from `main` will always have an odd minor version number and will be marked as 
+[pre-release](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#prerelease-extensions).
 
 Release versions of the extension are published out of release branches.
-Pre-release versions are published directly out of the `dev` branch. 
-
-Release branches are always created from the main branch.
-Usually, `main` and `dev` branches both have their minor version incremented by two when a release branch is created
+Extension releases published to the VS Code marketplace from release branches will always have an even minor version number.
 
 > Note, this project uses NerdBank Git Versioning to manage release version numbers.
 > As such, patch versions of public releases will typically not be sequential. 
