@@ -51,8 +51,8 @@ jobs:
               ? SIMPLE_VERSION 
               : `${SIMPLE_VERSION}-g${GIT_COMMIT_ID_SHORT}`;
 
-            // releases from main branch are marked as pre-release 
-            const preRelease = onMainBranch ? true : false;
+            // releases from any non-release branch are marked as pre-release 
+            const preRelease = !onReleaseBranch;
 
             core.setOutput('onPublicationBranch', onPublicationBranch ? 1 : 0)
             core.setOutput('preRelease', preRelease ? 1 : 0);
@@ -63,10 +63,10 @@ jobs:
           REL_INFO: ${{ toJson(steps.relInfo.outputs) }}
         run: echo "$REL_INFO"
       - name: Pack Extension
-        if: ${{ steps.relInfo.outputs.preRelease != 'true' }}
+        if: ${{ !steps.relInfo.outputs.preRelease }}
         run: npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version 
       - name: Pack Pre-Release Extension
-        if: ${{ steps.relInfo.outputs.preRelease == 'true' }} 
+        if: ${{ steps.relInfo.outputs.preRelease }} 
         run: npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version --pre-release  
       - name: Upload Extension Artifact
         uses: actions/upload-artifact@v4.3.0
