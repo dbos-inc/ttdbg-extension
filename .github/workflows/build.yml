@@ -35,25 +35,30 @@ jobs:
         id: relInfo
         uses: actions/github-script@v7.0.1
         env:
-          SEMANTIC_VERSION_1: ${{ steps.nbgv.outputs.SemVer1 }}
+          GIT_COMMIT_ID_SHORT: ${{ steps.nbgv.outputs.GitCommitIdShort }}
           SIMPLE_VERSION: ${{ steps.nbgv.outputs.SimpleVersion }}
         with:
           script: |
-            const { SEMANTIC_VERSION_1, SIMPLE_VERSION } = process.env;
+            const { GIT_COMMIT_ID_SHORT, SIMPLE_VERSION } = process.env;
 
-            const onDevelopBranch = context.ref === 'refs/heads/develop';
+            const onMainBranch = context.ref === 'refs/heads/main';
             const onReleaseBranch = context.ref.startsWith('refs/heads/release/');
-            const onPublicationBranch = onDevelopBranch || onReleaseBranch;
 
-            // dev branch builds are marked as pre-release, 
-            const preRelease = onDevelopBranch ? true : false;
-            // builds from publication branches (dev + release) use simple version, all other branches use semantic version 1
-            const extensionVersion = onPublicationBranch ? SIMPLE_VERSION : SEMANTIC_VERSION_1;
+            // only builds from main or a release branch are ever published to VS Code Marketplace
+            const onPublicationBranch = onMainBranch || onReleaseBranch;
+
+            // builds that can be published to the marketplace must use simple version
+            // other builds use a prerelease tag generated from the git commit id
+            // https://code.visualstudio.com/api/working-with-extensions/publishing-extension#prerelease-extensions
+            const version = onPublicationBranch 
+              ? SIMPLE_VERSION 
+              : `${SIMPLE_VERSION}-g${GIT_COMMIT_ID_SHORT}`;
+
+            // releases from main branch are marked as pre-release 
+            const preRelease = onMainBranch ? true : false;
 
             core.setOutput('preRelease', preRelease);
-            core.setOutput('extensionVersion', extensionVersion);
-            core.setOutput('onDevelopBranch', onDevelopBranch);
-            core.setOutput('onReleaseBranch', onReleaseBranch);
+            core.setOutput('version', version);
 
       - name: Dump Release Info
         env:
@@ -61,10 +66,10 @@ jobs:
         run: echo "$REL_INFO"
       - name: Pack Extension
         if: ${{ steps.relInfo.outputs.preRelease != 'true' }}
-        run: npx vsce pack ${{ steps.relInfo.outputs.extensionVersion }} --no-git-tag-version 
+        run: npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version 
       - name: Pack Pre-Release Extension
         if: ${{ steps.relInfo.outputs.preRelease == 'true' }} 
-        run: npx vsce pack ${{ steps.relInfo.outputs.extensionVersion }} --no-git-tag-version --pre-release  
+        run: npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version --pre-release  
       - name: Upload Extension Artifact
         uses: actions/upload-artifact@v4.3.0
         with: 
