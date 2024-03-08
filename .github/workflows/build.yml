@@ -20,7 +20,7 @@ jobs:
       version: ${{ steps.relInfo.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.0
+        uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0 # fetch-depth 0 needed for NBGV
       - name: Nerdbank.GitVersioning
@@ -57,19 +57,20 @@ jobs:
             core.setOutput('onPublicationBranch', onPublicationBranch)
             core.setOutput('preRelease', preRelease);
             core.setOutput('version', version);
-
       - name: Dump Release Info
         env:
           REL_INFO: ${{ toJson(steps.relInfo.outputs) }}
         run: echo "$REL_INFO"
       - name: Pack Extension
+        # NOTE: GH Actions string encodes boolean variables (i.e. 'true' or 'false').
+        #       We need to convert these to actual booleans via fromJSON for conditional checks.
         if: ${{ ! fromJSON(steps.relInfo.outputs.preRelease) }}
         run: npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version 
       - name: Pack Pre-Release Extension
         if: ${{ fromJSON(steps.relInfo.outputs.preRelease) }} 
         run: npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version --pre-release  
       - name: Upload Extension Artifact
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v4.3.1
         with: 
           name: Extension
           path: dbos-ttdbg*.vsix
