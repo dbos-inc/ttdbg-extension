@@ -5,6 +5,8 @@ on:
     outputs:
       pre-release:
         value: ${{ jobs.build.outputs.pre-release }}
+      publication-branch:
+        value: ${{ jobs.build.outputs.publication-branch }}
       version: 
         value: ${{ jobs.build.outputs.version }}
 
@@ -13,7 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       # convert PublicRelease to a boolean by comparing the string value to 'true'
-      pre-release: ${{ steps.relInfo.outputs.preRelease == 'true'}}
+      pre-release: ${{ steps.relInfo.outputs.preRelease }}
+      publication-branch: ${{ steps.relInfo.outputs.onPublicationBranch }}
       version: ${{ steps.relInfo.outputs.version }}
     steps:
       - name: Checkout
@@ -51,6 +54,7 @@ jobs:
             // releases from main branch are marked as pre-release 
             const preRelease = onMainBranch ? true : false;
 
+            core.setOutput('onPublicationBranch', onPublicationBranch)
             core.setOutput('preRelease', preRelease);
             core.setOutput('version', version);
 
