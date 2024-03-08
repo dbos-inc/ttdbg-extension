@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    # NOTE: GH Actions string encodes boolean variables (i.e. 'true' or 'false').
+    #       We need to convert these to actual booleans via fromJSON for conditional checks.
+    if: ${{ fromJSON(needs.build.outputs.onPublicationBranch) }}
+    steps:
+    - name: Download a Build Artifact
+      uses: actions/download-artifact@v4.1.4
+      with:
+        name: Extension
+        path: ./extension      
+    - name: Create GitHub release
+      uses: marvinpinto/action-automatic-releases@v1.2.1
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: ${{ fromJson(needs.build.outputs.preRelease) }}
+        title: Release ${{ needs.build.outputs.version }}
+        automatic_release_tag: ${{ needs.build.outputs.version }}
+        files: |
+          ./extension/*
+    - name: Publish debug extension to VSCode Marketplace
+      run: npx vsce publish -i ${{ format('./artifacts/dbos-ttdbg-{0}.vsix', needs.build.outputs.version) }} -p ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
