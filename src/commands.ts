@@ -161,7 +161,6 @@ async function showWorkflowPick(
     options?: {
         method?: DbosMethodInfo,
         cloudConfig?: CloudConfig,
-        showDashboardButton?: boolean,
     }
 ): Promise<string | undefined> {
     const cloudConfig = options?.cloudConfig ?? await config.getCloudConfig(folder);
@@ -187,7 +186,6 @@ async function showWorkflowPick(
         tooltip: "Select workflow via DBOS User Dashboard"
     };
 
-    const buttons = options?.showDashboardButton ?? false ? [editButton, dashboardButton] : [editButton];
     const disposables: { dispose(): any }[] = [];
     try {
         const result = await new Promise<vscode.QuickInputButton | vscode.QuickPickItem | undefined>(resolve => {
@@ -195,7 +193,7 @@ async function showWorkflowPick(
             input.title = "Select a workflow ID to debug";
             input.canSelectMany = false;
             input.items = items;
-            input.buttons = buttons;
+            input.buttons = [editButton, dashboardButton];
             disposables.push(
                 input.onDidTriggerButton(item => { resolve(item); input.hide(); }),
                 input.onDidHide(() => { resolve(undefined); input.dispose(); }),
