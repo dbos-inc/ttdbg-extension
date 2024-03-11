@@ -46,7 +46,7 @@ export class DebugProxy {
         }
     }
 
-    async launch(clientConfig: CloudConfig): Promise<boolean> {
+    async launch(clientConfig: CloudConfig, folder: vscode.WorkspaceFolder): Promise<boolean> {
         const configHash = hashClientConfig(clientConfig);
 
         if (!configHash) { throw new Error("Invalid configuration"); }
@@ -58,7 +58,7 @@ export class DebugProxy {
             throw new Error("Debug proxy not installed");
         }
 
-        const proxy_port = config.proxyPort;
+        const proxy_port = config.getProxyPort(folder);
         let { host, port, database, user, password } = clientConfig;
         if (typeof password === "function") { 
             const $password = await password();
