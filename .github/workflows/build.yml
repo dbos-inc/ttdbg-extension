@@ -61,6 +61,8 @@ jobs:
         env:
           REL_INFO: ${{ toJson(steps.relInfo.outputs) }}
         run: echo "$REL_INFO"
+      - name: Compile Extension
+        run: npm run test-compile
       - name: Pack Extension
         # NOTE: GH Actions string encodes boolean variables (i.e. 'true' or 'false').
         #       We need to convert these to actual booleans via fromJSON for conditional checks.
