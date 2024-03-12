@@ -25,18 +25,36 @@ export async function dbosCloudAppStatus(folder: vscode.WorkspaceFolder) {
     const { stdout } = await execFile("npx", ["dbos-cloud", "application", "status", "--json"], {
         cwd: folder.uri.fsPath,
     });
-    const json = JSON.parse(stdout) as DbosCloudApp;
-    logger.debug("dbos_cloud_app_status", { folder: folder.uri.fsPath, stdout: json });
-    return json;
+    const response = JSON.parse(stdout) as DbosCloudApp;
+    logger.debug("dbosCloudAppStatus", { folder: folder.uri.fsPath, response });
+    return response;
+}
+
+export async function dbosCloudAppList(folder: vscode.WorkspaceFolder) {
+    const { stdout } = await execFile("npx", ["dbos-cloud", "application", "list", "--json"], {
+        cwd: folder.uri.fsPath,
+    });
+    const response = JSON.parse(stdout) as DbosCloudApp[];
+    logger.debug("dbosCloudAppList", { folder: folder.uri.fsPath, response });
+    return response;
 }
 
 export async function dbosCloudDbStatus(folder: vscode.WorkspaceFolder, databaseName: string) {
     const { stdout } = await execFile("npx", ["dbos-cloud", "database", "status", databaseName, "--json"], {
         cwd: folder.uri.fsPath,
     });
-    const json = JSON.parse(stdout) as DbosCloudDatabase;
-    logger.debug("dbos_cloud_db_status", { folder: folder.uri.fsPath, databaseName, stdout: json });
-    return json;
+    const response = JSON.parse(stdout) as DbosCloudDatabase;
+    logger.debug("dbosCloudDbStatus", { folder: folder.uri.fsPath, databaseName, response });
+    return response;
+}
+
+export async function dbosCloudDbList(folder: vscode.WorkspaceFolder) {
+    const { stdout } = await execFile("npx", ["dbos-cloud", "database", "list", "--json"], {
+        cwd: folder.uri.fsPath,
+    });
+    const response = JSON.parse(stdout) as DbosCloudDatabase;
+    logger.debug("dbosCloudDbList", { folder: folder.uri.fsPath, response });
+    return response;
 }
 
 export async function dbosCloudDashboardLaunch(folder: vscode.WorkspaceFolder) {
@@ -44,6 +62,8 @@ export async function dbosCloudDashboardLaunch(folder: vscode.WorkspaceFolder) {
         const { stdout } = await execFile("npx", ["dbos-cloud", "dashboard", "launch"], {
             cwd: folder.uri.fsPath,
         });
+        logger.debug("dbosCloudDashboardLaunch", { folder: folder.uri.fsPath, response: stdout });
+
         const regexDashboardLaunch = /Dashboard ready at (.*)$/;
         const match = regexDashboardLaunch.exec(stdout.trim());
         if (match && match.length === 2) {
@@ -59,6 +79,8 @@ export async function dbosCloudDashboardUrl(folder: vscode.WorkspaceFolder) {
         const { stdout } = await execFile("npx", ["dbos-cloud", "dashboard", "url"], {
             cwd: folder.uri.fsPath,
         });
+        logger.debug("dbosCloudDashboardUrl", { folder: folder.uri.fsPath, response: stdout });
+
         const regexDashboardGet = /Dashboard URL is (.*)$/;
         const match = regexDashboardGet.exec(stdout.trim());
         if (match && match.length === 2) {
@@ -70,7 +92,7 @@ export async function dbosCloudDashboardUrl(folder: vscode.WorkspaceFolder) {
 }
 
 export async function dbosCloudLogin(folder: vscode.WorkspaceFolder) {
-    logger.debug("dbos_cloud_login", { folder: folder.uri.fsPath });
+    logger.debug("dbosCloudLogin", { folder: folder.uri.fsPath });
 
     const cts = new vscode.CancellationTokenSource();
     const loginProc = cpSpawn("npx", ["dbos-cloud", "login"], { cwd: folder.uri.fsPath });
