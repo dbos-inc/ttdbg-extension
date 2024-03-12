@@ -52,7 +52,7 @@ export async function dbosCloudDbList(folder: vscode.WorkspaceFolder) {
     const { stdout } = await execFile("npx", ["dbos-cloud", "database", "list", "--json"], {
         cwd: folder.uri.fsPath,
     });
-    const response = JSON.parse(stdout) as DbosCloudDatabase;
+    const response = JSON.parse(stdout) as DbosCloudDatabase[];
     logger.debug("dbosCloudDbList", { folder: folder.uri.fsPath, response });
     return response;
 }

@@ -7,6 +7,7 @@ import { DebugProxy, } from './DebugProxy';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { ProvenanceDatabase } from './ProvenanceDatabase';
 import { TTDbgUriHandler } from './uriHandler';
+import { foo } from './dbosCloud';
 
 export let logger: Logger;
 export let config: Configuration;
@@ -18,6 +19,8 @@ export async function activate(context: vscode.ExtensionContext) {
   const transport = new LogOutputChannelTransport('DBOS');
   logger = createLogger(transport);
   context.subscriptions.push({ dispose() { logger.close(); transport.close(); } });
+
+  foo().catch(e => logger.error("foo", e));
 
   config = new Configuration(context.secrets);
 
@@ -40,6 +43,10 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(getProxyUrlCommandName, getProxyUrl),
     vscode.commands.registerCommand(pickWorkflowIdCommandName, pickWorkflowId),
 
+    // vscode.window.registerTreeDataProvider(
+    //   "dbos-ttdbg.views.resources",
+    //   new DbosCloudDataProvider()),
+
     vscode.languages.registerCodeLensProvider(
       { scheme: 'file', language: 'typescript' },
       new TTDbgCodeLensProvider()),
@@ -53,3 +60,23 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() { }
+
+// export class DbosCloudDataProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
+//   getTreeItem(element: vscode.TreeItem): vscode.TreeItem | Thenable<vscode.TreeItem> {
+//     return element;
+//   }
+//   async getChildren(element?: vscode.TreeItem | undefined): Promise<vscode.TreeItem[]> {
+//     if (element === undefined) {
+//       const items = new Array<vscode.TreeItem>();
+//       for (const folder of vscode.workspace.workspaceFolders ?? []) {
+//         const dbs = await dbosCloudAppList(folder);
+//         items.push(...dbs.map(app => new vscode.TreeItem(app.Name, vscode.TreeItemCollapsibleState.None)));
+//       }
+//       return items;
+//     }
+//     return [];
+//   }
+// }
+
+
+

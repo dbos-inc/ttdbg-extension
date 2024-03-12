@@ -43,6 +43,8 @@ export async function exists(uri: vscode.Uri): Promise<boolean> {
 
 export const execFile = util.promisify(cpExecFile);
 
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export function hashClientConfig(clientConfig: ClientConfig | CloudConfig) {
     const { host, port, database, user } = clientConfig;
     return host && port && database && user
