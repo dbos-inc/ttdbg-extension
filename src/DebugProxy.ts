@@ -190,9 +190,13 @@ export class DebugProxy {
         }
     }
 
-    async _getRemoteVersion(token?: vscode.CancellationToken) {
+    async _getRemoteVersion(includePrerelease?: boolean, token?: vscode.CancellationToken) {
+        includePrerelease = includePrerelease ?? false;
         let latestVersion: string | undefined = undefined;
         for await (const version of this.cloudStorage.getVersions(token)) {
+            if (semver.prerelease(version) && !includePrerelease) {
+                continue;
+            }
             if (latestVersion === undefined || semver.gt(version, latestVersion)) {
                 latestVersion = version;
             }
