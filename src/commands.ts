@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { logger, config, provDB, debugProxy } from './extension';
 import { exists, getWorkspaceFolder } from './utils';
-import { dbos_cloud_dashboard_launch, dbos_cloud_dashboard_url, dbos_cloud_login } from './cloudCli';
+import { dbosCloudDashboardLaunch, dbosCloudDashboardUrl, dbosCloudLogin } from './cloudCli';
 import { CloudConfig } from './configuration';
 import { DbosMethodInfo } from './ProvenanceDatabase';
 
@@ -10,7 +10,7 @@ export async function cloudLogin() {
     try {
         const folder = await getWorkspaceFolder();
         if (folder) {
-            await dbos_cloud_login(folder);
+            await dbosCloudLogin(folder);
         } else {
             vscode.window.showWarningMessage("Could not determine active workspace folder");
         }
@@ -226,11 +226,11 @@ async function showWorkflowPick(
 }
 
 async function startOpenDashboardFlow(folder: vscode.WorkspaceFolder, appName: string | undefined, method?: DbosMethodInfo): Promise<void> {
-    const dashboardUrl = await dbos_cloud_dashboard_url(folder);
+    const dashboardUrl = await dbosCloudDashboardUrl(folder);
     logger.debug(`startOpenDashboardFlow enter`, { folder: folder.uri.fsPath, appName: appName ?? null, method, dashboardUrl: dashboardUrl ?? null });
 
     if (!dashboardUrl) {
-        const dashboardLaunchUrl = await dbos_cloud_dashboard_launch(folder);
+        const dashboardLaunchUrl = await dbosCloudDashboardLaunch(folder);
         logger.debug(`startOpenDashboardFlow dbos_cloud_dashboard_launch`, { dashboardLaunchUrl });
 
         if (!dashboardLaunchUrl) {
@@ -281,7 +281,7 @@ export async function startInvalidCredentialsFlow(folder: vscode.WorkspaceFolder
     switch (result) {
         // case "Register": break;
         case "Login":
-            await dbos_cloud_login(folder);
+            await dbosCloudLogin(folder);
             break;
     }
 }

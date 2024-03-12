@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { isExecFileError } from './utils';
 import { logger } from './extension';
-import { dbos_cloud_app_status, dbos_cloud_db_status } from './cloudCli';
+import { dbosCloudAppStatus, dbosCloudDbStatus } from './cloudCli';
 import { startInvalidCredentialsFlow } from './commands';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
@@ -24,8 +24,8 @@ export interface CloudConfig {
 
 async function getCloudConfigFromDbosCloud(folder: vscode.WorkspaceFolder): Promise<CloudConfig | undefined> {
     try {
-        const app = await dbos_cloud_app_status(folder);
-        const db = await dbos_cloud_db_status(folder, app.PostgresInstanceName);
+        const app = await dbosCloudAppStatus(folder);
+        const db = await dbosCloudDbStatus(folder, app.PostgresInstanceName);
         return {
             host: db.HostName,
             port: db.Port,

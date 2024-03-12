@@ -21,7 +21,7 @@ export interface DbosCloudDatabase {
     AdminUsername: string;
 }
 
-export async function dbos_cloud_app_status(folder: vscode.WorkspaceFolder) {
+export async function dbosCloudAppStatus(folder: vscode.WorkspaceFolder) {
     const { stdout } = await execFile("npx", ["dbos-cloud", "application", "status", "--json"], {
         cwd: folder.uri.fsPath,
     });
@@ -30,7 +30,7 @@ export async function dbos_cloud_app_status(folder: vscode.WorkspaceFolder) {
     return json;
 }
 
-export async function dbos_cloud_db_status(folder: vscode.WorkspaceFolder, databaseName: string) {
+export async function dbosCloudDbStatus(folder: vscode.WorkspaceFolder, databaseName: string) {
     const { stdout } = await execFile("npx", ["dbos-cloud", "database", "status", databaseName, "--json"], {
         cwd: folder.uri.fsPath,
     });
@@ -39,7 +39,7 @@ export async function dbos_cloud_db_status(folder: vscode.WorkspaceFolder, datab
     return json;
 }
 
-export async function dbos_cloud_dashboard_launch(folder: vscode.WorkspaceFolder) {
+export async function dbosCloudDashboardLaunch(folder: vscode.WorkspaceFolder) {
     try {
         const { stdout } = await execFile("npx", ["dbos-cloud", "dashboard", "launch"], {
             cwd: folder.uri.fsPath,
@@ -54,7 +54,7 @@ export async function dbos_cloud_dashboard_launch(folder: vscode.WorkspaceFolder
     return undefined;
 }
 
-export async function dbos_cloud_dashboard_url(folder: vscode.WorkspaceFolder) {
+export async function dbosCloudDashboardUrl(folder: vscode.WorkspaceFolder) {
     try {
         const { stdout } = await execFile("npx", ["dbos-cloud", "dashboard", "url"], {
             cwd: folder.uri.fsPath,
@@ -69,7 +69,7 @@ export async function dbos_cloud_dashboard_url(folder: vscode.WorkspaceFolder) {
     return undefined;
 }
 
-export async function dbos_cloud_login(folder: vscode.WorkspaceFolder) {
+export async function dbosCloudLogin(folder: vscode.WorkspaceFolder) {
     logger.debug("dbos_cloud_login", { folder: folder.uri.fsPath });
 
     const cts = new vscode.CancellationTokenSource();
