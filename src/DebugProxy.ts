@@ -46,7 +46,7 @@ export class DebugProxy {
         }
     }
 
-    async launch(clientConfig: CloudConfig): Promise<boolean> {
+    async launch(clientConfig: CloudConfig, folder: vscode.WorkspaceFolder): Promise<boolean> {
         const configHash = hashClientConfig(clientConfig);
 
         if (!configHash) { throw new Error("Invalid configuration"); }
@@ -58,7 +58,7 @@ export class DebugProxy {
             throw new Error("Debug proxy not installed");
         }
 
-        const proxy_port = config.proxyPort;
+        const proxy_port = config.getProxyPort(folder);
         let { host, port, database, user, password } = clientConfig;
         if (typeof password === "function") { 
             const $password = await password();
@@ -190,9 +190,13 @@ export class DebugProxy {
         }
     }
 
-    async _getRemoteVersion(token?: vscode.CancellationToken) {
+    async _getRemoteVersion(includePrerelease?: boolean, token?: vscode.CancellationToken) {
+        includePrerelease = includePrerelease ?? false;
         let latestVersion: string | undefined = undefined;
         for await (const version of this.cloudStorage.getVersions(token)) {
+            if (semver.prerelease(version) && !includePrerelease) {
+                continue;
+            }
             if (latestVersion === undefined || semver.gt(version, latestVersion)) {
                 latestVersion = version;
             }

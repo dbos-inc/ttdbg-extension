@@ -50,7 +50,7 @@ export async function getProxyUrl(cfg?: vscode.DebugConfiguration) {
             throw new Error(`Failed to get cloud config`, { cause: folder.uri.fsPath });
         }
 
-        const proxyLaunched = await debugProxy.launch(cloudConfig);
+        const proxyLaunched = await debugProxy.launch(cloudConfig, folder);
         if (!proxyLaunched) {
             throw new Error("Failed to launch debug proxy", { cause: cloudConfig });
         }
@@ -133,7 +133,7 @@ async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cl
                 return undefined;
             }
 
-            const proxyLaunched = await debugProxy.launch(cloudConfig);
+            const proxyLaunched = await debugProxy.launch(cloudConfig, folder);
             if (!proxyLaunched) {
                 logger.warn("startDebugging: debugProxy.launch returned false", { folder: folder.uri.fsPath, cloudConfig, workflowID });
                 return undefined;
