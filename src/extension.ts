@@ -7,7 +7,7 @@ import { DebugProxy, } from './DebugProxy';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { ProvenanceDatabase } from './ProvenanceDatabase';
 import { TTDbgUriHandler } from './uriHandler';
-import { foo } from './dbosCloud';
+import { authenticate } from './dbosCloud';
 
 export let logger: Logger;
 export let config: Configuration;
@@ -20,7 +20,7 @@ export async function activate(context: vscode.ExtensionContext) {
   logger = createLogger(transport);
   context.subscriptions.push({ dispose() { logger.close(); transport.close(); } });
 
-  foo().catch(e => logger.error("foo", e));
+  authenticate().catch(e => logger.error("foo", e));
 
   config = new Configuration(context.secrets);
 
