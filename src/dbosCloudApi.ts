@@ -1,9 +1,27 @@
-import { CancellationToken, window, ProgressLocation, CancellationTokenSource, env, Uri } from 'vscode';
+import * as vscode from 'vscode';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import { logger } from './extension';
 import { sleep } from './utils';
-import { DbosCloudApp, DbosCloudDatabase } from './cloudCli';
+
+export interface DbosCloudApp {
+  Name: string;
+  ID: string;
+  PostgresInstanceName: string;
+  ApplicationDatabaseName: string;
+  Status: string;
+  Version: string;
+  AppURL: string;
+}
+
+export interface DbosCloudDatabase {
+  PostgresInstanceName: string;
+  HostName: string;
+  Status: string;
+  Port: number;
+  DatabaseUsername: string;
+  AdminUsername: string;
+}
 
 interface CloudOptions {
   cloudDomain: string;
@@ -22,7 +40,7 @@ function getCloudOptions(host: CloudHost): CloudOptions {
   return { cloudDomain, loginDomain, clientId };
 }
 
-async function cancellableFetch(url: string, request: Omit<RequestInit, 'signal'>, token?: CancellationToken) {
+async function cancellableFetch(url: string, request: Omit<RequestInit, 'signal'>, token?: vscode.CancellationToken) {
   const abort = new AbortController();
   const tokenListener = token?.onCancellationRequested(reason => { abort.abort(reason); });
   try {
@@ -41,7 +59,7 @@ interface DeviceCodeResponse {
   interval: number;
 }
 
-async function getDeviceCode(host: CloudHost, token?: CancellationToken): Promise<DeviceCodeResponse> {
+async function getDeviceCode(host: CloudHost, token?: vscode.CancellationToken): Promise<DeviceCodeResponse> {
   const { loginDomain: domain, clientId } = getCloudOptions(host);
   const url = `https://${domain}/oauth/device/code`;
   const request = <RequestInit>{
@@ -66,7 +84,7 @@ interface AuthTokenResponse {
   expires_in: number;
 }
 
-async function getAuthToken(deviceCode: DeviceCodeResponse, host: CloudHost, token?: CancellationToken): Promise<AuthTokenResponse | undefined> {
+async function getAuthToken(deviceCode: DeviceCodeResponse, host: CloudHost, token?: vscode.CancellationToken): Promise<AuthTokenResponse | undefined> {
   const { loginDomain: domain, clientId } = getCloudOptions(host);
   const url = `https://${domain}/oauth/token`;
   const request = <RequestInit>{
@@ -105,7 +123,18 @@ async function getAuthToken(deviceCode: DeviceCodeResponse, host: CloudHost, tok
   return undefined;
 }
 
-async function verifyToken(authToken: string | AuthTokenResponse, host: CloudHost, token?: CancellationToken): Promise<JwtPayload> {
+export function isTokenExpired(authToken: string | AuthTokenResponse): boolean {
+  const $authToken = typeof authToken === 'string' ? authToken : authToken.access_token;
+  try {
+    const { exp } = jwt.decode($authToken) as jwt.JwtPayload;
+    if (!exp) { return false; }
+    return Date.now() >= exp * 1000;
+  } catch (error) {
+    return true;
+  }
+}
+
+export async function verifyToken(authToken: string | AuthTokenResponse, host: CloudHost, token?: vscode.CancellationToken): Promise<JwtPayload> {
   const $authToken = typeof authToken === 'string' ? authToken : authToken.access_token;
 
   const decoded = jwt.decode($authToken, { complete: true });
@@ -136,7 +165,7 @@ function authHeaders(authToken: string | AuthTokenResponse) {
   return { 'authorization': `Bearer ${$authToken}` };
 }
 
-async function getUser(authToken: string | AuthTokenResponse, host: CloudHost, token?: CancellationToken) {
+async function getUser(authToken: string | AuthTokenResponse, host: CloudHost, token?: vscode.CancellationToken) {
   const { cloudDomain: domain } = getCloudOptions(host);
   const url = `https://${domain}/v1alpha1/user`;
   const request = <RequestInit>{
@@ -150,29 +179,37 @@ async function getUser(authToken: string | AuthTokenResponse, host: CloudHost, t
 }
 
 export interface DbosCredentials {
-  accessToken: string;
+  token: string;
   userName: string;
   domain: string;
 }
 
-export async function authenticate(host?: string): Promise<DbosCredentials | undefined> {
+export async function authenticate(secrets: vscode.SecretStorage, host?: string): Promise<DbosCredentials | undefined> {
+  const cloud = getCloudOptions(host);
+  const secretKey = `dbos-ttdbg:domain:${cloud.cloudDomain}`;
+  await secrets.delete(secretKey);
+  const json = await secrets.get(secretKey);
+  if (json) {
+    const credentials = JSON.parse(json) as DbosCredentials;
+    if (!isTokenExpired(credentials.token)) { return credentials; }
+  }
+
   try {
-    const result = await window.withProgress({
+    const result = await vscode.window.withProgress({
       cancellable: true,
-      location: ProgressLocation.Notification,
+      location: vscode.ProgressLocation.Notification,
       title: `Log into DBOS Cloud`
     }, async (progress, token) => {
       // create a new CTS so we can cancel the progress window if openExternal call fails
-      const cts = new CancellationTokenSource();
+      const cts = new vscode.CancellationTokenSource();
       try {
         // cancel the constructed CTS if the provided token requests cancellation
         token.onCancellationRequested(() => cts.cancel());
 
-        const cloud = getCloudOptions(host);
         const deviceCodeResponse = await getDeviceCode(cloud, cts.token);
         progress.report({ message: `User code ${deviceCodeResponse.user_code}` });
 
-        env.openExternal(Uri.parse(deviceCodeResponse.verification_uri_complete))
+        vscode.env.openExternal(vscode.Uri.parse(deviceCodeResponse.verification_uri_complete))
           .then(result => {
             if (!result) {
               logger.error("authenticate.openExternal", { result });
@@ -190,7 +227,9 @@ export async function authenticate(host?: string): Promise<DbosCredentials | und
         const access_token = authTokenResponse.access_token;
         await verifyToken(access_token, cloud, cts.token);
         const userName = await getUser(access_token, cloud, cts.token);
-        return { accessToken: access_token, userName, domain: cloud.cloudDomain };
+        const credentials = <DbosCredentials>{ token: access_token, userName, domain: cloud.cloudDomain };
+        await secrets.store(secretKey, JSON.stringify(credentials));
+        return credentials;
       } finally {
         cts.dispose();
       }
@@ -202,7 +241,7 @@ export async function authenticate(host?: string): Promise<DbosCredentials | und
   }
 }
 
-export async function listApps({ domain, accessToken, userName }: DbosCredentials, token?: CancellationToken) {
+export async function listApps({ domain, token: accessToken, userName }: DbosCredentials, token?: vscode.CancellationToken) {
   const url = `https://${domain}/v1alpha1/${userName}/applications`;
   const request = <RequestInit>{
     method: 'GET',
@@ -215,7 +254,7 @@ export async function listApps({ domain, accessToken, userName }: DbosCredential
   return body;
 }
 
-export async function getAppInfo(appName: string, { domain, accessToken, userName }: DbosCredentials, token?: CancellationToken) {
+export async function getAppInfo(appName: string, { domain, token: accessToken, userName }: DbosCredentials, token?: vscode.CancellationToken) {
   const url = `https://${domain}/v1alpha1/${userName}/applications/${appName}`;
   const request = <RequestInit>{
     method: 'GET',
@@ -228,7 +267,7 @@ export async function getAppInfo(appName: string, { domain, accessToken, userNam
   return body;
 }
 
-export async function listDatabases({ domain, accessToken, userName }: DbosCredentials, token?: CancellationToken) {
+export async function listDatabases({ domain, token: accessToken, userName }: DbosCredentials, token?: vscode.CancellationToken) {
   const url = `https://${domain}/v1alpha1/${userName}/databases`;
   const request = <RequestInit>{
     method: 'GET',
@@ -241,7 +280,7 @@ export async function listDatabases({ domain, accessToken, userName }: DbosCrede
   return body;
 }
 
-export async function getDatabaseInfo(dbName: string, { domain, accessToken, userName }: DbosCredentials, token?: CancellationToken) {
+export async function getDatabaseInfo(dbName: string, { domain, token: accessToken, userName }: DbosCredentials, token?: vscode.CancellationToken) {
   const url = `https://${domain}/v1alpha1/${userName}/databases/userdb/info/${dbName}`;
   const request = <RequestInit>{
     method: 'GET',

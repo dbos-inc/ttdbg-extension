@@ -2,24 +2,9 @@ import * as vscode from 'vscode';
 import { spawn as cpSpawn } from "child_process";
 import { execFile } from './utils';
 import { logger } from './extension';
+import { DbosCloudApp, DbosCloudDatabase } from './dbosCloudApi';
 
-export interface DbosCloudApp {
-    Name: string;
-    ID: string;
-    PostgresInstanceName: string;
-    ApplicationDatabaseName: string;
-    Status: string;
-    Version: string;
-    AppURL: string;
-}
 
-export interface DbosCloudDatabase {
-    PostgresInstanceName: string;
-    HostName: string;
-    Status: string;
-    Port: number;
-    AdminUsername: string;
-}
 
 export async function dbosCloudAppStatus(folder: vscode.WorkspaceFolder) {
     const { stdout } = await execFile("npx", ["dbos-cloud", "application", "status", "--json"], {

@@ -63,6 +63,23 @@
           "type": "string"
         }
       }
+    },
+    "views": {
+      "dbos-cloud": [
+        {
+          "id": "dbos-ttdbg.views.resources",
+          "name": "Resources"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "dbos-cloud",
+          "title": "DBOS Cloud",
+          "icon": "resources/dbos-logo.png"
+        }
+      ]
     }
   },
   "scripts": {

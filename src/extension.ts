@@ -7,7 +7,8 @@ import { DebugProxy, } from './DebugProxy';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { ProvenanceDatabase } from './ProvenanceDatabase';
 import { TTDbgUriHandler } from './uriHandler';
-import { authenticate, listApps, listDatabases } from './dbosCloudApi';
+import { authenticate } from './dbosCloudApi';
+import { CloudDataProvider } from './CloudDataProvider';
 
 export let logger: Logger;
 export let config: Configuration;
@@ -20,15 +21,13 @@ export async function activate(context: vscode.ExtensionContext) {
   logger = createLogger(transport);
   context.subscriptions.push({ dispose() { logger.close(); transport.close(); } });
 
-  authenticate()
-    .then(async (creds) => {
-      if (creds) {
-        const apps = await listApps(creds);
-        const dbs = await listDatabases(creds);
-        logger.info("on authenticate", { apps, dbs});
-      }
-    })
-    .catch(e => logger.error("foo", e));
+  const credentials = await authenticate(context.secrets);
+  if (credentials) {
+    const provider = new CloudDataProvider(credentials, context.extensionPath);
+    context.subscriptions.push(
+      vscode.window.registerTreeDataProvider("dbos-ttdbg.views.resources", provider)
+    );
+  }
 
   config = new Configuration(context.secrets);
 
@@ -51,10 +50,6 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(getProxyUrlCommandName, getProxyUrl),
     vscode.commands.registerCommand(pickWorkflowIdCommandName, pickWorkflowId),
 
-    // vscode.window.registerTreeDataProvider(
-    //   "dbos-ttdbg.views.resources",
-    //   new DbosCloudDataProvider()),
-
     vscode.languages.registerCodeLensProvider(
       { scheme: 'file', language: 'typescript' },
       new TTDbgCodeLensProvider()),
@@ -68,23 +63,3 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() { }
-
-// export class DbosCloudDataProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
-//   getTreeItem(element: vscode.TreeItem): vscode.TreeItem | Thenable<vscode.TreeItem> {
-//     return element;
-//   }
-//   async getChildren(element?: vscode.TreeItem | undefined): Promise<vscode.TreeItem[]> {
-//     if (element === undefined) {
-//       const items = new Array<vscode.TreeItem>();
-//       for (const folder of vscode.workspace.workspaceFolders ?? []) {
-//         const dbs = await dbosCloudAppList(folder);
-//         items.push(...dbs.map(app => new vscode.TreeItem(app.Name, vscode.TreeItemCollapsibleState.None)));
-//       }
-//       return items;
-//     }
-//     return [];
-//   }
-// }
-
-
-
