@@ -21,13 +21,10 @@ export async function activate(context: vscode.ExtensionContext) {
   logger = createLogger(transport);
   context.subscriptions.push({ dispose() { logger.close(); transport.close(); } });
 
-  const credentials = await authenticate(context.secrets);
-  if (credentials) {
-    const provider = new CloudDataProvider(credentials, context.extensionPath);
-    context.subscriptions.push(
-      vscode.window.registerTreeDataProvider("dbos-ttdbg.views.resources", provider)
-    );
-  }
+  const provider = new CloudDataProvider(context.secrets);
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider("dbos-ttdbg.views.resources", provider)
+  );
 
   config = new Configuration(context.secrets);
 
