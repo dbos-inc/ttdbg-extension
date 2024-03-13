@@ -11,18 +11,18 @@ interface CloudOptions {
   clientId: string;
 }
 
-function getCloudDomain(host: string | undefined) { return host ?? "cloud.dbos.dev"; }
+type CloudHost = string | CloudOptions | undefined;
 
-function getCloudOptions(host: string | CloudOptions | undefined): CloudOptions {
+function getCloudOptions(host: CloudHost): CloudOptions {
   if (typeof host === 'object') { return host; }
-  const cloudDomain = getCloudDomain(host);
+  const cloudDomain = host ?? "cloud.dbos.dev";
   const isProduction = cloudDomain === "cloud.dbos.dev";
   const loginDomain = isProduction ? 'login.dbos.dev' : 'dbos-inc.us.auth0.com';
   const clientId = isProduction ? '6p7Sjxf13cyLMkdwn14MxlH7JdhILled' : 'G38fLmVErczEo9ioCFjVIHea6yd0qMZu';
   return { cloudDomain, loginDomain, clientId };
 }
 
-async function cancellableFetch(url: string, request: Omit<RequestInit, 'signal'>, token: CancellationToken | undefined) {
+async function cancellableFetch(url: string, request: Omit<RequestInit, 'signal'>, token?: CancellationToken) {
   const abort = new AbortController();
   const tokenListener = token?.onCancellationRequested(reason => { abort.abort(reason); });
   try {
@@ -41,7 +41,7 @@ interface DeviceCodeResponse {
   interval: number;
 }
 
-async function getDeviceCode(host: string | CloudOptions | undefined, token: CancellationToken | undefined): Promise<DeviceCodeResponse> {
+async function getDeviceCode(host: CloudHost, token?: CancellationToken): Promise<DeviceCodeResponse> {
   const { loginDomain: domain, clientId } = getCloudOptions(host);
   const url = `https://${domain}/oauth/device/code`;
   const request = <RequestInit>{
@@ -66,7 +66,7 @@ interface AuthTokenResponse {
   expires_in: number;
 }
 
-async function getAuthToken(deviceCode: DeviceCodeResponse, host: string | CloudOptions | undefined, token: CancellationToken | undefined): Promise<AuthTokenResponse | undefined> {
+async function getAuthToken(deviceCode: DeviceCodeResponse, host: CloudHost, token?: CancellationToken): Promise<AuthTokenResponse | undefined> {
   const { loginDomain: domain, clientId } = getCloudOptions(host);
   const url = `https://${domain}/oauth/token`;
   const request = <RequestInit>{
@@ -105,7 +105,7 @@ async function getAuthToken(deviceCode: DeviceCodeResponse, host: string | Cloud
   return undefined;
 }
 
-async function verifyToken(authToken: string | AuthTokenResponse, host: string | CloudOptions | undefined, token: CancellationToken | undefined): Promise<JwtPayload> {
+async function verifyToken(authToken: string | AuthTokenResponse, host: CloudHost, token?: CancellationToken): Promise<JwtPayload> {
   const $authToken = typeof authToken === 'string' ? authToken : authToken.access_token;
 
   const decoded = jwt.decode($authToken, { complete: true });
@@ -131,17 +131,17 @@ async function verifyToken(authToken: string | AuthTokenResponse, host: string |
   return payload;
 }
 
-function getHeaders(authToken: string | AuthTokenResponse) {
+function authHeaders(authToken: string | AuthTokenResponse) {
   const $authToken = typeof authToken === 'string' ? authToken : authToken.access_token;
   return { 'authorization': `Bearer ${$authToken}` };
 }
 
-async function getUser(authToken: string | AuthTokenResponse, host: string | CloudOptions | undefined, token: CancellationToken | undefined) {
+async function getUser(authToken: string | AuthTokenResponse, host: CloudHost, token?: CancellationToken) {
   const { cloudDomain: domain } = getCloudOptions(host);
   const url = `https://${domain}/v1alpha1/user`;
   const request = <RequestInit>{
     method: 'GET',
-    headers: getHeaders(authToken)
+    headers: authHeaders(authToken)
   };
   const response = await cancellableFetch(url, request, token);
   const body = await response.text();
@@ -206,7 +206,7 @@ export async function listApps({ domain, accessToken, userName }: DbosCredential
   const url = `https://${domain}/v1alpha1/${userName}/applications`;
   const request = <RequestInit>{
     method: 'GET',
-    headers: getHeaders(accessToken)
+    headers: authHeaders(accessToken)
   };
   const response = await cancellableFetch(url, request, token);
   if (!response.ok) { throw new Error(`${domain}/${userName}/applications request failed: ${response.status} ${response.statusText}`); }
@@ -219,7 +219,7 @@ export async function getAppInfo(appName: string, { domain, accessToken, userNam
   const url = `https://${domain}/v1alpha1/${userName}/applications/${appName}`;
   const request = <RequestInit>{
     method: 'GET',
-    headers: getHeaders(accessToken)
+    headers: authHeaders(accessToken)
   };
   const response = await cancellableFetch(url, request, token);
   if (!response.ok) { throw new Error(`${domain}/${userName}/applications/${appName} request failed: ${response.status} ${response.statusText}`); }
@@ -232,7 +232,7 @@ export async function listDatabases({ domain, accessToken, userName }: DbosCrede
   const url = `https://${domain}/v1alpha1/${userName}/databases`;
   const request = <RequestInit>{
     method: 'GET',
-    headers: getHeaders(accessToken)
+    headers: authHeaders(accessToken)
   };
   const response = await cancellableFetch(url, request, token);
   if (!response.ok) { throw new Error(`${domain}/${userName}/databases request failed: ${response.status} ${response.statusText}`); }
@@ -245,7 +245,7 @@ export async function getDatabaseInfo(dbName: string, { domain, accessToken, use
   const url = `https://${domain}/v1alpha1/${userName}/databases/userdb/info/${dbName}`;
   const request = <RequestInit>{
     method: 'GET',
-    headers: getHeaders(accessToken)
+    headers: authHeaders(accessToken)
   };
   const response = await cancellableFetch(url, request, token);
   if (!response.ok) { throw new Error(`${domain}/${userName}/databases/${dbName} request failed: ${response.status} ${response.statusText}`); }
