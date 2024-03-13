@@ -7,7 +7,7 @@ import { DebugProxy, } from './DebugProxy';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { ProvenanceDatabase } from './ProvenanceDatabase';
 import { TTDbgUriHandler } from './uriHandler';
-import { authenticate, listApps, listDatabases } from './dbosCloud';
+import { authenticate, listApps, listDatabases } from './dbosCloudApi';
 
 export let logger: Logger;
 export let config: Configuration;
