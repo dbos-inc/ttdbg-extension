@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
-import { logger, config, provDB, debugProxy } from './extension';
+import { logger, config, provDB, debugProxy, cloudProvider } from './extension';
 import { exists, getWorkspaceFolder } from './utils';
 import { dbosCloudDashboardLaunch, dbosCloudDashboardUrl, dbosCloudLogin } from './cloudCli';
 import { CloudConfig } from './configuration';
 import { DbosMethodInfo } from './ProvenanceDatabase';
+import { CloudDomain } from './CloudDataProvider';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
 export async function cloudLogin() {
@@ -23,6 +24,21 @@ export const shutdownDebugProxyCommandName = "dbos-ttdbg.shutdown-debug-proxy";
 export function shutdownDebugProxy() {
     try {
         debugProxy.shutdown();
+    } catch (e) {
+        logger.error("shutdownDebugProxy", e);
+    }
+}
+
+export const deleteDomainCredentialsCommandName = "dbos-ttdbg.delete-domain-credentials";
+export async function deleteDomainCredentials(cloudDomain?: CloudDomain) {
+    if (!cloudDomain) { 
+        logger.warn("deleteDomainCredentials: no domain provided");
+        return; 
+    }
+
+    try {
+        logger.info("deleteDomainCredentials", { domain: cloudDomain.domain });
+        await cloudProvider.deleteStoredCredentials(cloudDomain.domain);
     } catch (e) {
         logger.error("shutdownDebugProxy", e);
     }

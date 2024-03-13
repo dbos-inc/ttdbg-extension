@@ -3,12 +3,11 @@ import { DbosCloudApp, DbosCloudDatabase, DbosCloudCredentials, listApps, listDa
 
 interface CloudServiceType {
   serviceType: "Applications" | "Databases";
-  credentials: DbosCloudCredentials;
+  serviceDomain: string;
 };
 
-interface CloudDomain {
+export interface CloudDomain {
   domain: string;
-  credentials?: DbosCloudCredentials;
 };
 
 type CloudProviderNode = CloudDomain | DbosCloudApp | DbosCloudDatabase | CloudServiceType;
@@ -18,7 +17,7 @@ function isDomain(node: CloudProviderNode): node is CloudDomain {
 }
 
 function isServiceType(node: CloudProviderNode): node is CloudServiceType {
-  return "serviceType" in node;
+  return "serviceType" in node && "serviceDomain" in node;
 }
 
 function isCloudDatabase(node: CloudProviderNode): node is DbosCloudDatabase {
@@ -66,6 +65,11 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
     return undefined;
   }
 
+  async deleteStoredCredentials(domain: string) {
+    const secretKey = domainSecretKey(domain);
+    await this.secrets.delete(secretKey);
+  }
+
   async #authenticate(domain: string): Promise<DbosCloudCredentials | undefined> {
     const credentials = await authenticate(domain);
     if (credentials) {
@@ -75,34 +79,38 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
     return credentials;
   }
 
+  async #getCredentials(domain: string) {
+    const storedCredentials = await this.#getStoredCredentials(domain);
+    if (storedCredentials) {
+      return storedCredentials;
+    }
+    return await this.#authenticate(domain);
+  }
+
   async getChildren(element?: CloudProviderNode | undefined): Promise<CloudProviderNode[]> {
     if (element === undefined) {
       const children = new Array<CloudDomain>();
       for (const domain of this.domains) {
-        const credentials = await this.#getStoredCredentials(domain);
-        children.push({ domain, credentials });
+        children.push({ domain });
       }
       return children;
     }
 
     if (isDomain(element)) {
-      const credentials = element.credentials || await this.#authenticate(element.domain);
-      if (credentials) {
-        return [
-          { credentials, serviceType: "Applications" },
-          { credentials, serviceType: "Databases" },
-        ];
-      } else {
-        return [];
-      }
+      return [
+        { serviceDomain: element.domain, serviceType: "Applications" },
+        { serviceDomain: element.domain, serviceType: "Databases" },
+      ];
     }
 
     if (isServiceType(element)) {
+      const credentials = await this.#getCredentials(element.serviceDomain);
+      if (!credentials) { return []; }
       switch (element.serviceType) {
         case "Applications":
-          return await listApps(element.credentials);
+          return await listApps(credentials);
         case "Databases":
-          return await listDatabases(element.credentials);
+          return await listDatabases(credentials);
         default:
           throw new Error(`Unknown serviceType: ${element.serviceType}`);
       }

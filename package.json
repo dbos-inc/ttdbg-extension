@@ -27,7 +27,14 @@
       {
         "command": "dbos-ttdbg.cloud-login",
         "title": "Log into DBOS Cloud",
-        "category": "DBOS"
+        "category": "DBOS",
+        "icon": "$(log-in)"
+      },
+      {
+        "command": "dbos-ttdbg.delete-domain-credentials",
+        "title": "Delete cached DBOS Cloud credentials",
+        "category": "DBOS",
+        "icon": "$(log-out)"
       },
       {
         "command": "dbos-ttdbg.delete-prov-db-passwords",
@@ -63,6 +70,15 @@
           "type": "string"
         }
       }
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "dbos-ttdbg.delete-domain-credentials",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain",
+          "group": "inline"
+        }
+      ]
     },
     "views": {
       "dbos-cloud": [
