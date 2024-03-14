@@ -149,6 +149,12 @@ export function isTokenExpired(authToken: string | AuthTokenResponse): boolean {
   }
 }
 
+export function isPayloadExpired(payload: JwtPayload): boolean {
+  const { exp } = payload;
+  if (!exp) { return false; }
+  return Date.now() >= exp * 1000;
+}
+
 export async function verifyToken(authToken: string | AuthTokenResponse, host: CloudHost, token?: vscode.CancellationToken): Promise<JwtPayload> {
   const $authToken = typeof authToken === 'string' ? authToken : authToken.access_token;
 

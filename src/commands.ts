@@ -1,19 +1,13 @@
 import * as vscode from 'vscode';
 import { logger, config, provDB, debugProxy } from './extension';
 import { exists, getWorkspaceFolder } from './utils';
-import { dbos_cloud_dashboard_launch, dbos_cloud_dashboard_url, dbos_cloud_login } from './cloudCli';
 import { CloudConfig } from './configuration';
 import { DbosMethodInfo } from './ProvenanceDatabase';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
 export async function cloudLogin() {
     try {
-        const folder = await getWorkspaceFolder();
-        if (folder) {
-            await dbos_cloud_login(folder);
-        } else {
-            vscode.window.showWarningMessage("Could not determine active workspace folder");
-        }
+        await config.authenticate();
     } catch (e) {
         logger.error("cloudLogin", e);
     }
@@ -226,42 +220,43 @@ async function showWorkflowPick(
 }
 
 async function startOpenDashboardFlow(folder: vscode.WorkspaceFolder, appName: string | undefined, method?: DbosMethodInfo): Promise<void> {
-    const dashboardUrl = await dbos_cloud_dashboard_url(folder);
-    logger.debug(`startOpenDashboardFlow enter`, { folder: folder.uri.fsPath, appName: appName ?? null, method, dashboardUrl: dashboardUrl ?? null });
+    throw new Error("stubbed out");
+    // const dashboardUrl = await dbos_cloud_dashboard_url(folder);
+    // logger.debug(`startOpenDashboardFlow enter`, { folder: folder.uri.fsPath, appName: appName ?? null, method, dashboardUrl: dashboardUrl ?? null });
 
-    if (!dashboardUrl) {
-        const dashboardLaunchUrl = await dbos_cloud_dashboard_launch(folder);
-        logger.debug(`startOpenDashboardFlow dbos_cloud_dashboard_launch`, { dashboardLaunchUrl });
+    // if (!dashboardUrl) {
+    //     const dashboardLaunchUrl = await dbos_cloud_dashboard_launch(folder);
+    //     logger.debug(`startOpenDashboardFlow dbos_cloud_dashboard_launch`, { dashboardLaunchUrl });
 
-        if (!dashboardLaunchUrl) {
-            var error = new Error("Failed to get dashboard URL");
-            vscode.window.showErrorMessage(error.message);
-            throw error;
-        }
+    //     if (!dashboardLaunchUrl) {
+    //         var error = new Error("Failed to get dashboard URL");
+    //         vscode.window.showErrorMessage(error.message);
+    //         throw error;
+    //     }
 
-        const response = await vscode.window.showWarningMessage("Please login to create your DBOS Dashboard", "Login", "Cancel");
-        if (response === "Login") {
-            logger.info(`startOpenDashboardFlow launch`, { uri: dashboardLaunchUrl });
-            const openResult = await vscode.env.openExternal(vscode.Uri.parse(dashboardLaunchUrl));
-            if (!openResult) {
-                throw new Error(`failed to open dashboard launch URL: ${dashboardLaunchUrl}`);
-            }
-        }
-    } else {
-        let query = "";
-        if (method) {
-            query += `var-operation_name=${method.name}&var-operation_type=${method.type.toLowerCase()}`;
-        }
-        if (appName) {
-            query += `&var-app_name=${appName}`;
-        }
-        const dashboardQueryUrl = `${dashboardUrl}?${query}`;
-        logger.info(`startOpenDashboardFlow uri`, { uri: dashboardQueryUrl });
-        const openResult = await vscode.env.openExternal(vscode.Uri.parse(dashboardQueryUrl));
-        if (!openResult) {
-            throw new Error(`failed to open dashboard URL: ${dashboardQueryUrl}`);
-        }
-    }
+    //     const response = await vscode.window.showWarningMessage("Please login to create your DBOS Dashboard", "Login", "Cancel");
+    //     if (response === "Login") {
+    //         logger.info(`startOpenDashboardFlow launch`, { uri: dashboardLaunchUrl });
+    //         const openResult = await vscode.env.openExternal(vscode.Uri.parse(dashboardLaunchUrl));
+    //         if (!openResult) {
+    //             throw new Error(`failed to open dashboard launch URL: ${dashboardLaunchUrl}`);
+    //         }
+    //     }
+    // } else {
+    //     let query = "";
+    //     if (method) {
+    //         query += `var-operation_name=${method.name}&var-operation_type=${method.type.toLowerCase()}`;
+    //     }
+    //     if (appName) {
+    //         query += `&var-app_name=${appName}`;
+    //     }
+    //     const dashboardQueryUrl = `${dashboardUrl}?${query}`;
+    //     logger.info(`startOpenDashboardFlow uri`, { uri: dashboardQueryUrl });
+    //     const openResult = await vscode.env.openExternal(vscode.Uri.parse(dashboardQueryUrl));
+    //     if (!openResult) {
+    //         throw new Error(`failed to open dashboard URL: ${dashboardQueryUrl}`);
+    //     }
+    // }
 }
 
 export async function startInvalidCredentialsFlow(folder: vscode.WorkspaceFolder): Promise<void> {
@@ -281,7 +276,7 @@ export async function startInvalidCredentialsFlow(folder: vscode.WorkspaceFolder
     switch (result) {
         // case "Register": break;
         case "Login":
-            await dbos_cloud_login(folder);
+            await config.authenticate();
             break;
     }
 }
