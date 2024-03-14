@@ -28,15 +28,13 @@ export interface DbosCloudDatabase {
   AdminUsername: string;
 }
 
-interface CloudOptions {
+export interface CloudOptions {
   cloudDomain: string;
   loginDomain: string;
   clientId: string;
 }
 
-type CloudHost = string | CloudOptions | undefined;
-
-export function getCloudOptions(host?: CloudHost): CloudOptions {
+export function getCloudOptions(host?: string | CloudOptions): CloudOptions {
   if (typeof host === 'object') { return host; }
   const cloudDomain = host ?? "cloud.dbos.dev";
   const isProduction = cloudDomain === "cloud.dbos.dev";
@@ -64,7 +62,7 @@ interface DeviceCodeResponse {
   interval: number;
 }
 
-async function getDeviceCode(host: CloudHost, token?: vscode.CancellationToken): Promise<DeviceCodeResponse> {
+async function getDeviceCode(host?: string | CloudOptions, token?: vscode.CancellationToken): Promise<DeviceCodeResponse> {
   const { loginDomain, clientId } = getCloudOptions(host);
   const url = `https://${loginDomain}/oauth/device/code`;
   const request = <RequestInit>{
@@ -79,13 +77,13 @@ async function getDeviceCode(host: CloudHost, token?: vscode.CancellationToken):
 
   const response = await cancellableFetch(url, request, token);
   if (!response.ok) {
-    throw new Error(`POST <loginDomain>/oauth/device/code request failed`, {
+    throw new Error(`getDeviceCode request failed`, {
       cause: { url, clientId, status: response.status, statusText: response.statusText }
     });
   }
 
   const body = (await response.json()) as DeviceCodeResponse;
-  logger.debug("POST <loginDomain>/oauth/device/code", { url, status: response.status, body });
+  logger.debug("getDeviceCode", { url, status: response.status, body });
   return body;
 }
 
@@ -95,9 +93,7 @@ interface AuthTokenResponse {
   expires_in: number;
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-async function getAuthToken(deviceCode: DeviceCodeResponse, host: CloudHost, token?: vscode.CancellationToken): Promise<AuthTokenResponse | undefined> {
+async function getAuthToken(deviceCode: DeviceCodeResponse, host?: string | CloudOptions, token?: vscode.CancellationToken): Promise<AuthTokenResponse | undefined> {
   const { loginDomain, clientId } = getCloudOptions(host);
   const url = `https://${loginDomain}/oauth/token`;
   const request = <RequestInit>{
@@ -113,23 +109,23 @@ async function getAuthToken(deviceCode: DeviceCodeResponse, host: CloudHost, tok
   let elapsedTimeSec = 0;
   while (elapsedTimeSec < deviceCode.expires_in) {
     if (token?.isCancellationRequested) {
-      logger.debug("POST <loginDomain>/oauth/token cancelled", { url, deviceCode });
+      logger.debug("getAuthToken cancelled", { url, deviceCode });
       return undefined;
     }
 
-    await sleep(deviceCode.interval * 1000);
+    await new Promise((r) => setTimeout(r, deviceCode.interval * 1000));
     elapsedTimeSec += deviceCode.interval;
     const response = await cancellableFetch(url, request, token);
 
     if (response.ok) {
       const body = await response.json() as AuthTokenResponse;
-      logger.debug("POST <loginDomain>/oauth/token", { url, deviceCode, status: response.status, body });
+      logger.debug("getAuthToken", { url, deviceCode, status: response.status, body });
       return body;
     } else if (response.status === 403) {
       // 403 response means the user hasn't logged in yet, so keep polling
-      logger.debug("POST <loginDomain>/oauth/token", { url, deviceCode, status: response.status });
+      logger.debug("getAuthToken", { url, deviceCode, status: response.status });
     } else {
-      throw new Error(`POST <loginDomain>/oauth/token request failed`, {
+      throw new Error(`getAuthToken request failed`, {
         cause: { url, deviceCode, status: response.status, statusText: response.statusText }
       });
     }
@@ -149,13 +145,7 @@ export function isTokenExpired(authToken: string | AuthTokenResponse): boolean {
   }
 }
 
-export function isPayloadExpired(payload: JwtPayload): boolean {
-  const { exp } = payload;
-  if (!exp) { return false; }
-  return Date.now() >= exp * 1000;
-}
-
-export async function verifyToken(authToken: string | AuthTokenResponse, host: CloudHost, token?: vscode.CancellationToken): Promise<JwtPayload> {
+export async function verifyToken(authToken: string | AuthTokenResponse, host?: string | CloudOptions, token?: vscode.CancellationToken): Promise<JwtPayload> {
   const $authToken = typeof authToken === 'string' ? authToken : authToken.access_token;
 
   const decoded = jwt.decode($authToken, { complete: true });
@@ -181,31 +171,7 @@ export async function verifyToken(authToken: string | AuthTokenResponse, host: C
   return payload;
 }
 
-function authHeaders(authToken: string | AuthTokenResponse) {
-  const $authToken = typeof authToken === 'string' ? authToken : authToken.access_token;
-  return { 'authorization': `Bearer ${$authToken}` };
-}
-
-async function getUser(authToken: string | AuthTokenResponse, host: CloudHost, token?: vscode.CancellationToken) {
-  const { cloudDomain } = getCloudOptions(host);
-  const url = `https://${cloudDomain}/v1alpha1/user`;
-  const request = <RequestInit>{
-    method: 'GET',
-    headers: authHeaders(authToken)
-  };
-  const response = await cancellableFetch(url, request, token);
-  if (!response.ok) {
-    throw new Error(`GET <cloudDomain>/user request failed`, {
-      cause: { url, authToken, status: response.status, statusText: response.statusText }
-    });
-  }
-
-  const body = await response.text();
-  logger.debug("GET dbos-cloud/user", { url, authToken, status: response.status, body });
-  return body;
-}
-
-export async function authenticate(host?: CloudHost): Promise<DbosCloudCredentials | undefined> {
+export async function authenticate(host?: string | CloudOptions): Promise<DbosCloudCredentials | undefined> {
   try {
     const cloud = getCloudOptions(host);
     const result = await vscode.window.withProgress({
@@ -254,22 +220,42 @@ export async function authenticate(host?: CloudHost): Promise<DbosCloudCredentia
   }
 }
 
+
+async function getUser(accessToken: string, host?: string | CloudOptions, token?: vscode.CancellationToken) {
+  const { cloudDomain } = getCloudOptions(host);
+  const url = `https://${cloudDomain}/v1alpha1/user`;
+  const request = <RequestInit>{
+    method: 'GET',
+    headers: { 'authorization': `Bearer ${accessToken}` }
+  };
+  const response = await cancellableFetch(url, request, token);
+  if (!response.ok) {
+    throw new Error(`getUser request failed`, {
+      cause: { url, accessToken, status: response.status, statusText: response.statusText }
+    });
+  }
+
+  const body = await response.text();
+  logger.debug("getUser", { url, authToken: accessToken, status: response.status, body });
+  return body;
+}
+
 export async function listApps({ domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken) {
   const url = `https://${domain}/v1alpha1/${userName}/applications`;
   const request = <RequestInit>{
     method: 'GET',
-    headers: authHeaders(accessToken)
+    headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
   const response = await cancellableFetch(url, request, token);
   if (!response.ok) {
-    throw new Error(`GET <cloudDomain>/<user>/applications request failed`, {
+    throw new Error(`listApps request failed`, {
       cause: { url, status: response.status, statusText: response.statusText }
     });
   }
 
   const body = await response.json() as DbosCloudApp[];
-  logger.debug("GET <cloudDomain>/user/applications", { url, status: response.status, body });
+  logger.debug("listApps", { url, status: response.status, body });
   return body;
 }
 
@@ -277,18 +263,18 @@ export async function getAppInfo(appName: string, { domain, token: accessToken, 
   const url = `https://${domain}/v1alpha1/${userName}/applications/${appName}`;
   const request = <RequestInit>{
     method: 'GET',
-    headers: authHeaders(accessToken)
+    headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
   const response = await cancellableFetch(url, request, token);
   if (!response.ok) {
-    throw new Error(`GET <cloudDomain>/<user>/applications/<app> request failed`, {
+    throw new Error(`getAppInfo request failed`, {
       cause: { url, status: response.status, statusText: response.statusText }
     });
   }
 
   const body = await response.json() as DbosCloudApp;
-  logger.debug("GET <cloudDomain>/<user>/applications/<app>", { url, status: response.status, body });
+  logger.debug("getAppInfo", { url, status: response.status, body });
   return body;
 }
 
@@ -296,18 +282,18 @@ export async function listDatabases({ domain, token: accessToken, userName }: Db
   const url = `https://${domain}/v1alpha1/${userName}/databases`;
   const request = <RequestInit>{
     method: 'GET',
-    headers: authHeaders(accessToken)
+    headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
   const response = await cancellableFetch(url, request, token);
   if (!response.ok) {
-    throw new Error(`GET <cloudDomain>/<user>/databases request failed`, {
+    throw new Error(`listDatabases request failed`, {
       cause: { url, status: response.status, statusText: response.statusText }
     });
   }
 
   const body = await response.json() as DbosCloudDatabase[];
-  logger.debug("GET <cloudDomain>/<user>/databases", { url, status: response.status, body });
+  logger.debug("listDatabases", { url, status: response.status, body });
   return body;
 }
 
@@ -315,37 +301,37 @@ export async function getDatabaseInfo(dbName: string, { domain, token: accessTok
   const url = `https://${domain}/v1alpha1/${userName}/databases/userdb/info/${dbName}`;
   const request = <RequestInit>{
     method: 'GET',
-    headers: authHeaders(accessToken)
+    headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
   const response = await cancellableFetch(url, request, token);
   if (!response.ok) {
-    throw new Error(`GET <cloudDomain>/<user>/databases/userdb/info/<db> request failed`, {
+    throw new Error(`getDatabaseInfo request failed`, {
       cause: { url, status: response.status, statusText: response.statusText }
     });
   }
 
   const body = await response.json() as DbosCloudDatabase;
-  logger.debug("GET <cloudDomain>/<user>/databases/userdb/info/<db> ", { url, status: response.status, body });
+  logger.debug("getDatabaseInfo", { url, status: response.status, body });
   return body;
 }
 
-export async function launchDashboard({ domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken) {
+export async function createDashboard({ domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken) {
 
   const url = `https://${domain}/v1alpha1/${userName}/dashboard`;
   const request = <RequestInit>{
     method: 'PUT',
-    headers: authHeaders(accessToken)
+    headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
   const response = await cancellableFetch(url, request, token);
   if (!response.ok) {
-    throw new Error(`PUT <cloudDomain>/<user>/dashboard request failed`, {
+    throw new Error(`createDashboard request failed`, {
       cause: { url, status: response.status, statusText: response.statusText }
     });
   }
   const body = await response.text();
-  logger.debug("PUT dbos-cloud/<user>/dashboard", { url, status: response.status, body });
+  logger.debug("createDashboard", { url, status: response.status, body });
   return body;
 }
 
@@ -353,16 +339,16 @@ export async function getDashboard({ domain, token: accessToken, userName }: Dbo
   const url = `https://${domain}/v1alpha1/${userName}/dashboard`;
   const request = <RequestInit>{
     method: 'GET',
-    headers: authHeaders(accessToken)
+    headers: { 'authorization': `Bearer ${accessToken}` }
   };
   const response = await cancellableFetch(url, request, token);
   if (!response.ok) {
-    throw new Error(`GET <cloudDomain>/<user>/dashboard request failed`, {
+    throw new Error(`getDashboard request failed`, {
       cause: { url, status: response.status, statusText: response.statusText }
     });
   }
 
   const body = await response.text();
-  logger.debug("GET <cloudDomain>/<user>/dashboard", { url, status: response.status, body });
+  logger.debug("getDashboard", { url, status: response.status, body });
   return body;
 }
