@@ -220,7 +220,6 @@ export async function authenticate(host?: string | CloudOptions): Promise<DbosCl
   }
 }
 
-
 async function getUser(accessToken: string, host?: string | CloudOptions, token?: vscode.CancellationToken) {
   const { cloudDomain } = getCloudOptions(host);
   const url = `https://${cloudDomain}/v1alpha1/user`;
@@ -342,13 +341,13 @@ export async function getDashboard({ domain, token: accessToken, userName }: Dbo
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
   const response = await cancellableFetch(url, request, token);
-  if (!response.ok) {
+  if (!response.ok && response.status !== 500) {
     throw new Error(`getDashboard request failed`, {
       cause: { url, status: response.status, statusText: response.statusText }
     });
   }
 
-  const body = await response.text();
+  const body = response.status === 500 ? undefined : await response.text();
   logger.debug("getDashboard", { url, status: response.status, body });
   return body;
 }

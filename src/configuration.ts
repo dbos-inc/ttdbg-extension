@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { exists, getPackageName, isExecFileError } from './utils';
 import { logger } from './extension';
-import { startInvalidCredentialsFlow } from './commands';
-import { DbosCloudCredentials, authenticate, getAppInfo, getCloudOptions, getDatabaseInfo, isTokenExpired } from './dbosCloudApi';
+import { startInvalidCredentialsFlow } from './userFlows';
+import { DbosCloudCredentials, authenticate, createDashboard, getAppInfo, getCloudOptions, getDashboard, getDatabaseInfo, isTokenExpired } from './dbosCloudApi';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
 const PROV_DB_HOST = "prov_db_host";
@@ -69,7 +69,7 @@ function domainSecretKey(domain: string) { return `dbos-ttdbg:domain:${domain}`;
 export class Configuration {
   constructor(private readonly secrets: vscode.SecretStorage) { }
 
-  async #getStoredCredentials(domain: string): Promise<DbosCloudCredentials | undefined> {
+  async getStoredCredentials(domain: string): Promise<DbosCloudCredentials | undefined> {
     const secretKey = domainSecretKey(domain);
     const json = await this.secrets.get(secretKey);
     if (json) {
@@ -88,7 +88,7 @@ export class Configuration {
   }
 
   async #getCredentials(domain: string) {
-    const storedCredentials = await this.#getStoredCredentials(domain);
+    const storedCredentials = await this.getStoredCredentials(domain);
     if (storedCredentials) {
       return storedCredentials;
     }
@@ -100,7 +100,7 @@ export class Configuration {
     return credentials;
   }
 
-  async authenticate(host?: string) {
+  async #authenticate(host?: string) {
     const { cloudDomain } = getCloudOptions(host);
     this.#getCredentials(cloudDomain);
   }
