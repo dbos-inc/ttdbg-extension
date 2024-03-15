@@ -25,7 +25,7 @@ export interface DbosCloudDatabase {
   Status: string;
   Port: number;
   DatabaseUsername: string;
-  AdminUsername: string;
+  // AdminUsername: string;
 }
 
 export interface CloudOptions {
@@ -93,44 +93,49 @@ interface AuthTokenResponse {
   expires_in: number;
 }
 
-async function getAuthToken(deviceCode: DeviceCodeResponse, host?: string | CloudOptions, token?: vscode.CancellationToken): Promise<AuthTokenResponse | undefined> {
+async function getAuthToken(deviceCodeResponse: DeviceCodeResponse, host?: string | CloudOptions, token?: vscode.CancellationToken): Promise<AuthTokenResponse | undefined> {
   const { loginDomain, clientId } = getCloudOptions(host);
+  const { device_code, user_code, expires_in, interval } = deviceCodeResponse;
   const url = `https://${loginDomain}/oauth/token`;
+  const requestBody = new URLSearchParams({
+    grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+    device_code: device_code,
+    client_id: clientId
+  });
   const request = <RequestInit>{
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-      device_code: deviceCode.device_code,
-      client_id: clientId
-    })
+    body: requestBody
   };
 
+  logger.debug("getAuthToken starting", { url, deviceCodeResponse, host: host ?? null, requestBody: [...requestBody]});
+ 
   let elapsedTimeSec = 0;
-  while (elapsedTimeSec < deviceCode.expires_in) {
+  while (elapsedTimeSec < expires_in) {
     if (token?.isCancellationRequested) {
-      logger.debug("getAuthToken cancelled", { url, deviceCode });
+      logger.debug("getAuthToken cancelled", { url, user_code });
       return undefined;
     }
 
-    await new Promise((r) => setTimeout(r, deviceCode.interval * 1000));
-    elapsedTimeSec += deviceCode.interval;
+    await new Promise((r) => setTimeout(r, interval * 1000));
+    elapsedTimeSec += interval;
     const response = await cancellableFetch(url, request, token);
 
     if (response.ok) {
       const body = await response.json() as AuthTokenResponse;
-      logger.debug("getAuthToken", { url, deviceCode, status: response.status, body });
+      logger.debug("getAuthToken", { url, user_code, status: response.status, body });
       return body;
     } else if (response.status === 403) {
       // 403 response means the user hasn't logged in yet, so keep polling
-      logger.debug("getAuthToken", { url, deviceCode, status: response.status });
+      logger.debug("getAuthToken", { url, user_code, requestBody, status: response.status });
     } else {
       throw new Error(`getAuthToken request failed`, {
-        cause: { url, deviceCode, status: response.status, statusText: response.statusText }
+        cause: { url, user_code, status: response.status, statusText: response.statusText }
       });
     }
   }
-  logger.debug("getAuthToken timed out", { url, deviceCode });
+
+  logger.debug("getAuthToken timed out", { url, user_code });
   return undefined;
 }
 

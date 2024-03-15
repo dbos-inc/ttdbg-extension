@@ -30,8 +30,8 @@
         "category": "DBOS"
       },
       {
-        "command": "dbos-ttdbg.delete-prov-db-passwords",
-        "title": "Delete Stored Application Database Passwords",
+        "command": "dbos-ttdbg.delete-stored-passwords",
+        "title": "Delete Stored Passwords",
         "category": "DBOS"
       },
       {

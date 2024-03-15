@@ -2,16 +2,15 @@ import * as vscode from 'vscode';
 import { logger, debugProxy, config } from './extension';
 import { getWorkspaceFolder } from './utils';
 import { DbosMethodInfo } from './ProvenanceDatabase';
-import { startDebugging, showWorkflowPick } from './userFlows';
+import { startDebugging, showWorkflowPick, validateCredentials } from './userFlows';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
-export async function cloudLogin() {
-    throw new Error("cloudLogin stubbed out");
-    // try {
-    //     await config.authenticate();
-    // } catch (e) {
-    //     logger.error("cloudLogin", e);
-    // }
+export async function cloudLogin(host?: string) {
+    try {
+        await config.cloudLogin(host);
+    } catch (e) {
+        logger.error("cloudLogin", e);
+    }
 }
 
 export const shutdownDebugProxyCommandName = "dbos-ttdbg.shutdown-debug-proxy";
@@ -23,33 +22,35 @@ export function shutdownDebugProxy() {
     }
 }
 
-export const deleteProvenanceDatabasePasswordsCommandName = "dbos-ttdbg.delete-prov-db-passwords";
-export async function deleteProvenanceDatabasePasswords() {
-    throw new Error("deleteProvenanceDatabasePasswords stubbed out");
+export const deleteStoredPasswordsCommandName = "dbos-ttdbg.delete-stored-passwords";
+export async function deleteStoredPasswords() {
+    try {
+        await config.deletePasswords();
+    } catch (e) {
+        logger.error("deleteProvenanceDatabasePasswords", e);
+    }
+}
 
-    // try {
-    //     await config.deletePasswords();
-    // } catch (e) {
-    //     logger.error("deleteProvenanceDatabasePasswords", e);
-    // }
+
+function getDebugConfigFolder(cfg?: vscode.DebugConfiguration) {
+    const rootPath = cfg?.rootPath;
+    if (!rootPath) { throw new Error("getDebugConfigFolder: Invalid rootPath", { cause: cfg }); }
+    const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.parse(rootPath));
+    if (!folder) { throw new Error("getDebugConfigFolder: getWorkspaceFolder failed", { cause: cfg }); }
+    return folder;
 }
 
 export const getProxyUrlCommandName = "dbos-ttdbg.get-proxy-url";
-export async function getProxyUrl(cfg?: vscode.DebugConfiguration) {
+export async function getProxyUrl(cfg?: vscode.DebugConfiguration & { rootPath?: string }) {
     try {
-        const folder = await getWorkspaceFolder(cfg?.rootPath);
-        if (!folder) {
-            throw new Error("Invalid workspace folder", { cause: cfg?.rootPath });
-        }
-
-        const cloudConfig = await config.getCloudConfig(folder);
-        if (!cloudConfig) {
-            throw new Error(`Failed to get cloud config`, { cause: folder.uri.fsPath });
-        }
+        const folder = getDebugConfigFolder(cfg);
+        const credentials = await config.getStoredCloudCredentials();
+        if (!validateCredentials(credentials)) { return undefined; }
+        const cloudConfig = await config.getCloudConfig(folder, credentials);
 
         const proxyLaunched = await debugProxy.launch(cloudConfig, folder);
         if (!proxyLaunched) {
-            throw new Error("Failed to launch debug proxy", { cause: cloudConfig });
+            throw new Error("Failed to launch debug proxy", { cause: { folder: folder.uri.fsPath, cloudConfig }});
         }
 
         return `http://localhost:${config.getProxyPort(folder)}`;
@@ -62,18 +63,10 @@ export async function getProxyUrl(cfg?: vscode.DebugConfiguration) {
 export const pickWorkflowIdCommandName = "dbos-ttdbg.pick-workflow-id";
 export async function pickWorkflowId(cfg?: vscode.DebugConfiguration) {
     try {
-        const folder = await getWorkspaceFolder(cfg?.rootPath);
-        if (!folder) { return undefined; }
-
-        const cloudConfig = await config.getCloudConfig(folder);
-        if (!cloudConfig) {
-            throw new Error(`Failed to get cloud config`, { cause: folder.uri.fsPath });
-        }
-
-        const proxyLaunched = await debugProxy.launch(cloudConfig, folder);
-        if (!proxyLaunched) {
-            throw new Error("Failed to launch debug proxy", { cause: cloudConfig });
-        }
+        const folder = getDebugConfigFolder(cfg);
+        const credentials = await config.getStoredCloudCredentials();
+        if (!validateCredentials(credentials)) { return undefined; }
+        const cloudConfig = await config.getCloudConfig(folder, credentials);
 
         return await showWorkflowPick(folder, { cloudConfig });
     } catch (e) {
@@ -108,4 +101,3 @@ export async function startDebuggingFromCodeLens(folder: vscode.WorkspaceFolder,
         vscode.window.showErrorMessage(`Failed to debug ${method.name} method`);
     }
 }
-

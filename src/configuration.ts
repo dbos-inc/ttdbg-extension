@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
 import { exists, getPackageName, isExecFileError } from './utils';
 import { logger } from './extension';
-import { startInvalidCredentialsFlow } from './userFlows';
-import { DbosCloudCredentials, authenticate, createDashboard, getAppInfo, getCloudOptions, getDashboard, getDatabaseInfo, isTokenExpired } from './dbosCloudApi';
+import { DbosCloudCredentials, DbosCloudDatabase, authenticate, createDashboard, getAppInfo, getCloudOptions, getDashboard, getDatabaseInfo, isTokenExpired } from './dbosCloudApi';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
 const PROV_DB_HOST = "prov_db_host";
@@ -13,31 +12,31 @@ const DEBUG_PROXY_PORT = "debug_proxy_port";
 const DEBUG_PRE_LAUNCH_TASK = "debug_pre_launch_task";
 
 export interface CloudConfig {
-  user?: string;
-  database?: string;
-  password?: string | (() => Promise<string | undefined>);
+  user: string;
+  database: string;
+  password: string | (() => Promise<string | undefined>);
   port?: number;
-  host?: string;
+  host: string;
   appName?: string;
-  appId?: string;
 }
 
-async function getCloudConfigFromDbosCloud(appName: string, credentials: DbosCloudCredentials): Promise<CloudConfig > {
+async function getCloudConfigFromDbosCloud(appName: string, credentials: DbosCloudCredentials): Promise<Omit<CloudConfig, 'password'> | undefined> {
   try {
     const app = await getAppInfo(appName, credentials);
     const db = await getDatabaseInfo(app.PostgresInstanceName, credentials);
-    return {
+    const cloudConfig = {
       host: db.HostName,
       port: db.Port,
-      database: app.ApplicationDatabaseName + "_dbos_prov",
-      user: db.AdminUsername,
+      database: app.ApplicationDatabaseName,
+      user: db.DatabaseUsername,
       appName: app.Name,
-      appId: app.ID,
     };
+    logger.debug("getCloudConfigFromVSCodeConfig", { appName, credentials, cloudConfig });
+    return cloudConfig;
   } catch (e) {
     if (isExecFileError(e)) {
       if (e.stdout.includes("Error: not logged in") || e.stdout.includes("Error: Login expired")) {
-        return {};
+        return undefined;
       }
     }
     throw e;
@@ -48,7 +47,7 @@ function cfgString(value: string | undefined) {
   return value?.length ?? 0 > 0 ? value : undefined;
 }
 
-function getCloudConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): CloudConfig {
+function getCloudConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): Partial<Omit<CloudConfig, 'password' | 'appName' | 'appId'>> {
   const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
 
   const host = cfg.get<string | undefined>(PROV_DB_HOST, undefined);
@@ -56,83 +55,72 @@ function getCloudConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): CloudCo
   const database = cfg.get<string | undefined>(PROV_DB_DATABASE, undefined);
   const user = cfg.get<string | undefined>(PROV_DB_USER, undefined);
 
-  return {
+  const cloudConfig = {
     host: cfgString(host),
     port: port !== 0 ? port : undefined,
     database: cfgString(database),
     user: cfgString(user),
   };
+  logger.debug("getCloudConfigFromVSCodeConfig", { folder: folder.uri.fsPath, cloudConfig });
+  return cloudConfig;
 }
 
 function domainSecretKey(domain: string) { return `dbos-ttdbg:domain:${domain}`; }
+function databaseSecretKey(db: Pick<CloudConfig, 'user' | 'host' | 'port' | 'database'> | DbosCloudDatabase) {
+  if ('host' in db) {
+    return `dbos-ttdbg:database:${db.user}@${db.host}:${db.port ?? 5432}/${db.database}`;
+  } else {
+    return `dbos-ttdbg:database:${db.DatabaseUsername}@${db.HostName}:${db.Port ?? 5432}/${db.PostgresInstanceName}`;
+  }
+}
+const databaseSetKey = `dbos-ttdbg:databases`;
 
 export class Configuration {
   constructor(private readonly secrets: vscode.SecretStorage) { }
 
-  async getStoredCredentials(domain: string): Promise<DbosCloudCredentials | undefined> {
-    const secretKey = domainSecretKey(domain);
+  async getStoredCloudCredentials(host?: string): Promise<DbosCloudCredentials | undefined> {
+    const { cloudDomain } = getCloudOptions(host);
+    const secretKey = domainSecretKey(cloudDomain);
     const json = await this.secrets.get(secretKey);
-    if (json) {
-      const credentials = JSON.parse(json) as DbosCloudCredentials;
-      if (!isTokenExpired(credentials.token)) {
-        return credentials;
-      }
-      await this.secrets.delete(secretKey);
-    }
-    return undefined;
-  }
-  
-  async deleteStoredCredentials(domain: string) {
-    const secretKey = domainSecretKey(domain);
-    await this.secrets.delete(secretKey);
+    return json ? JSON.parse(json) as DbosCloudCredentials : undefined;
   }
 
-  async #getCredentials(domain: string) {
-    const storedCredentials = await this.getStoredCredentials(domain);
-    if (storedCredentials) {
-      return storedCredentials;
-    }
-    const credentials = await authenticate(domain);
+  async cloudLogin(host?: string) {
+    const { cloudDomain } = getCloudOptions(host);
+    const credentials = await authenticate(cloudDomain);
     if (credentials) {
-      const secretKey = domainSecretKey(domain);
+      const secretKey = domainSecretKey(cloudDomain);
       await this.secrets.store(secretKey, JSON.stringify(credentials));
     }
     return credentials;
   }
 
-  async #authenticate(host?: string) {
-    const { cloudDomain } = getCloudOptions(host);
-    this.#getCredentials(cloudDomain);
-  }
-
-  async getCloudConfig(folder: vscode.WorkspaceFolder, host?: string): Promise<CloudConfig | undefined> {
-    const { cloudDomain } = getCloudOptions(host);
+  async getCloudConfig(folder: vscode.WorkspaceFolder, credentials: DbosCloudCredentials): Promise<CloudConfig> {
     const cloudConfig = await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Window },
-      async () => {
+      async (): Promise<Omit<CloudConfig, 'password'> | undefined> => {
         const packageName = await getPackageName(folder);
-        if (!packageName) { return {}; }
-        const credentials = await this.#getCredentials(cloudDomain);
-        if (!credentials) { return {}; }
+        if (!packageName) { return undefined; }
 
-        const dbosConfig = await getCloudConfigFromDbosCloud(packageName, credentials);
+        const cloudConfig = await getCloudConfigFromDbosCloud(packageName, credentials);
         const localConfig = getCloudConfigFromVSCodeConfig(folder);
 
-        return <CloudConfig>{
-          host: localConfig.host ?? dbosConfig.host,
-          port: localConfig.port ?? dbosConfig.port ?? 5432,
-          database: localConfig.database ?? dbosConfig.database,
-          user: localConfig.user ?? dbosConfig.user,
-          appName: localConfig.appName ?? dbosConfig.appName,
-          appId: localConfig.appId ?? dbosConfig.appId,
-        };
-      });
+        const host = localConfig.host ?? cloudConfig?.host;
+        const port = localConfig.port ?? cloudConfig?.port ?? 5432;
+        const database = localConfig.database ?? cloudConfig?.database;
+        const user = localConfig.user ?? cloudConfig?.user;
+        const appName = cloudConfig?.appName;
+        if (!host || !database || !user) { return undefined; }
 
-    if (cloudConfig.host && cloudConfig.database && cloudConfig.user) {
-      return { ...cloudConfig, password: () => this.#getPassword(folder) };
+        return <Omit<CloudConfig, 'password'>>{ host, port, database: `${database}_dbos_prov`, user, appName };
+      }
+    );
+
+    if (cloudConfig) {
+      logger.debug("getCloudConfig", { folder: folder.uri.fsPath, cloudConfig });
+      return { ...cloudConfig, password: () => this.#getPassword(cloudConfig) };
     } else {
-      startInvalidCredentialsFlow(folder).catch(e => logger.error("startInvalidCredentialsFlow", e));
-      return undefined;
+      throw new Error("Invalid CloudConfig", { cause: { folder: folder.uri.fsPath, credentials } });
     }
   }
 
@@ -165,12 +153,21 @@ export class Configuration {
     };
   }
 
-  #getPasswordKey(folder: vscode.WorkspaceFolder): string {
-    return `${TTDBG_CONFIG_SECTION}.prov_db_password.${folder.uri.fsPath}`;
+  async #getDatabaseKeySet(): Promise<Set<string>> {
+    const set = await this.secrets.get(databaseSetKey);
+    return set
+      ? new Set(JSON.parse(set))
+      : new Set<string>();
   }
 
-  async #getPassword(folder: vscode.WorkspaceFolder): Promise<string | undefined> {
-    const passwordKey = this.#getPasswordKey(folder);
+  async #updateDatabaseKeySet(key: string): Promise<void> {
+    const set = await this.#getDatabaseKeySet();
+    set.add(key);
+    await this.secrets.store(databaseSetKey, JSON.stringify(Array.from(set)));
+  }
+
+  async #getPassword(cloudConfig: Pick<CloudConfig, 'user' | 'host' | 'port' | 'database'>): Promise<string | undefined> {
+    const passwordKey = databaseSecretKey(cloudConfig);
     let password = await this.secrets.get(passwordKey);
     if (!password) {
       password = await vscode.window.showInputBox({
@@ -178,6 +175,7 @@ export class Configuration {
         password: true,
       });
       if (password) {
+        await this.#updateDatabaseKeySet(passwordKey);
         await this.secrets.store(passwordKey, password);
       }
     }
@@ -185,9 +183,16 @@ export class Configuration {
   }
 
   async deletePasswords() {
-    for (const folder of vscode.workspace.workspaceFolders ?? []) {
-      const passwordKey = this.#getPasswordKey(folder);
-      await this.secrets.delete(passwordKey);
+    const { cloudDomain } = getCloudOptions();
+    const secretKey = domainSecretKey(cloudDomain);
+    await this.secrets.delete(secretKey);
+    logger.debug("Deleted DBOS Cloud credentials", { cloudDomain });
+
+    const set = await this.#getDatabaseKeySet();
+    for (const key of set) {
+      await this.secrets.delete(key);
+      logger.debug("Deleted DBOS database credentials", { key });
     }
+    await this.secrets.delete(databaseSetKey);
   }
 }

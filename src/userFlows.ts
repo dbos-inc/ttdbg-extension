@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { logger, config, provDB, debugProxy } from './extension';
-import { exists } from './utils';
 import { CloudConfig } from './configuration';
 import { DbosMethodInfo } from './ProvenanceDatabase';
+import { DbosCloudCredentials, createDashboard, getDashboard, isTokenExpired } from './dbosCloudApi';
 
 export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cloudConfig: CloudConfig) => Promise<string | undefined>) {
     await vscode.window.withProgress(
@@ -11,12 +11,13 @@ export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflow
             title: "Launching DBOS Time Travel Debugger",
         },
         async () => {
-            const cloudConfig = await config.getCloudConfig(folder);
-            if (!cloudConfig) {
-                logger.warn("startDebugging: config.getCloudConfig returned undefined", { folder: folder.uri.fsPath });
-                return undefined;
+            const credentials = await config.getStoredCloudCredentials();
+            if (!validateCredentials(credentials)) { 
+                logger.warn("startDebugging: getWorkflowID returned invalid credentials", { folder: folder.uri.fsPath, credentials: credentials ?? null });
+                return undefined; 
             }
 
+            const cloudConfig = await config.getCloudConfig(folder, credentials);
             const workflowID = await getWorkflowID(cloudConfig);
             if (!workflowID) {
                 logger.warn("startDebugging: getWorkflowID returned undefined", { folder: folder.uri.fsPath, cloudConfig });
@@ -60,12 +61,16 @@ export async function showWorkflowPick(
         cloudConfig?: CloudConfig;
     }
 ): Promise<string | undefined> {
-    const cloudConfig = options?.cloudConfig ?? await config.getCloudConfig(folder);
+    let cloudConfig = options?.cloudConfig;
     if (!cloudConfig) {
-        logger.warn("pickWorkflow: config.getCloudConfig returned undefined");
-        return undefined;
+        const credentials = await config.getStoredCloudCredentials();
+        if (!validateCredentials(credentials)) {
+            logger.warn("showWorkflowPick: config.getStoredCloudCredentials returned undefined");
+            return undefined;
+        }
+        cloudConfig = await config.getCloudConfig(folder, credentials);
     }
-
+    
     const statuses = await provDB.getWorkflowStatuses(cloudConfig, options?.method);
     const items = statuses.map(status => <vscode.QuickPickItem>{
         label: new Date(parseInt(status.created_at)).toLocaleString(),
@@ -123,58 +128,73 @@ export async function showWorkflowPick(
 }
 
 async function startOpenDashboardFlow(folder: vscode.WorkspaceFolder, appName: string | undefined, method?: DbosMethodInfo): Promise<void> {
-    // const dashboardUrl = await dbos_cloud_dashboard_url(folder);
-    // logger.debug(`startOpenDashboardFlow enter`, { folder: folder.uri.fsPath, appName: appName ?? null, method, dashboardUrl: dashboardUrl ?? null });
-    // if (!dashboardUrl) {
-    //     const dashboardLaunchUrl = await dbos_cloud_dashboard_launch(folder);
-    //     logger.debug(`startOpenDashboardFlow dbos_cloud_dashboard_launch`, { dashboardLaunchUrl });
-    //     if (!dashboardLaunchUrl) {
-    //         var error = new Error("Failed to get dashboard URL");
-    //         vscode.window.showErrorMessage(error.message);
-    //         throw error;
-    //     }
-    //     const response = await vscode.window.showWarningMessage("Please login to create your DBOS Dashboard", "Login", "Cancel");
-    //     if (response === "Login") {
-    //         logger.info(`startOpenDashboardFlow launch`, { uri: dashboardLaunchUrl });
-    //         const openResult = await vscode.env.openExternal(vscode.Uri.parse(dashboardLaunchUrl));
-    //         if (!openResult) {
-    //             throw new Error(`failed to open dashboard launch URL: ${dashboardLaunchUrl}`);
-    //         }
-    //     }
-    // } else {
-    //     let query = "";
-    //     if (method) {
-    //         query += `var-operation_name=${method.name}&var-operation_type=${method.type.toLowerCase()}`;
-    //     }
-    //     if (appName) {
-    //         query += `&var-app_name=${appName}`;
-    //     }
-    //     const dashboardQueryUrl = `${dashboardUrl}?${query}`;
-    //     logger.info(`startOpenDashboardFlow uri`, { uri: dashboardQueryUrl });
-    //     const openResult = await vscode.env.openExternal(vscode.Uri.parse(dashboardQueryUrl));
-    //     if (!openResult) {
-    //         throw new Error(`failed to open dashboard URL: ${dashboardQueryUrl}`);
-    //     }
-    // }
+    const credentials = await config.getStoredCloudCredentials();
+    if (!validateCredentials(credentials)) {
+        logger.warn("startOpenDashboardFlow: config.getStoredCloudCredentials returned invalid credentials", { folder: folder.uri.fsPath, credentials, appName, method });
+        return undefined;
+    }
+
+    const dashboardUrl = await getDashboard(credentials);
+    logger.debug(`startOpenDashboardFlow enter`, { folder: folder.uri.fsPath, credentials, appName: appName ?? null, method: method ?? null, dashboardUrl: dashboardUrl ?? null });
+    if (!dashboardUrl) {
+        const dashboardLaunchUrl = await createDashboard(credentials);
+        logger.debug(`startOpenDashboardFlow createDashboard`, { dashboardLaunchUrl: dashboardLaunchUrl ?? null });
+        if (!dashboardLaunchUrl) { throw new Error("Failed to get dashboard URL"); }
+        const response = await vscode.window.showWarningMessage("Please login to create your DBOS Dashboard", "Login", "Cancel");
+        if (response === "Login") {
+            logger.info(`startOpenDashboardFlow launch`, { uri: dashboardLaunchUrl });
+            const openResult = await vscode.env.openExternal(vscode.Uri.parse(dashboardLaunchUrl));
+            if (!openResult) {
+                throw new Error(`failed to open dashboard launch URL: ${dashboardLaunchUrl}`);
+            }
+        }
+    } else {
+        let query = "";
+        if (method) {
+            query += `var-operation_name=${method.name}&var-operation_type=${method.type.toLowerCase()}`;
+        }
+        if (appName) {
+            query += `&var-app_name=${appName}`;
+        }
+        const dashboardQueryUrl = `${dashboardUrl}?${query}`;
+        logger.info(`startOpenDashboardFlow uri`, { uri: dashboardQueryUrl });
+        const openResult = await vscode.env.openExternal(vscode.Uri.parse(dashboardQueryUrl));
+        if (!openResult) {
+            throw new Error(`failed to open dashboard URL: ${dashboardQueryUrl}`);
+        }
+    }
 }
 
-export async function startInvalidCredentialsFlow(folder: vscode.WorkspaceFolder): Promise<void> {
-    const credentialsPath = vscode.Uri.joinPath(folder.uri, ".dbos", "credentials");
-    const credentialsExists = await exists(credentialsPath);
+export function validateCredentials(credentials?: DbosCloudCredentials): credentials is DbosCloudCredentials {
+    if (!credentials) {
+        startInvalidCredentialsFlow(credentials)
+            .catch(e => logger.error("startInvalidCredentialsFlow", e));
+        return false;
+    }
 
-    const message = credentialsExists
+    if (isTokenExpired(credentials.token)) {
+        startInvalidCredentialsFlow(credentials)
+            .catch(e => logger.error("startInvalidCredentialsFlow", e));
+        return false;
+    }
+
+    return true;
+}
+
+export async function startInvalidCredentialsFlow(credentials?: DbosCloudCredentials): Promise<void> {
+    const message = credentials
         ? "DBOS Cloud credentials have expired. Please login again."
         : "You need to login to DBOS Cloud.";
 
     const items = ["Login", "Cancel"];
 
     // TODO: Register support
-    // if (!credentialsExists) { items.unshift("Register"); }
+    // if (!credentials) { items.unshift("Register"); }
     const result = await vscode.window.showWarningMessage(message, ...items);
     switch (result) {
         // case "Register": break;
         case "Login":
-            // await config.authenticate();
+            await config.cloudLogin();
             break;
     }
 }

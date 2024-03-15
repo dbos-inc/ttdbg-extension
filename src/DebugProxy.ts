@@ -69,10 +69,6 @@ export class DebugProxy {
             }
         }
 
-        if (!host || !database || !user || !password) {
-            throw new Error("Invalid configuration");
-        }
-
         const args = [
             "-json",
             "-host", host,
