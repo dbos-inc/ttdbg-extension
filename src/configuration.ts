@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { exists, getPackageName, isExecFileError } from './utils';
+import { getPackageName, isExecFileError } from './utils';
 import { logger } from './extension';
-import { DbosCloudCredentials, DbosCloudDatabase, authenticate, createDashboard, getAppInfo, getCloudOptions, getDashboard, getDatabaseInfo, isTokenExpired } from './dbosCloudApi';
+import { DbosCloudCredentials, DbosCloudDatabase, authenticate, getAppInfo, getCloudOptions, getDatabaseInfo } from './dbosCloudApi';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
 const PROV_DB_HOST = "prov_db_host";
