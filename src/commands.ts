@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { logger, debugProxy, config } from './extension';
-import { getWorkspaceFolder } from './utils';
+import { getDebugConfigFolder, getWorkspaceFolder } from './utils';
 import { DbosMethodInfo } from './ProvenanceDatabase';
 import { startDebugging, showWorkflowPick, validateCredentials } from './userFlows';
 
@@ -29,15 +29,6 @@ export async function deleteStoredPasswords() {
     } catch (e) {
         logger.error("deleteProvenanceDatabasePasswords", e);
     }
-}
-
-
-function getDebugConfigFolder(cfg?: vscode.DebugConfiguration) {
-    const rootPath = cfg?.rootPath;
-    if (!rootPath) { throw new Error("getDebugConfigFolder: Invalid rootPath", { cause: cfg }); }
-    const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.parse(rootPath));
-    if (!folder) { throw new Error("getDebugConfigFolder: getWorkspaceFolder failed", { cause: cfg }); }
-    return folder;
 }
 
 export const getProxyUrlCommandName = "dbos-ttdbg.get-proxy-url";

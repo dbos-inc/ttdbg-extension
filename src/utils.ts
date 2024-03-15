@@ -92,6 +92,15 @@ export async function getWorkspaceFolder(rootPath?: string | vscode.Uri) {
   return await vscode.window.showWorkspaceFolderPick();
 }
 
+export function getDebugConfigFolder(cfg?: vscode.DebugConfiguration): vscode.WorkspaceFolder {
+  const rootPath = cfg?.rootPath;
+  if (!rootPath) { throw new Error("getDebugConfigFolder: Invalid rootPath", { cause: cfg }); }
+  const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.parse(rootPath));
+  if (!folder) { throw new Error("getDebugConfigFolder: getWorkspaceFolder failed", { cause: cfg }); }
+  return folder;
+}
+
+
 export interface ExecFileError {
   cmd: string;
   code: number;
