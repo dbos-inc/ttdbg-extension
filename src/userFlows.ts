@@ -12,9 +12,9 @@ export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflow
         },
         async () => {
             const credentials = await config.getStoredCloudCredentials();
-            if (!validateCredentials(credentials)) { 
+            if (!validateCredentials(credentials)) {
                 logger.warn("startDebugging: getWorkflowID returned invalid credentials", { folder: folder.uri.fsPath, credentials: credentials ?? null });
-                return undefined; 
+                return undefined;
             }
 
             const cloudConfig = await config.getCloudConfig(folder, credentials);
@@ -70,7 +70,7 @@ export async function showWorkflowPick(
         }
         cloudConfig = await config.getCloudConfig(folder, credentials);
     }
-    
+
     const statuses = await provDB.getWorkflowStatuses(cloudConfig, options?.method);
     const items = statuses.map(status => <vscode.QuickPickItem>{
         label: new Date(parseInt(status.created_at)).toLocaleString(),
@@ -116,7 +116,7 @@ export async function showWorkflowPick(
         if (result === editButton) {
             return await vscode.window.showInputBox({ prompt: "Enter the workflow ID" });
         } else if (result === dashboardButton) {
-            startOpenDashboardFlow(folder, cloudConfig.appName, options?.method)
+            startOpenDashboardFlow(cloudConfig.appName, options?.method)
                 .catch(e => logger.error("startOpenDashboard", e));
             return undefined;
         } else {
@@ -127,41 +127,42 @@ export async function showWorkflowPick(
     }
 }
 
-async function startOpenDashboardFlow(folder: vscode.WorkspaceFolder, appName: string | undefined, method?: DbosMethodInfo): Promise<void> {
+async function startOpenDashboardFlow(appName: string | undefined, method?: DbosMethodInfo): Promise<void> {
+    logger.debug(`startOpenDashboardFlow enter`, { appName: appName ?? null, method: method ?? null });
     const credentials = await config.getStoredCloudCredentials();
     if (!validateCredentials(credentials)) {
-        logger.warn("startOpenDashboardFlow: config.getStoredCloudCredentials returned invalid credentials", { folder: folder.uri.fsPath, credentials, appName, method });
+        logger.warn("startOpenDashboardFlow: config.getStoredCloudCredentials returned invalid credentials", { credentials });
         return undefined;
     }
 
-    const dashboardUrl = await getDashboard(credentials);
-    logger.debug(`startOpenDashboardFlow enter`, { folder: folder.uri.fsPath, credentials, appName: appName ?? null, method: method ?? null, dashboardUrl: dashboardUrl ?? null });
+    let dashboardUrl = await getDashboard(credentials);
     if (!dashboardUrl) {
-        const dashboardLaunchUrl = await createDashboard(credentials);
-        logger.debug(`startOpenDashboardFlow createDashboard`, { dashboardLaunchUrl: dashboardLaunchUrl ?? null });
-        if (!dashboardLaunchUrl) { throw new Error("Failed to get dashboard URL"); }
-        const response = await vscode.window.showWarningMessage("Please login to create your DBOS Dashboard", "Login", "Cancel");
-        if (response === "Login") {
-            logger.info(`startOpenDashboardFlow launch`, { uri: dashboardLaunchUrl });
-            const openResult = await vscode.env.openExternal(vscode.Uri.parse(dashboardLaunchUrl));
-            if (!openResult) {
-                throw new Error(`failed to open dashboard launch URL: ${dashboardLaunchUrl}`);
-            }
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Window,
+            cancellable: false,
+            title: "Creating DBOS dashboard"
+        }, async () => { await createDashboard(credentials); });
+
+        dashboardUrl = await getDashboard(credentials);
+        if (!dashboardUrl) { 
+            vscode.window.showErrorMessage("Failed to create DBOS dashboard");
+            return;
         }
-    } else {
-        let query = "";
-        if (method) {
-            query += `var-operation_name=${method.name}&var-operation_type=${method.type.toLowerCase()}`;
-        }
-        if (appName) {
-            query += `&var-app_name=${appName}`;
-        }
-        const dashboardQueryUrl = `${dashboardUrl}?${query}`;
-        logger.info(`startOpenDashboardFlow uri`, { uri: dashboardQueryUrl });
-        const openResult = await vscode.env.openExternal(vscode.Uri.parse(dashboardQueryUrl));
-        if (!openResult) {
-            throw new Error(`failed to open dashboard URL: ${dashboardQueryUrl}`);
-        }
+    }
+
+    const params = new URLSearchParams();
+    if (method) {
+        params.append("var-operation_name", method.name);
+        params.append("var-operation_type", method.type.toLowerCase());
+    }
+    if (appName) {
+        params.append("var-app_name", appName);
+    }
+    const dashboardQueryUrl = `${dashboardUrl}?${params}`;
+    logger.info(`startOpenDashboardFlow uri`, { uri: dashboardQueryUrl });
+    const openResult = await vscode.env.openExternal(vscode.Uri.parse(dashboardQueryUrl));
+    if (!openResult) {
+        throw new Error(`failed to open dashboard URL: ${dashboardQueryUrl}`);
     }
 }
 
