@@ -65,14 +65,14 @@ function getCloudConfigFromVSCodeConfig(folder: vscode.WorkspaceFolder): Partial
   return cloudConfig;
 }
 
-function domainSecretKey(domain: string) { return `dbos-ttdbg:domain:${domain}`; }
-function databaseSecretKey(db: Pick<CloudConfig, 'user' | 'host' | 'port' | 'database'> | DbosCloudDatabase) {
-  if ('host' in db) {
-    return `dbos-ttdbg:database:${db.user}@${db.host}:${db.port ?? 5432}/${db.database}`;
-  } else {
-    return `dbos-ttdbg:database:${db.DatabaseUsername}@${db.HostName}:${db.Port ?? 5432}/${db.PostgresInstanceName}`;
-  }
+function domainSecretKey(domain: string) { 
+  return `dbos-ttdbg:domain:${domain}`; 
 }
+
+function databaseSecretKey(db: Pick<CloudConfig, 'user' | 'host' | 'port' | 'database'>) {
+  return `dbos-ttdbg:database:${db.user}@${db.host}:${db.port ?? 5432}/${db.database}`;
+}
+
 const databaseSetKey = `dbos-ttdbg:databases`;
 
 export class Configuration {
