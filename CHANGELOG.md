@@ -13,10 +13,14 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 
 - Initial preview release
 
-## Unreleased
+## [1.0] 2024-03-12
+
+- Initial release
+
+## [1.0.3] Unreleased
 
 ### Changed
 
-- DBOS Cloud integration now uses Cloud API directly instead of `dbos-cloud` CLI.
+- DBOS Cloud integration now uses Cloud API directly instead of invoking the `dbos-cloud` CLI.
 - `Delete Stored Application Database Passwords` command renamed to `Delete Stored Passwords`
 - `Delete Stored Passwords` command deletes stored DBOS Cloud credentials as well as cloud hosted database passwords.
