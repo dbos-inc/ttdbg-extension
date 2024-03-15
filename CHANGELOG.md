@@ -24,3 +24,5 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 - DBOS Cloud integration now uses Cloud API directly instead of invoking the `dbos-cloud` CLI.
 - `Delete Stored Application Database Passwords` command renamed to `Delete Stored Passwords`
 - `Delete Stored Passwords` command deletes stored DBOS Cloud credentials as well as cloud hosted database passwords.
+- Simplified launching the DBOS Cloud Dashboard to silently call `createDashboard` if `getDashboard` returns undefined. 
+  Previously, undefined `getDashboard` would launch the `createDashboard` url but cancel launching the debugger.
