@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import { logger } from './extension';
+import { cancellableFetch } from './utils';
 
 export interface DbosCloudCredentials {
   token: string;
@@ -28,29 +29,19 @@ export interface DbosCloudDatabase {
   // AdminUsername: string;
 }
 
-export interface CloudOptions {
+export interface DbosCloudDomain {
   cloudDomain: string;
   loginDomain: string;
   clientId: string;
 }
 
-export function getCloudOptions(host?: string | CloudOptions): CloudOptions {
-  if (typeof host === 'object') { return host; }
-  const cloudDomain = host ?? "cloud.dbos.dev";
+export function getCloudDomain(domain?: string | DbosCloudDomain): DbosCloudDomain {
+  if (typeof domain === 'object') { return domain; }
+  const cloudDomain = domain ?? "cloud.dbos.dev";
   const isProduction = cloudDomain === "cloud.dbos.dev";
   const loginDomain = isProduction ? 'login.dbos.dev' : 'dbos-inc.us.auth0.com';
   const clientId = isProduction ? '6p7Sjxf13cyLMkdwn14MxlH7JdhILled' : 'G38fLmVErczEo9ioCFjVIHea6yd0qMZu';
   return { cloudDomain, loginDomain, clientId };
-}
-
-async function cancellableFetch(url: string, request: Omit<RequestInit, 'signal'>, token?: vscode.CancellationToken) {
-  const abort = new AbortController();
-  const tokenListener = token?.onCancellationRequested(reason => { abort.abort(reason); });
-  try {
-    return await fetch(url, { ...request, signal: abort.signal });
-  } finally {
-    tokenListener?.dispose();
-  }
 }
 
 interface DeviceCodeResponse {
@@ -62,8 +53,8 @@ interface DeviceCodeResponse {
   interval: number;
 }
 
-async function getDeviceCode(host?: string | CloudOptions, token?: vscode.CancellationToken): Promise<DeviceCodeResponse> {
-  const { loginDomain, clientId } = getCloudOptions(host);
+async function getDeviceCode(domain?: string | DbosCloudDomain, token?: vscode.CancellationToken): Promise<DeviceCodeResponse> {
+  const { loginDomain, clientId } = getCloudDomain(domain);
   const url = `https://${loginDomain}/oauth/device/code`;
   const request = <RequestInit>{
     method: 'POST',
@@ -93,8 +84,8 @@ interface AuthTokenResponse {
   expires_in: number;
 }
 
-async function getAuthToken(deviceCodeResponse: DeviceCodeResponse, host?: string | CloudOptions, token?: vscode.CancellationToken): Promise<AuthTokenResponse | undefined> {
-  const { loginDomain, clientId } = getCloudOptions(host);
+async function getAuthToken(deviceCodeResponse: DeviceCodeResponse, domain?: string | DbosCloudDomain, token?: vscode.CancellationToken): Promise<AuthTokenResponse | undefined> {
+  const { loginDomain, clientId } = getCloudDomain(domain);
   const { device_code, user_code, expires_in, interval } = deviceCodeResponse;
   const url = `https://${loginDomain}/oauth/token`;
   const requestBody = new URLSearchParams({
@@ -108,7 +99,7 @@ async function getAuthToken(deviceCodeResponse: DeviceCodeResponse, host?: strin
     body: requestBody
   };
 
-  logger.debug("getAuthToken starting", { url, deviceCodeResponse, host: host ?? null, requestBody: [...requestBody]});
+  logger.debug("getAuthToken starting", { url, deviceCodeResponse, domain: domain ?? null, requestBody: [...requestBody]});
  
   let elapsedTimeSec = 0;
   while (elapsedTimeSec < expires_in) {
@@ -150,14 +141,14 @@ export function isTokenExpired(authToken: string | AuthTokenResponse): boolean {
   }
 }
 
-export async function verifyToken(authToken: string | AuthTokenResponse, host?: string | CloudOptions, token?: vscode.CancellationToken): Promise<JwtPayload> {
+export async function verifyToken(authToken: string | AuthTokenResponse, domain?: string | DbosCloudDomain, token?: vscode.CancellationToken): Promise<JwtPayload> {
   const $authToken = typeof authToken === 'string' ? authToken : authToken.access_token;
 
   const decoded = jwt.decode($authToken, { complete: true });
   if (!decoded || !decoded.header.kid) { throw new Error('Invalid token'); }
 
-  const { loginDomain: domain } = getCloudOptions(host);
-  const client = jwksClient({ jwksUri: `https://${domain}/.well-known/jwks.json` });
+  const { loginDomain } = getCloudDomain(domain);
+  const client = jwksClient({ jwksUri: `https://${loginDomain}/.well-known/jwks.json` });
   const key = await client.getSigningKey(decoded.header.kid);
   const signingKey = key.getPublicKey();
 
@@ -176,9 +167,9 @@ export async function verifyToken(authToken: string | AuthTokenResponse, host?: 
   return payload;
 }
 
-export async function authenticate(host?: string | CloudOptions): Promise<DbosCloudCredentials | undefined> {
+export async function authenticate(domain?: string | DbosCloudDomain): Promise<DbosCloudCredentials | undefined> {
   try {
-    const cloud = getCloudOptions(host);
+    const cloud = getCloudDomain(domain);
     const result = await vscode.window.withProgress({
       cancellable: true,
       location: vscode.ProgressLocation.Notification,
@@ -225,8 +216,8 @@ export async function authenticate(host?: string | CloudOptions): Promise<DbosCl
   }
 }
 
-async function getUser(accessToken: string, host?: string | CloudOptions, token?: vscode.CancellationToken) {
-  const { cloudDomain } = getCloudOptions(host);
+async function getUser(accessToken: string, domain?: string | DbosCloudDomain, token?: vscode.CancellationToken) {
+  const { cloudDomain } = getCloudDomain(domain);
   const url = `https://${cloudDomain}/v1alpha1/user`;
   const request = <RequestInit>{
     method: 'GET',

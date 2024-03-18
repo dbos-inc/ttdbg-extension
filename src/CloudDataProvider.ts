@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DbosCloudApp, DbosCloudDatabase, DbosCloudCredentials, listApps, listDatabases, getCloudOptions, authenticate, isTokenExpired } from './dbosCloudApi';
+import { DbosCloudApp, DbosCloudDatabase, DbosCloudCredentials, listApps, listDatabases, getCloudDomain, authenticate, isTokenExpired } from './dbosCloudApi';
 import { config } from './extension';
 
 interface CloudServiceType {
@@ -49,7 +49,7 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
   private readonly domains = new Set<string>();
 
   constructor() {
-    const { cloudDomain } = getCloudOptions();
+    const { cloudDomain } = getCloudDomain();
     this.domains.add(cloudDomain);
   }
 

@@ -54,7 +54,7 @@ export async function getProxyUrl(cfg?: vscode.DebugConfiguration & { rootPath?:
         const folder = getDebugConfigFolder(cfg);
         const credentials = await config.getStoredCloudCredentials();
         if (!validateCredentials(credentials)) { return undefined; }
-        const cloudConfig = await config.getCloudConfig(folder, credentials);
+        const cloudConfig = await config.getDebugConfig(folder, credentials);
 
         const proxyLaunched = await debugProxy.launch(cloudConfig, folder);
         if (!proxyLaunched) {
@@ -74,7 +74,7 @@ export async function pickWorkflowId(cfg?: vscode.DebugConfiguration) {
         const folder = getDebugConfigFolder(cfg);
         const credentials = await config.getStoredCloudCredentials();
         if (!validateCredentials(credentials)) { return undefined; }
-        const cloudConfig = await config.getCloudConfig(folder, credentials);
+        const cloudConfig = await config.getDebugConfig(folder, credentials);
 
         return await showWorkflowPick(folder, { cloudConfig });
     } catch (e) {
