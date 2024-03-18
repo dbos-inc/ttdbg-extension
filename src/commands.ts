@@ -3,6 +3,7 @@ import { logger, debugProxy, config } from './extension';
 import { getDebugConfigFolder, getWorkspaceFolder } from './utils';
 import { DbosMethodInfo } from './ProvenanceDatabase';
 import { startDebugging, showWorkflowPick, validateCredentials } from './userFlows';
+import { CloudDomain } from './CloudDataProvider';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
 export async function cloudLogin(host?: string) {
@@ -21,6 +22,22 @@ export function shutdownDebugProxy() {
         logger.error("shutdownDebugProxy", e);
     }
 }
+
+export const deleteDomainCredentialsCommandName = "dbos-ttdbg.delete-domain-credentials";
+export async function deleteDomainCredentials(cloudDomain?: CloudDomain) {
+    if (!cloudDomain) { 
+        logger.warn("deleteDomainCredentials: no domain provided");
+        return; 
+    }
+
+    try {
+        logger.info("deleteDomainCredentials", { domain: cloudDomain.domain });
+        await config.deleteStoredCloudCredentials(cloudDomain.domain);
+    } catch (e) {
+        logger.error("shutdownDebugProxy", e);
+    }
+}
+
 
 export const deleteStoredPasswordsCommandName = "dbos-ttdbg.delete-stored-passwords";
 export async function deleteStoredPasswords() {

@@ -95,6 +95,13 @@ export class Configuration {
     return credentials;
   }
 
+  async deleteStoredCloudCredentials(host?: string) {
+    const { cloudDomain } = getCloudOptions(host);
+    const secretKey = domainSecretKey(cloudDomain);
+    await this.secrets.delete(secretKey);
+    logger.debug("Deleted DBOS Cloud credentials", { cloudDomain });
+  }
+
   async getCloudConfig(folder: vscode.WorkspaceFolder, credentials: DbosCloudCredentials): Promise<CloudConfig> {
     const cloudConfig = await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Window },
@@ -183,10 +190,7 @@ export class Configuration {
   }
 
   async deletePasswords() {
-    const { cloudDomain } = getCloudOptions();
-    const secretKey = domainSecretKey(cloudDomain);
-    await this.secrets.delete(secretKey);
-    logger.debug("Deleted DBOS Cloud credentials", { cloudDomain });
+    await this.deleteStoredCloudCredentials();
 
     const set = await this.#getDatabaseKeySet();
     for (const key of set) {

@@ -27,8 +27,15 @@
     "commands": [
       {
         "command": "dbos-ttdbg.cloud-login",
-        "title": "Log into DBOS Cloud",
-        "category": "DBOS"
+        "title": "Log Into DBOS Cloud",
+        "category": "DBOS",
+        "icon": "$(log-in)"
+      },
+      {
+        "command": "dbos-ttdbg.delete-domain-credentials",
+        "title": "Delete Stored DBOS Cloud Credentials",
+        "category": "DBOS",
+        "icon": "$(log-out)"
       },
       {
         "command": "dbos-ttdbg.delete-stored-passwords",
@@ -64,6 +71,36 @@
           "type": "string"
         }
       }
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "dbos-ttdbg.cloud-login",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain",
+          "group": "inline"
+        },
+        {
+          "command": "dbos-ttdbg.delete-domain-credentials",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain"
+        }
+      ]
+    },
+    "views": {
+      "dbos-cloud": [
+        {
+          "id": "dbos-ttdbg.views.resources",
+          "name": "Resources"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "dbos-cloud",
+          "title": "DBOS Cloud",
+          "icon": "resources/dbos-logo.png"
+        }
+      ]
     }
   },
   "scripts": {
