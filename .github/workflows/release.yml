@@ -21,7 +21,7 @@ jobs:
         name: Extension
         path: ./extension      
     - name: Create GitHub release
-      uses: softprops/action-gh-release@v0.1.15
+      uses: softprops/action-gh-release@v2.0.2
       with:
         name: Release ${{ needs.build.outputs.version }}
         prerelease: ${{ fromJson(needs.build.outputs.preRelease) }}
