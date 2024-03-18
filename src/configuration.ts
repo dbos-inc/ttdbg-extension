@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { getPackageName } from './utils';
 import { logger } from './extension';
-import { DbosCloudCredentials, DbosCloudDomain, authenticate, getAppInfo, getCloudDomain, getDatabaseInfo } from './dbosCloudApi';
+import { DbosCloudApp, DbosCloudCredentials, DbosCloudDomain, authenticate, getAppInfo, getCloudDomain, getDatabaseInfo } from './dbosCloudApi';
 import { validateCredentials } from './userFlows';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
@@ -21,10 +21,10 @@ export interface DbosDebugConfig {
   appName?: string;
 }
 
-export async function getDebugConfigFromDbosCloud(appName: string, credentials: DbosCloudCredentials): Promise<Omit<DbosDebugConfig, 'password'> | undefined> {
+export async function getDebugConfigFromDbosCloud(app: string | DbosCloudApp, credentials: DbosCloudCredentials): Promise<Omit<DbosDebugConfig, 'password'> | undefined> {
   if (!validateCredentials(credentials)) { return undefined; }
 
-  const app = await getAppInfo(appName, credentials);
+  if (typeof app === 'string') { app = await getAppInfo(app, credentials); }
   const db = await getDatabaseInfo(app.PostgresInstanceName, credentials);
   const cloudConfig = {
     host: db.HostName,
@@ -33,7 +33,7 @@ export async function getDebugConfigFromDbosCloud(appName: string, credentials: 
     user: db.DatabaseUsername,
     appName: app.Name,
   };
-  logger.debug("getCloudConfigFromVSCodeConfig", { appName, credentials, cloudConfig });
+  logger.debug("getCloudConfigFromVSCodeConfig", { app, credentials, cloudConfig });
   return cloudConfig;
 }
 

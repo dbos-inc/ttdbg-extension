@@ -9,6 +9,7 @@ import { getDebugConfigFromDbosCloud } from './configuration';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
 export async function cloudLogin(host?: string) {
+  logger.debug("cloudLogin", { host });
   try {
     await config.cloudLogin(host);
   } catch (e) {
@@ -18,6 +19,7 @@ export async function cloudLogin(host?: string) {
 
 export const shutdownDebugProxyCommandName = "dbos-ttdbg.shutdown-debug-proxy";
 export function shutdownDebugProxy() {
+  logger.debug("shutdownDebugProxy");
   try {
     debugProxy.shutdown();
   } catch (e) {
@@ -27,6 +29,8 @@ export function shutdownDebugProxy() {
 
 export const deleteDomainCredentialsCommandName = "dbos-ttdbg.delete-domain-credentials";
 export async function deleteDomainCredentials(domain?: string | DbosCloudDomain) {
+  logger.debug("deleteDomainCredentials", { domain: domain ?? null });
+
   try {
     domain = getCloudDomain(domain);
     logger.info("deleteDomainCredentials", domain);
@@ -38,8 +42,9 @@ export async function deleteDomainCredentials(domain?: string | DbosCloudDomain)
 
 export const deleteAppDatabasePasswordCommandName = "dbos-ttdbg.delete-app-db-password";
 export async function deleteAppDatabasePassword(node?: CloudAppNode) {
+  logger.debug("deleteAppDatabasePassword", { node: node ?? null });
   if (node) {
-    const debugConfig = await getDebugConfigFromDbosCloud(node.app.Name, node.credentials);
+    const debugConfig = await getDebugConfigFromDbosCloud(node.app, node.credentials);
     if (debugConfig) {
       try {
         await config.deleteStoredAppDatabasePassword(debugConfig);
@@ -52,6 +57,7 @@ export async function deleteAppDatabasePassword(node?: CloudAppNode) {
 
 export const deleteStoredPasswordsCommandName = "dbos-ttdbg.delete-stored-passwords";
 export async function deleteStoredPasswords() {
+  logger.debug("deleteStoredPasswords");
   try {
     await config.deletePasswords();
   } catch (e) {
