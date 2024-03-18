@@ -4,11 +4,12 @@
   "publisher": "dbos-inc",
   "version": "0.0.0-placeholder",
   "icon": "dbos-logo-128.png",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.86.0"
   },
   "categories": [
-    "Other"
+    "Debuggers"
   ],
   "homepage": "https://dbos.dev/",
   "bugs": {
