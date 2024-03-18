@@ -4,11 +4,12 @@
   "publisher": "dbos-inc",
   "version": "0.0.0-placeholder",
   "icon": "dbos-logo-128.png",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.86.0"
   },
   "categories": [
-    "Other"
+    "Debuggers"
   ],
   "homepage": "https://dbos.dev/",
   "bugs": {
@@ -26,13 +27,32 @@
     "commands": [
       {
         "command": "dbos-ttdbg.cloud-login",
-        "title": "Log into DBOS Cloud",
-        "category": "DBOS"
+        "title": "Log Into DBOS Cloud",
+        "category": "DBOS",
+        "icon": "$(log-in)"
+      },
+      {
+        "command": "dbos-ttdbg.delete-domain-credentials",
+        "title": "Delete Stored DBOS Cloud Credentials",
+        "category": "DBOS",
+        "icon": "$(log-out)"
+      },
+      {
+        "command": "dbos-ttdbg.delete-app-db-password",
+        "title": "Delete Stored Application Database Password",
+        "category": "DBOS",
+        "icon": "$(log-out)"
       },
       {
         "command": "dbos-ttdbg.delete-stored-passwords",
         "title": "Delete Stored Passwords",
         "category": "DBOS"
+      },
+      {
+        "command": "dbos-ttdbg.launch-dbos-app",
+        "title": "Launch DBOS Application",
+        "category": "DBOS",
+        "icon": "$(globe)"
       },
       {
         "command": "dbos-ttdbg.shutdown-debug-proxy",
@@ -63,6 +83,45 @@
           "type": "string"
         }
       }
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "dbos-ttdbg.cloud-login",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain",
+          "group": "inline"
+        },
+        {
+          "command": "dbos-ttdbg.delete-domain-credentials",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain"
+        },
+        {
+          "command": "dbos-ttdbg.delete-app-db-password",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp"
+        },
+        {
+          "command": "dbos-ttdbg.launch-dbos-app",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp",
+          "group": "inline"
+        }
+      ]
+    },
+    "views": {
+      "dbos-cloud": [
+        {
+          "id": "dbos-ttdbg.views.resources",
+          "name": "Resources"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "dbos-cloud",
+          "title": "DBOS Cloud",
+          "icon": "resources/dbos-logo.png"
+        }
+      ]
     }
   },
   "scripts": {

@@ -3,7 +3,7 @@ import { execFile as cpExecFile } from "child_process";
 import util from 'util';
 import { fast1a32 } from 'fnv-plus';
 import { ClientConfig } from 'pg';
-import { CloudConfig } from './configuration';
+import { DbosDebugConfig } from './configuration';
 import { logger } from './extension';
 
 export const PLATFORM = function () {
@@ -59,7 +59,7 @@ export async function getPackageName(folder: vscode.WorkspaceFolder): Promise<st
 
 export const execFile = util.promisify(cpExecFile);
 
-export function hashClientConfig(clientConfig: ClientConfig | CloudConfig) {
+export function hashClientConfig(clientConfig: ClientConfig | DbosDebugConfig) {
   const { host, port, database, user } = clientConfig;
   return host && port && database && user
     ? fast1a32(`${host}:${port}:${database}:${user}`)
@@ -100,20 +100,12 @@ export function getDebugConfigFolder(cfg?: vscode.DebugConfiguration): vscode.Wo
   return folder;
 }
 
-
-export interface ExecFileError {
-  cmd: string;
-  code: number;
-  killed: boolean;
-  stdout: string;
-  stderr: string;
-  message: string;
-  stack: string;
-}
-
-export function isExecFileError(e: unknown): e is ExecFileError {
-  if (e instanceof Error) {
-    return "stdout" in e && "stderr" in e && "cmd" in e;
+export async function cancellableFetch(url: string, request: Omit<RequestInit, 'signal'>, token?: vscode.CancellationToken) {
+  const abort = new AbortController();
+  const tokenListener = token?.onCancellationRequested(reason => { abort.abort(reason); });
+  try {
+    return await fetch(url, { ...request, signal: abort.signal });
+  } finally {
+    tokenListener?.dispose();
   }
-  return false;
 }

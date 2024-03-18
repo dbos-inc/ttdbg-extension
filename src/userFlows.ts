@@ -1,10 +1,31 @@
 import * as vscode from 'vscode';
 import { logger, config, provDB, debugProxy } from './extension';
-import { CloudConfig } from './configuration';
+import { DbosDebugConfig } from './configuration';
 import { DbosMethodInfo } from './ProvenanceDatabase';
 import { DbosCloudCredentials, createDashboard, getDashboard, isTokenExpired } from './dbosCloudApi';
 
-export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cloudConfig: CloudConfig) => Promise<string | undefined>) {
+function getDebugLaunchConfig(folder: vscode.WorkspaceFolder, workflowID: string): vscode.DebugConfiguration {
+    const debugConfigs = vscode.workspace.getConfiguration("launch", folder).get('configurations') as ReadonlyArray<vscode.DebugConfiguration> | undefined;
+    for (const config of debugConfigs ?? []) {
+      const command = config["command"] as string | undefined;
+      if (command && command.includes("npx dbos-sdk debug")) {
+        const newCommand = command.replace("${command:dbos-ttdbg.pick-workflow-id}", `${workflowID}`);
+        return { ...config, command: newCommand };
+      }
+    }
+
+    const preLaunchTask = config.getPreLaunchTask(folder);
+    const proxyPort = config.getProxyPort(folder);
+    return <vscode.DebugConfiguration>{
+      name: `Time-Travel Debug ${workflowID}`,
+      type: 'node-terminal',
+      request: 'launch',
+      command: `npx dbos-sdk debug -x http://localhost:${proxyPort} -u ${workflowID}`,
+      preLaunchTask,
+    };
+  }
+
+export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cloudConfig: DbosDebugConfig) => Promise<string | undefined>) {
     await vscode.window.withProgress(
         {
             location: vscode.ProgressLocation.Window,
@@ -17,7 +38,7 @@ export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflow
                 return undefined;
             }
 
-            const cloudConfig = await config.getCloudConfig(folder, credentials);
+            const cloudConfig = await config.getDebugConfig(folder, credentials);
             const workflowID = await getWorkflowID(cloudConfig);
             if (!workflowID) {
                 logger.warn("startDebugging: getWorkflowID returned undefined", { folder: folder.uri.fsPath, cloudConfig });
@@ -37,17 +58,17 @@ export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflow
                 return undefined;
             }
 
-            const debugConfig = config.getDebugConfig(folder, workflowID);
-            logger.info(`startDebugging`, { folder: folder.uri.fsPath, database: cloudConfig, debugConfig });
+            const launchConfig = getDebugLaunchConfig(folder, workflowID);
+            logger.info(`startDebugging`, { folder: folder.uri.fsPath, database: cloudConfig, debugConfig: launchConfig });
 
-            const debuggerStarted = await vscode.debug.startDebugging(folder, debugConfig);
+            const debuggerStarted = await vscode.debug.startDebugging(folder, launchConfig);
             if (!debuggerStarted) {
                 throw new Error("startDebugging: Debugger failed to start", {
                     cause: {
                         folder: folder.uri.fsPath,
                         cloudConfig,
                         workflowID,
-                        debugConfig,
+                        launchConfig,
                     }
                 });
             }
@@ -58,7 +79,7 @@ export async function showWorkflowPick(
     folder: vscode.WorkspaceFolder,
     options?: {
         method?: DbosMethodInfo;
-        cloudConfig?: CloudConfig;
+        cloudConfig?: DbosDebugConfig;
     }
 ): Promise<string | undefined> {
     let cloudConfig = options?.cloudConfig;
@@ -68,7 +89,7 @@ export async function showWorkflowPick(
             logger.warn("showWorkflowPick: config.getStoredCloudCredentials returned undefined");
             return undefined;
         }
-        cloudConfig = await config.getCloudConfig(folder, credentials);
+        cloudConfig = await config.getDebugConfig(folder, credentials);
     }
 
     const statuses = await provDB.getWorkflowStatuses(cloudConfig, options?.method);
