@@ -70,7 +70,9 @@ jobs:
         run: npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version 
       - name: Pack Pre-Release Extension
         if: ${{ fromJSON(steps.relInfo.outputs.preRelease) }} 
-        run: npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version --pre-release  
+        run: | 
+          npm pkg set preview=true --json
+          npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version --pre-release  
       - name: Upload Extension Artifact
         uses: actions/upload-artifact@v4.3.1
         with: 
