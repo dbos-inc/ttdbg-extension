@@ -38,9 +38,21 @@
         "icon": "$(log-out)"
       },
       {
+        "command": "dbos-ttdbg.delete-app-db-password",
+        "title": "Delete Stored Application Database Password",
+        "category": "DBOS",
+        "icon": "$(log-out)"
+      },
+      {
         "command": "dbos-ttdbg.delete-stored-passwords",
         "title": "Delete Stored Passwords",
         "category": "DBOS"
+      },
+      {
+        "command": "dbos-ttdbg.launch-dbos-app",
+        "title": "Launch DBOS Application",
+        "category": "DBOS",
+        "icon": "$(globe)"
       },
       {
         "command": "dbos-ttdbg.shutdown-debug-proxy",
@@ -82,6 +94,15 @@
         {
           "command": "dbos-ttdbg.delete-domain-credentials",
           "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain"
+        },
+        {
+          "command": "dbos-ttdbg.delete-app-db-password",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp"
+        },
+        {
+          "command": "dbos-ttdbg.launch-dbos-app",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp",
+          "group": "inline"
         }
       ]
     },

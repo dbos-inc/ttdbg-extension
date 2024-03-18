@@ -1,46 +1,33 @@
 import * as vscode from 'vscode';
-import { DbosCloudApp, DbosCloudDatabase, DbosCloudCredentials, listApps, listDatabases, getCloudDomain, authenticate, isTokenExpired } from './dbosCloudApi';
+import { DbosCloudApp, DbosCloudDatabase, DbosCloudCredentials, listApps, listDatabases, getCloudDomain, authenticate, isTokenExpired, DbosCloudDomain } from './dbosCloudApi';
 import { config } from './extension';
 
-interface CloudServiceType {
-  serviceType: "Applications" | "Databases";
-  serviceDomain: string;
-};
-
-export interface CloudDomain {
+export interface CloudDomainNode {
+  kind: "cloudDomain";
   domain: string;
+  credentials?: DbosCloudCredentials;
+}
+
+interface CloudServiceTypeNode {
+  kind: "cloudServiceType";
+  type: "Applications" | "Databases";
+  domain: string;
+  credentials?: DbosCloudCredentials;
 };
 
-type CloudProviderNode = CloudDomain | DbosCloudApp | DbosCloudDatabase | CloudServiceType;
+export interface CloudAppNode {
+  kind: "cloudApp";
+  app: DbosCloudApp;
+  credentials: DbosCloudCredentials;
+};
 
-function isDomain(node: CloudProviderNode): node is CloudDomain {
-  return "domain" in node;
+export interface CloudDatabaseNode {
+  kind: "cloudDatabase";
+  database: DbosCloudDatabase;
+  credentials: DbosCloudCredentials;
 }
 
-function isServiceType(node: CloudProviderNode): node is CloudServiceType {
-  return "serviceType" in node && "serviceDomain" in node;
-}
-
-function isCloudDatabase(node: CloudProviderNode): node is DbosCloudDatabase {
-  return "PostgresInstanceName" in node
-    && "HostName" in node
-    && "Status" in node
-    && "Port" in node
-    && "DatabaseUsername" in node
-    && "AdminUsername" in node;
-}
-
-function isCloudApp(node: CloudProviderNode): node is DbosCloudApp {
-  return "Name" in node
-    && "ID" in node
-    && "PostgresInstanceName" in node
-    && "ApplicationDatabaseName" in node
-    && "Status" in node
-    && "Version" in node
-    && "AppURL" in node;
-}
-
-function domainSecretKey(domain: string) { return `dbos-ttdbg:domain:${domain}`; }
+type CloudProviderNode = CloudDomainNode | CloudServiceTypeNode | CloudAppNode | CloudDatabaseNode;
 
 export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderNode> {
   private readonly onDidChangeTreeDataEmitter = new vscode.EventEmitter<CloudProviderNode | CloudProviderNode[] | undefined | null | void>();
@@ -53,7 +40,7 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
     this.domains.add(cloudDomain);
   }
 
-  async #getCredentials(domain: string): Promise<DbosCloudCredentials | undefined> {
+  async #getCredentials(domain?: string | DbosCloudDomain): Promise<DbosCloudCredentials | undefined> {
     const storedCredentials = await config.getStoredCloudCredentials(domain);
     if (storedCredentials) {
       return storedCredentials;
@@ -63,30 +50,35 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
 
   async getChildren(element?: CloudProviderNode | undefined): Promise<CloudProviderNode[]> {
     if (element === undefined) {
-      const children = new Array<CloudDomain>();
+      const children = new Array<CloudDomainNode>();
       for (const domain of this.domains) {
-        children.push({ domain });
+        const credentials = await config.getStoredCloudCredentials(domain);
+        children.push({ kind: 'cloudDomain', domain, credentials });
       }
       return children;
     }
 
-    if (isDomain(element)) {
+    if (element.kind === "cloudDomain") {
       return [
-        { serviceDomain: element.domain, serviceType: "Applications" },
-        { serviceDomain: element.domain, serviceType: "Databases" },
+        <CloudServiceTypeNode>{ kind: 'cloudServiceType', domain: element.domain, credentials: element.credentials, type: "Applications" },
+        <CloudServiceTypeNode>{ kind: 'cloudServiceType', domain: element.domain, credentials: element.credentials, type: "Databases" },
       ];
     }
 
-    if (isServiceType(element)) {
-      const credentials = await this.#getCredentials(element.serviceDomain);
+    if (element.kind === "cloudServiceType") {
+      const credentials = element.credentials ?? await this.#getCredentials(element.domain);  
       if (!credentials) { return []; }
-      switch (element.serviceType) {
-        case "Applications":
-          return await listApps(credentials);
-        case "Databases":
-          return await listDatabases(credentials);
+      switch (element.type) {
+        case "Applications": {
+          const apps = await listApps(credentials);
+          return apps.map(app => ({ kind: "cloudApp", app, credentials }));
+        }
+        case "Databases": {
+          const dbs = await listDatabases(credentials);
+          return dbs.map(database => ({ kind: "cloudDatabase", database, credentials }));
+        }
         default:
-          throw new Error(`Unknown serviceType: ${element.serviceType}`);
+          throw new Error(`Unknown service type: ${element.type}`);
       }
     }
 
@@ -94,36 +86,35 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
   }
 
   getTreeItem(element: CloudProviderNode): vscode.TreeItem | Thenable<vscode.TreeItem> {
-    if (isDomain(element)) {
+    if (element.kind === 'cloudDomain') {
       return {
         label: element.domain,
-        collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-        contextValue: "cloudDomain",
+        collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
+        contextValue: element.kind,
       };
     }
 
-    if (isServiceType(element)) {
-      const contextValue = element.serviceType === "Applications" ? "cloudApps" : "cloudDatabases";
+    if (element.kind === 'cloudServiceType') {
       return {
-        label: element.serviceType,
-        collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-        contextValue
+        label: element.type,
+        collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
+        contextValue: element.kind,
       };
     }
 
-    if (isCloudApp(element)) {
+    if (element.kind === 'cloudApp') {
       return {
-        label: element.Name,
+        label: element.app.Name,
         collapsibleState: vscode.TreeItemCollapsibleState.None,
-        contextValue: "cloudApp",
+        contextValue: element.kind,
       };
     }
 
-    if (isCloudDatabase(element)) {
+    if (element.kind === 'cloudDatabase') {
       return {
-        label: element.PostgresInstanceName,
+        label: element.database.PostgresInstanceName,
         collapsibleState: vscode.TreeItemCollapsibleState.None,
-        contextValue: "cloudDatabase",
+        contextValue: element.kind,
       };
     }
 

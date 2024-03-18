@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { getPackageName } from './utils';
 import { logger } from './extension';
-import { DbosCloudCredentials, DbosCloudDatabase, authenticate, getAppInfo, getCloudDomain, getDatabaseInfo } from './dbosCloudApi';
+import { DbosCloudCredentials, DbosCloudDomain, authenticate, getAppInfo, getCloudDomain, getDatabaseInfo } from './dbosCloudApi';
 import { validateCredentials } from './userFlows';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
@@ -21,7 +21,7 @@ export interface DbosDebugConfig {
   appName?: string;
 }
 
-async function getDebugConfigFromDbosCloud(appName: string, credentials: DbosCloudCredentials): Promise<Omit<DbosDebugConfig, 'password'> | undefined> {
+export async function getDebugConfigFromDbosCloud(appName: string, credentials: DbosCloudCredentials): Promise<Omit<DbosDebugConfig, 'password'> | undefined> {
   if (!validateCredentials(credentials)) { return undefined; }
 
   const app = await getAppInfo(appName, credentials);
@@ -72,14 +72,14 @@ const databaseSetKey = `dbos-ttdbg:databases`;
 export class Configuration {
   constructor(private readonly secrets: vscode.SecretStorage) { }
 
-  async getStoredCloudCredentials(domain?: string): Promise<DbosCloudCredentials | undefined> {
+  async getStoredCloudCredentials(domain?: string | DbosCloudDomain): Promise<DbosCloudCredentials | undefined> {
     const { cloudDomain } = getCloudDomain(domain);
     const secretKey = domainSecretKey(cloudDomain);
     const json = await this.secrets.get(secretKey);
     return json ? JSON.parse(json) as DbosCloudCredentials : undefined;
   }
 
-  async cloudLogin(domain?: string) {
+  async cloudLogin(domain?: string | DbosCloudDomain) {
     const { cloudDomain } = getCloudDomain(domain);
     const credentials = await authenticate(cloudDomain);
     if (credentials) {
@@ -89,7 +89,7 @@ export class Configuration {
     return credentials;
   }
 
-  async deleteStoredCloudCredentials(domain?: string) {
+  async deleteStoredCloudCredentials(domain?: string | DbosCloudDomain) {
     const { cloudDomain } = getCloudDomain(domain);
     const secretKey = domainSecretKey(cloudDomain);
     await this.secrets.delete(secretKey);
