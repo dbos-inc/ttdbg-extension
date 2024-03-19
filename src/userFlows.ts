@@ -96,16 +96,27 @@ export async function showWorkflowPick(
             input.canSelectMany = false;
             input.items = items;
             input.buttons = [editButton, dashboardButton];
+            let selectedItem: vscode.QuickPickItem | undefined = undefined;
             disposables.push(
-                input.onDidTriggerButton(item => { resolve(item); input.hide(); }),
-                input.onDidHide(() => { resolve(undefined); input.dispose(); }),
-                input.onDidChangeSelection(() => {
-                    const item = items[0];
-                    if (item) {
-                        resolve(item);
-                        input.hide();
-                    }
-                })
+                input.onDidAccept(() => { 
+                    logger.debug("showWorkflowPick.onDidAccept", { selectedItem });
+                    resolve(selectedItem); 
+                    input.dispose(); 
+                }),
+                input.onDidHide(() => { 
+                    logger.debug("showWorkflowPick.onDidHide", { selectedItem });
+                    resolve(undefined); 
+                    input.dispose(); 
+                }),
+                input.onDidChangeSelection(items => {
+                    logger.debug("showWorkflowPick.onDidChangeSelection", { items });
+                    selectedItem = items.length === 0 ? undefined : items[0];
+                }),
+                input.onDidTriggerButton(button => { 
+                    logger.debug("showWorkflowPick.onDidTriggerButton", { button });
+                    resolve(button); 
+                    input.dispose(); 
+                }),
             );
             input.show();
         });
