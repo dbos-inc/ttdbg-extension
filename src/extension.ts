@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { S3CloudStorage } from './CloudStorage';
 import { TTDbgCodeLensProvider } from './codeLensProvider';
-import { deleteStoredPasswords, deleteStoredPasswordsCommandName, shutdownDebugProxyCommandName, shutdownDebugProxy, cloudLoginCommandName, cloudLogin, startDebuggingCodeLensCommandName, startDebuggingFromCodeLens, startDebuggingFromUri, startDebuggingUriCommandName, getProxyUrl, getProxyUrlCommandName, pickWorkflowIdCommandName, pickWorkflowId, deleteDomainCredentials, deleteDomainCredentialsCommandName, deleteAppDatabasePassword, deleteAppDatabasePasswordCommandName, launchDbosApp, launchDbosAppCommandName } from './commands';
+import { deleteStoredPasswords, deleteStoredPasswordsCommandName, shutdownDebugProxyCommandName, shutdownDebugProxy, cloudLoginCommandName, cloudLogin, startDebuggingCodeLensCommandName, startDebuggingFromCodeLens, startDebuggingFromUri, startDebuggingUriCommandName, getProxyUrl, getProxyUrlCommandName, pickWorkflowIdCommandName, pickWorkflowId, deleteDomainCredentials, deleteDomainCredentialsCommandName, deleteAppDatabasePassword, deleteAppDatabasePasswordCommandName } from './commands';
 import { Configuration } from './configuration';
 import { DebugProxy, } from './DebugProxy';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
@@ -36,7 +36,6 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(deleteDomainCredentialsCommandName, deleteDomainCredentials),
     vscode.commands.registerCommand(deleteAppDatabasePasswordCommandName, deleteAppDatabasePassword),
     vscode.commands.registerCommand(deleteStoredPasswordsCommandName, deleteStoredPasswords),
-    vscode.commands.registerCommand(launchDbosAppCommandName, launchDbosApp),
     vscode.commands.registerCommand(shutdownDebugProxyCommandName, shutdownDebugProxy),
     vscode.commands.registerCommand(startDebuggingCodeLensCommandName, startDebuggingFromCodeLens),
     vscode.commands.registerCommand(startDebuggingUriCommandName, startDebuggingFromUri),
