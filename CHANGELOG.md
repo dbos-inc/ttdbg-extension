@@ -27,7 +27,7 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 - Simplified launching the DBOS Cloud Dashboard to silently call `createDashboard` if `getDashboard` returns undefined. 
   Previously, undefined `getDashboard` would launch the `createDashboard` url but cancel launching the debugger.
 
-## [1.0.8] 2024-03-19
+## [1.0.9] 2024-03-19
 
 ### Fixed
 
