@@ -27,6 +27,16 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 - Simplified launching the DBOS Cloud Dashboard to silently call `createDashboard` if `getDashboard` returns undefined. 
   Previously, undefined `getDashboard` would launch the `createDashboard` url but cancel launching the debugger.
 
+## [1.0.9] 2024-03-19
+
+### Fixed
+
+- Fixed Workflow Picker always returning first item. ([#29](https://github.com/dbos-inc/ttdbg-extension/issues/29))
+
+### Engineering
+
+- Updated `softprops/action-gh-release` action to v2.0.2 and fixed commit tagged for the release.
+
 ## [1.1] Unreleased
 
 ### Added
