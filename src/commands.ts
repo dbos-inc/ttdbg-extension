@@ -65,21 +65,6 @@ export async function deleteStoredPasswords() {
   }
 }
 
-export const launchDbosAppCommandName = "dbos-ttdbg.launch-dbos-app";
-export async function launchDbosApp(node?: CloudAppNode) {
-  logger.debug("launchDbosApp", { node: node ?? null });
-  if (node) {
-    try {
-      const opened = await vscode.env.openExternal(vscode.Uri.parse(node.app.AppURL));
-      if (!opened) {
-        vscode.window.showErrorMessage(`Failed to open ${node.app.Name} app`);
-      }
-    } catch (e) {
-      logger.error("launchDbosApp", e);
-    }
-  }
-}
-
 export const getProxyUrlCommandName = "dbos-ttdbg.get-proxy-url";
 export async function getProxyUrl(cfg?: vscode.DebugConfiguration & { rootPath?: string }) {
   try {
