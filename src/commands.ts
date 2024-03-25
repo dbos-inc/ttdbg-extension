@@ -4,7 +4,7 @@ import { getDebugConfigFolder, getWorkspaceFolder } from './utils';
 import { DbosMethodInfo } from './ProvenanceDatabase';
 import { startDebugging, showWorkflowPick, validateCredentials } from './userFlows';
 import { DbosCloudDomain, getCloudDomain } from './dbosCloudApi';
-import { CloudAppNode } from './CloudDataProvider';
+import { CloudAppNode, CloudDomainNode } from './CloudDataProvider';
 import { getDebugConfigFromDbosCloud } from './configuration';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
@@ -28,15 +28,15 @@ export function shutdownDebugProxy() {
 }
 
 export const deleteDomainCredentialsCommandName = "dbos-ttdbg.delete-domain-credentials";
-export async function deleteDomainCredentials(domain?: string | DbosCloudDomain) {
-  logger.debug("deleteDomainCredentials", { domain: domain ?? null });
+export async function deleteDomainCredentials(domainNode?: CloudDomainNode) {
+  logger.debug("deleteDomainCredentials", { domain: domainNode ?? null });
 
   try {
-    domain = getCloudDomain(domain);
+    const domain = getCloudDomain(domainNode?.domain);
     logger.info("deleteDomainCredentials", domain);
     await config.deleteStoredCloudCredentials(domain);
   } catch (e) {
-    logger.error("shutdownDebugProxy", { domain: domain ?? null, error: e });
+    logger.error("shutdownDebugProxy", { error: e });
   }
 }
 
