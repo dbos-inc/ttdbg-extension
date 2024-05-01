@@ -1,17 +1,22 @@
 import * as vscode from 'vscode';
 import { logger, debugProxy, config, cloudDataProvider } from './extension';
 import { getDebugConfigFolder, getWorkspaceFolder } from './utils';
-import { DbosMethodInfo } from './ProvenanceDatabase';
+import type { DbosMethodInfo } from './ProvenanceDatabase';
 import { startDebugging, showWorkflowPick, validateCredentials } from './userFlows';
-import { CloudAppNode, CloudDomainNode } from './CloudDataProvider';
+import type { CloudAppNode, CloudDomainNode } from './CloudDataProvider';
 import { getDebugConfigFromDbosCloud } from './configuration';
+import { updateDebugProxy } from './DebugProxy';
+import type { CloudStorage } from './CloudStorage';
 
-export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
-export async function cloudLogin(node?: CloudDomainNode) {
-  logger.debug("cloudLogin", { node: node ?? null });
-  if (node) {
-    cloudDataProvider.login(node.domain).catch(e => logger.error("cloudLogin", e));
-  }
+export const updateDebugProxyCommandName = "dbos-ttdbg.update-debug-proxy";
+export function getUpdateDebugProxy(s3: CloudStorage, storageUri: vscode.Uri) {
+  return async function() {
+    logger.debug(updateDebugProxyCommandName);
+    updateDebugProxy(s3, storageUri).catch(e => {
+      logger.error("updateDebugProxy", e);
+      vscode.window.showErrorMessage("Failed to update debug proxy");
+    });
+  };
 }
 
 export const shutdownDebugProxyCommandName = "dbos-ttdbg.shutdown-debug-proxy";
@@ -21,6 +26,14 @@ export function shutdownDebugProxy() {
     debugProxy.shutdown();
   } catch (e) {
     logger.error("shutdownDebugProxy", e);
+  }
+}
+
+export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
+export async function cloudLogin(node?: CloudDomainNode) {
+  logger.debug("cloudLogin", { node: node ?? null });
+  if (node) {
+    cloudDataProvider.login(node.domain).catch(e => logger.error("cloudLogin", e));
   }
 }
 

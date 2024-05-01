@@ -58,6 +58,11 @@
         "command": "dbos-ttdbg.shutdown-debug-proxy",
         "title": "Shutdown Debug Proxy",
         "category": "DBOS"
+      },
+      {
+        "command": "dbos-ttdbg.update-debug-proxy",
+        "title": "Update Debug Proxy",
+        "category": "DBOS"
       }
     ],
     "configuration": {
