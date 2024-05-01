@@ -144,7 +144,7 @@ export class Configuration {
 
     if (cloudConfig) {
       logger.debug("getCloudConfig", { folder: folder.uri.fsPath, cloudConfig });
-      return { ...cloudConfig, password: () => this.#getAppDatabasePassword(cloudConfig) };
+      return { ...cloudConfig, password: () => this.getAppDatabasePassword(cloudConfig) };
     } else {
       throw new Error("Invalid CloudConfig", { cause: { folder: folder.uri.fsPath, credentials } });
     }
@@ -173,7 +173,7 @@ export class Configuration {
     await this.secrets.store(databaseSetKey, JSON.stringify(Array.from(set)));
   }
 
-  async #getAppDatabasePassword(debugConfig: Pick<DbosDebugConfig, 'user' | 'host' | 'port' | 'database'>): Promise<string | undefined> {
+  async getAppDatabasePassword(debugConfig: Pick<DbosDebugConfig, 'user' | 'host' | 'port' | 'database'>): Promise<string | undefined> {
     const key = databaseSecretKey(debugConfig);
     let password = await this.secrets.get(key);
     if (!password) {

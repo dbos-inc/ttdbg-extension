@@ -63,6 +63,12 @@
         "command": "dbos-ttdbg.update-debug-proxy",
         "title": "Update Debug Proxy",
         "category": "DBOS"
+      },
+      {
+        "command": "dbos-ttdbg.launch-debug-proxy",
+        "title": "Launch Debug Proxy",
+        "category": "DBOS",
+        "icon": "$(debug)"
       }
     ],
     "configuration": {
@@ -108,6 +114,11 @@
         {
           "command": "dbos-ttdbg.delete-app-db-password",
           "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp"
+        },
+        {
+          "command": "dbos-ttdbg.launch-debug-proxy",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp",
+          "group": "inline"
         }
       ]
     },

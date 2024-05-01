@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
-import { logger, config, provDB, debugProxy } from './extension';
+import { logger, config, provDB } from './extension';
 import { DbosDebugConfig } from './configuration';
 import { DbosMethodInfo } from './ProvenanceDatabase';
 import { DbosCloudCredentials, createDashboard, getDashboard, isTokenExpired } from './dbosCloudApi';
+import { launchDebugProxy } from './DebugProxy';
 
 function getDebugLaunchConfig(folder: vscode.WorkspaceFolder, workflowID: string): vscode.DebugConfiguration {
     const debugConfigs = vscode.workspace.getConfiguration("launch", folder).get('configurations') as ReadonlyArray<vscode.DebugConfiguration> | undefined;
@@ -52,26 +53,29 @@ export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflow
                 return undefined;
             }
 
-            const proxyLaunched = await debugProxy.launch(cloudConfig, folder);
-            if (!proxyLaunched) {
-                logger.warn("startDebugging: debugProxy.launch returned false", { folder: folder.uri.fsPath, cloudConfig, workflowID });
-                return undefined;
-            }
+            // TODO
+            vscode.window.showErrorMessage("startDebugging currently disabled");
 
-            const launchConfig = getDebugLaunchConfig(folder, workflowID);
-            logger.info(`startDebugging`, { folder: folder.uri.fsPath, database: cloudConfig, debugConfig: launchConfig });
+            // const proxyLaunched = await launchDebugProxy(folder, cloudConfig);
+            // if (!proxyLaunched) {
+            //     logger.warn("startDebugging: launchDebugProxy returned false", { folder: folder.uri.fsPath, cloudConfig, workflowID });
+            //     return undefined;
+            // }
 
-            const debuggerStarted = await vscode.debug.startDebugging(folder, launchConfig);
-            if (!debuggerStarted) {
-                throw new Error("startDebugging: Debugger failed to start", {
-                    cause: {
-                        folder: folder.uri.fsPath,
-                        cloudConfig,
-                        workflowID,
-                        launchConfig,
-                    }
-                });
-            }
+            // const launchConfig = getDebugLaunchConfig(folder, workflowID);
+            // logger.info(`startDebugging`, { folder: folder.uri.fsPath, database: cloudConfig, debugConfig: launchConfig });
+
+            // const debuggerStarted = await vscode.debug.startDebugging(folder, launchConfig);
+            // if (!debuggerStarted) {
+            //     throw new Error("startDebugging: Debugger failed to start", {
+            //         cause: {
+            //             folder: folder.uri.fsPath,
+            //             cloudConfig,
+            //             workflowID,
+            //             launchConfig,
+            //         }
+            //     });
+            // }
         });
 }
 

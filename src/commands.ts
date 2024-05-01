@@ -1,16 +1,17 @@
 import * as vscode from 'vscode';
-import { logger, debugProxy, config, cloudDataProvider } from './extension';
+import { logger, config, cloudDataProvider } from './extension';
 import { getDebugConfigFolder, getWorkspaceFolder } from './utils';
 import type { DbosMethodInfo } from './ProvenanceDatabase';
 import { startDebugging, showWorkflowPick, validateCredentials } from './userFlows';
 import type { CloudAppNode, CloudDomainNode } from './CloudDataProvider';
 import { getDebugConfigFromDbosCloud } from './configuration';
-import { updateDebugProxy } from './DebugProxy';
+import { launchDebugProxy, updateDebugProxy } from './DebugProxy';
 import type { CloudStorage } from './CloudStorage';
+import { getDbInstance, isUnauthorized } from './dbosCloudApi';
 
 export const updateDebugProxyCommandName = "dbos-ttdbg.update-debug-proxy";
-export function getUpdateDebugProxy(s3: CloudStorage, storageUri: vscode.Uri) {
-  return async function() {
+export function getUpdateDebugProxyCommand(s3: CloudStorage, storageUri: vscode.Uri) {
+  return async function () {
     logger.debug(updateDebugProxyCommandName);
     updateDebugProxy(s3, storageUri).catch(e => {
       logger.error("updateDebugProxy", e);
@@ -19,19 +20,52 @@ export function getUpdateDebugProxy(s3: CloudStorage, storageUri: vscode.Uri) {
   };
 }
 
+export const launchDebugProxyCommandName = "dbos-ttdbg.launch-debug-proxy";
+export function getLaunchDebugProxyCommand(storageUri: vscode.Uri) {
+
+  return async function (node?: CloudAppNode) {
+    logger.debug(launchDebugProxyCommandName, { app: node ?? null });
+    if (!node) { return; }
+
+    const credentials = await config.getStoredCloudCredentials(node.domain);
+    if (!credentials) { return; }
+
+    const { PostgresInstanceName, ApplicationDatabaseName } = node.app;
+    const dbInstance = await getDbInstance(PostgresInstanceName, credentials);
+    if (isUnauthorized(dbInstance)) { return; }
+
+    const debugConfig = {
+      host: dbInstance.HostName,
+      database: ApplicationDatabaseName + "_dbos_prov",
+      user: dbInstance.DatabaseUsername,
+      port: dbInstance.Port,
+    };
+    const password = await config.getAppDatabasePassword(debugConfig);
+    if (!password) { return; }
+
+    launchDebugProxy(storageUri, { ...debugConfig, password })
+      .catch(e => {
+        logger.error("launchDebugProxy", e);
+        vscode.window.showErrorMessage("Failed to launch debug proxy");
+      });
+  };
+}
+
 export const shutdownDebugProxyCommandName = "dbos-ttdbg.shutdown-debug-proxy";
 export function shutdownDebugProxy() {
   logger.debug("shutdownDebugProxy");
-  try {
-    debugProxy.shutdown();
-  } catch (e) {
-    logger.error("shutdownDebugProxy", e);
-  }
+  // TODO
+  vscode.window.showErrorMessage("shutdownDebugProxy currently disabled");
+  // try {
+  //   debugProxy.shutdown();
+  // } catch (e) {
+  //   logger.error("shutdownDebugProxy", e);
+  // }
 }
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
 export async function cloudLogin(node?: CloudDomainNode) {
-  logger.debug("cloudLogin", { node: node ?? null });
+  logger.debug("cloudLogin", { domain: node ?? null });
   if (node) {
     cloudDataProvider.login(node.domain).catch(e => logger.error("cloudLogin", e));
   }
@@ -39,7 +73,7 @@ export async function cloudLogin(node?: CloudDomainNode) {
 
 export const deleteDomainCredentialsCommandName = "dbos-ttdbg.delete-domain-credentials";
 export async function deleteDomainCredentials(node?: CloudDomainNode) {
-  logger.debug("deleteDomainCredentials", { node: node ?? null });
+  logger.debug("deleteDomainCredentials", { domain: node ?? null });
   if (node) {
     cloudDataProvider.logout(node.domain).catch(e => logger.error("deleteDomainCredentials", e));
   }
@@ -47,7 +81,7 @@ export async function deleteDomainCredentials(node?: CloudDomainNode) {
 
 export const refreshDomainCommandName = "dbos-ttdbg.refresh-domain";
 export async function refreshDomain(node?: CloudDomainNode) {
-  logger.debug("refreshDomain", { node: node ?? null });
+  logger.debug("refreshDomain", { domain: node ?? null });
   if (node) {
     cloudDataProvider.refresh(node).catch(e => logger.error("refreshDomain", e));
   }
@@ -87,12 +121,16 @@ export async function getProxyUrl(cfg?: vscode.DebugConfiguration & { rootPath?:
     if (!validateCredentials(credentials)) { return undefined; }
     const cloudConfig = await config.getDebugConfig(folder, credentials);
 
-    const proxyLaunched = await debugProxy.launch(cloudConfig, folder);
-    if (!proxyLaunched) {
-      throw new Error("Failed to launch debug proxy", { cause: { folder: folder.uri.fsPath, cloudConfig } });
-    }
+    // TODO
+    vscode.window.showErrorMessage("getProxyUrl currently disabled");
+    return undefined;
 
-    return `http://localhost:${config.getProxyPort(folder)}`;
+    // const proxyLaunched = await launchDebugProxy(folder, cloudConfig);
+    // if (!proxyLaunched) {
+    //   throw new Error("Failed to launch debug proxy", { cause: { folder: folder.uri.fsPath, cloudConfig } });
+    // }
+
+    // return `http://localhost:${config.getProxyPort(folder)}`;
   } catch (e) {
     logger.error("getProxyUrl", e);
     vscode.window.showErrorMessage(`Failed to get proxy URL`);
