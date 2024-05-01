@@ -1,21 +1,7 @@
 import * as vscode from 'vscode';
 import { S3CloudStorage } from './CloudStorage';
 import { TTDbgCodeLensProvider } from './codeLensProvider';
-import {
-  deleteStoredPasswords, deleteStoredPasswordsCommandName,
-  shutdownDebugProxy, shutdownDebugProxyCommandName,
-  cloudLogin, cloudLoginCommandName,
-  startDebuggingFromCodeLens, startDebuggingCodeLensCommandName,
-  startDebuggingFromUri, startDebuggingUriCommandName,
-  getProxyUrl, getProxyUrlCommandName,
-  pickWorkflowId, pickWorkflowIdCommandName,
-  deleteDomainCredentials, deleteDomainCredentialsCommandName,
-  deleteAppDatabasePassword, deleteAppDatabasePasswordCommandName,
-  refreshDomain, refreshDomainCommandName,
-  getUpdateDebugProxyCommand, updateDebugProxyCommandName,
-  getLaunchDebugProxyCommand, launchDebugProxyCommandName,
-  launchDashboard, launchDashboardCommandName,
-} from './commands';
+import { registerCommands, updateDebugProxyCommandName, } from './commands';
 import { Configuration } from './configuration';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { ProvenanceDatabase } from './ProvenanceDatabase';
@@ -44,20 +30,7 @@ export async function activate(context: vscode.ExtensionContext) {
   cloudDataProvider = new CloudDataProvider();
 
   context.subscriptions.push(
-    vscode.commands.registerCommand(cloudLoginCommandName, cloudLogin),
-    vscode.commands.registerCommand(deleteDomainCredentialsCommandName, deleteDomainCredentials),
-    vscode.commands.registerCommand(deleteAppDatabasePasswordCommandName, deleteAppDatabasePassword),
-    vscode.commands.registerCommand(deleteStoredPasswordsCommandName, deleteStoredPasswords),
-    vscode.commands.registerCommand(shutdownDebugProxyCommandName, shutdownDebugProxy),
-    vscode.commands.registerCommand(startDebuggingCodeLensCommandName, startDebuggingFromCodeLens),
-    vscode.commands.registerCommand(startDebuggingUriCommandName, startDebuggingFromUri),
-    vscode.commands.registerCommand(refreshDomainCommandName, refreshDomain),
-    vscode.commands.registerCommand(updateDebugProxyCommandName, getUpdateDebugProxyCommand(cloudStorage, context.globalStorageUri)),
-    vscode.commands.registerCommand(launchDebugProxyCommandName, getLaunchDebugProxyCommand(context.globalStorageUri)),
-    vscode.commands.registerCommand(launchDashboardCommandName, launchDashboard),
-
-    vscode.commands.registerCommand(getProxyUrlCommandName, getProxyUrl),
-    vscode.commands.registerCommand(pickWorkflowIdCommandName, pickWorkflowId),
+    ...registerCommands(cloudStorage, context.globalStorageUri),
 
     vscode.window.registerTreeDataProvider("dbos-ttdbg.views.resources", cloudDataProvider),
 
