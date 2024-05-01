@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DbosCloudApp, DbosCloudDatabase, DbosCloudCredentials, listApps, listDatabases, getCloudDomain, authenticate, isTokenExpired, DbosCloudDomain } from './dbosCloudApi';
+import { DbosCloudApp, DbosCloudCredentials, listApps, getCloudDomain, DbosCloudDomain, DbosCloudDbInstance } from './dbosCloudApi';
 import { config } from './extension';
 
 export interface CloudDomainNode {
@@ -23,7 +23,7 @@ export interface CloudAppNode {
 
 export interface CloudDatabaseNode {
   kind: "cloudDatabase";
-  database: DbosCloudDatabase;
+  database: DbosCloudDbInstance;
   credentials: DbosCloudCredentials;
 }
 
@@ -70,12 +70,14 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
       if (!credentials) { return []; }
       switch (element.type) {
         case "Applications": {
-          const apps = await listApps(credentials);
-          return apps.map(app => ({ kind: "cloudApp", app, credentials }));
+          return [];
+          // const apps = await listApps(credentials);
+          // return apps.map(app => ({ kind: "cloudApp", app, credentials }));
         }
         case "Databases": {
-          const dbs = await listDatabases(credentials);
-          return dbs.map(database => ({ kind: "cloudDatabase", database, credentials }));
+          return [];
+          // const dbs = await listDatabases(credentials);
+          // return dbs.map(database => ({ kind: "cloudDatabase", database, credentials }));
         }
         default:
           throw new Error(`Unknown service type: ${element.type}`);
