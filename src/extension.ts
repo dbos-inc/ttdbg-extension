@@ -10,7 +10,6 @@ import { CloudDataProvider } from './CloudDataProvider';
 
 export let logger: Logger;
 export let config: Configuration;
-export let provDB: ProvenanceDatabase;
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -20,7 +19,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   config = new Configuration(context.secrets);
 
-  provDB = new ProvenanceDatabase();
+  const provDB = new ProvenanceDatabase();
   context.subscriptions.push(provDB);
 
   const cloudStorage = new S3CloudStorage();

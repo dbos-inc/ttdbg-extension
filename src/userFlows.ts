@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { logger, config, provDB } from './extension';
+import { logger, config } from './extension';
 import { DbosDebugConfig } from './configuration';
 import { DbosMethodInfo } from './ProvenanceDatabase';
 import { DbosCloudCredentials, isTokenExpired } from './dbosCloudApi';
@@ -25,15 +25,16 @@ export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflow
                 return undefined;
             }
 
-            const workflowStatus = await provDB.getWorkflowStatus(cloudConfig, workflowID);
-            if (!workflowStatus) {
-                logger.error(`startDebugging: Workflow ID ${workflowID} not found`, { folder: folder.uri.fsPath, cloudConfig });
-                vscode.window.showErrorMessage(`Workflow ID ${workflowID} not found`);
-                return undefined;
-            }
-
             // TODO
             vscode.window.showErrorMessage("startDebugging currently disabled");
+
+            // const workflowStatus = await provDB.getWorkflowStatus(cloudConfig, workflowID);
+            // if (!workflowStatus) {
+            //     logger.error(`startDebugging: Workflow ID ${workflowID} not found`, { folder: folder.uri.fsPath, cloudConfig });
+            //     vscode.window.showErrorMessage(`Workflow ID ${workflowID} not found`);
+            //     return undefined;
+            // }
+
 
             // const proxyLaunched = await launchDebugProxy(folder, cloudConfig);
             // if (!proxyLaunched) {
@@ -75,71 +76,74 @@ export async function showWorkflowPick(
         cloudConfig = await config.getDebugConfig(folder, credentials);
     }
 
-    const statuses = await provDB.getWorkflowStatuses(cloudConfig, options?.method);
-    const items = statuses.map(status => <vscode.QuickPickItem>{
-        label: new Date(parseInt(status.created_at)).toLocaleString(),
-        description: `${status.status}${status.authenticated_user.length !== 0 ? ` (${status.authenticated_user})` : ""}`,
-        detail: status.workflow_uuid,
-    });
+    // TODO
+    vscode.window.showErrorMessage("showWorkflowPick currently disabled");
 
-    const editButton: vscode.QuickInputButton = {
-        iconPath: new vscode.ThemeIcon("edit"),
-        tooltip: "Specify workflow id directly"
-    };
+    // const statuses = await provDB.getWorkflowStatuses(cloudConfig, options?.method);
+    // const items = statuses.map(status => <vscode.QuickPickItem>{
+    //     label: new Date(parseInt(status.created_at)).toLocaleString(),
+    //     description: `${status.status}${status.authenticated_user.length !== 0 ? ` (${status.authenticated_user})` : ""}`,
+    //     detail: status.workflow_uuid,
+    // });
 
-    const dashboardButton: vscode.QuickInputButton = {
-        iconPath: new vscode.ThemeIcon("server"),
-        tooltip: "Select workflow via DBOS User Dashboard"
-    };
+    // const editButton: vscode.QuickInputButton = {
+    //     iconPath: new vscode.ThemeIcon("edit"),
+    //     tooltip: "Specify workflow id directly"
+    // };
 
-    const disposables: { dispose(): any; }[] = [];
-    try {
-        const result = await new Promise<vscode.QuickInputButton | vscode.QuickPickItem | undefined>(resolve => {
-            const input = vscode.window.createQuickPick();
-            input.title = "Select a workflow ID to debug";
-            input.canSelectMany = false;
-            input.items = items;
-            input.buttons = [editButton, dashboardButton];
-            let selectedItem: vscode.QuickPickItem | undefined = undefined;
-            disposables.push(
-                input.onDidAccept(() => { 
-                    logger.debug("showWorkflowPick.onDidAccept", { selectedItem });
-                    resolve(selectedItem); 
-                    input.dispose(); 
-                }),
-                input.onDidHide(() => { 
-                    logger.debug("showWorkflowPick.onDidHide", { selectedItem });
-                    resolve(undefined); 
-                    input.dispose(); 
-                }),
-                input.onDidChangeSelection(items => {
-                    logger.debug("showWorkflowPick.onDidChangeSelection", { items });
-                    selectedItem = items.length === 0 ? undefined : items[0];
-                }),
-                input.onDidTriggerButton(button => { 
-                    logger.debug("showWorkflowPick.onDidTriggerButton", { button });
-                    resolve(button); 
-                    input.dispose(); 
-                }),
-            );
-            input.show();
-        });
-        if (result === undefined) { return undefined; }
-        if ("label" in result) {
-            return result.detail;
-        }
-        if (result === editButton) {
-            return await vscode.window.showInputBox({ prompt: "Enter the workflow ID" });
-        } else if (result === dashboardButton) {
-            vscode.commands.executeCommand(launchDashboardCommandName, cloudConfig.appName, options?.method)
-                .then(undefined, e => logger.error(launchDashboardCommandName, e));
-            return undefined;
-        } else {
-            throw new Error(`Unexpected button: ${result.tooltip ?? "<unknown>"}`);
-        }
-    } finally {
-        disposables.forEach(d => d.dispose());
-    }
+    // const dashboardButton: vscode.QuickInputButton = {
+    //     iconPath: new vscode.ThemeIcon("server"),
+    //     tooltip: "Select workflow via DBOS User Dashboard"
+    // };
+
+    // const disposables: { dispose(): any; }[] = [];
+    // try {
+    //     const result = await new Promise<vscode.QuickInputButton | vscode.QuickPickItem | undefined>(resolve => {
+    //         const input = vscode.window.createQuickPick();
+    //         input.title = "Select a workflow ID to debug";
+    //         input.canSelectMany = false;
+    //         input.items = items;
+    //         input.buttons = [editButton, dashboardButton];
+    //         let selectedItem: vscode.QuickPickItem | undefined = undefined;
+    //         disposables.push(
+    //             input.onDidAccept(() => { 
+    //                 logger.debug("showWorkflowPick.onDidAccept", { selectedItem });
+    //                 resolve(selectedItem); 
+    //                 input.dispose(); 
+    //             }),
+    //             input.onDidHide(() => { 
+    //                 logger.debug("showWorkflowPick.onDidHide", { selectedItem });
+    //                 resolve(undefined); 
+    //                 input.dispose(); 
+    //             }),
+    //             input.onDidChangeSelection(items => {
+    //                 logger.debug("showWorkflowPick.onDidChangeSelection", { items });
+    //                 selectedItem = items.length === 0 ? undefined : items[0];
+    //             }),
+    //             input.onDidTriggerButton(button => { 
+    //                 logger.debug("showWorkflowPick.onDidTriggerButton", { button });
+    //                 resolve(button); 
+    //                 input.dispose(); 
+    //             }),
+    //         );
+    //         input.show();
+    //     });
+    //     if (result === undefined) { return undefined; }
+    //     if ("label" in result) {
+    //         return result.detail;
+    //     }
+    //     if (result === editButton) {
+    //         return await vscode.window.showInputBox({ prompt: "Enter the workflow ID" });
+    //     } else if (result === dashboardButton) {
+    //         vscode.commands.executeCommand(launchDashboardCommandName, cloudConfig.appName, options?.method)
+    //             .then(undefined, e => logger.error(launchDashboardCommandName, e));
+    //         return undefined;
+    //     } else {
+    //         throw new Error(`Unexpected button: ${result.tooltip ?? "<unknown>"}`);
+    //     }
+    // } finally {
+    //     disposables.forEach(d => d.dispose());
+    // }
 }
 
 export function validateCredentials(credentials?: DbosCloudCredentials): credentials is DbosCloudCredentials {
