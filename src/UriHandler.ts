@@ -2,9 +2,9 @@ import * as vscode from 'vscode';
 import { logger } from './extension';
 import { startDebuggingUriCommandName } from './commands';
 
-export class TTDbgUriHandler implements vscode.UriHandler {
+export class UriHandler implements vscode.UriHandler {
 	async handleUri(uri: vscode.Uri): Promise<void> {
-		logger.debug(`TTDbgUriHandler.handleUri`, { uri: uri.toString() });
+		logger.debug(`UriHandler.handleUri`, { uri: uri.toString() });
 		switch (uri.path) {
 			case '/start-debugging':
 				const searchParams = new URLSearchParams(uri.query);

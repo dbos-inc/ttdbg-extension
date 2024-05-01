@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import { S3CloudStorage } from './CloudStorage';
-import { TTDbgCodeLensProvider } from './codeLensProvider';
+import { CodeLensProvider } from './CodeLensProvider';
 import { registerCommands, updateDebugProxyCommandName, } from './commands';
 import { Configuration } from './configuration';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { ProvenanceDatabase } from './ProvenanceDatabase';
-import { TTDbgUriHandler } from './uriHandler';
+import { UriHandler } from './UriHandler';
 import { CloudDataProvider } from './CloudDataProvider';
 
 export let logger: Logger;
@@ -36,9 +36,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
     vscode.languages.registerCodeLensProvider(
       { scheme: 'file', language: 'typescript' },
-      new TTDbgCodeLensProvider()),
+      new CodeLensProvider()),
 
-    vscode.window.registerUriHandler(new TTDbgUriHandler())
+    vscode.window.registerUriHandler(new UriHandler())
   );
 
   vscode.commands.executeCommand(updateDebugProxyCommandName);

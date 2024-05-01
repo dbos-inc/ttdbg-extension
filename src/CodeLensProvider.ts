@@ -1,27 +1,9 @@
+import * as vscode from 'vscode';
 import ts from 'typescript';
-
-export interface ImportInfo {
-    readonly name: string;
-    readonly module: string;
-};
-
-export interface MethodInfo {
-    readonly node: ts.MethodDeclaration;
-    readonly name: string;
-    readonly decorators: readonly ImportInfo[];
-}
+import { startDebuggingCodeLensCommandName } from './commands';
+import { logger } from './extension';
 
 export type DbosMethodType = "Workflow" | "Transaction" | "Communicator";
-
-export function getDbosMethodType(decorators: readonly ImportInfo[]): DbosMethodType | undefined {
-    for (const d of decorators) {
-        if (d.module !== '@dbos-inc/dbos-sdk') { continue; }
-        if (d.name === "Workflow") { return "Workflow"; }
-        if (d.name === "Transaction") { return "Transaction"; }
-        if (d.name === "Communicator") { return "Communicator"; }
-    }
-    return undefined;
-}
 
 export function getDbosWorkflowName(name: string, $type: DbosMethodType): string {
     switch ($type) {
@@ -32,7 +14,69 @@ export function getDbosWorkflowName(name: string, $type: DbosMethodType): string
     }
 }
 
-export function parse(file: ts.SourceFile): readonly MethodInfo[] {
+export class CodeLensProvider implements vscode.CodeLensProvider {
+    provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
+        try {
+            const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+            if (!folder) { return; }
+
+            const text = document.getText();
+            const file = ts.createSourceFile(
+                document.fileName,
+                text,
+                ts.ScriptTarget.Latest
+            );
+
+            return parse(file)
+                .map(methodInfo => {
+                    const methodType = getDbosMethodType(methodInfo.decorators);
+                    if (!methodType) { return undefined; }
+
+                    const start = methodInfo.node.getStart(file);
+                    const end = methodInfo.node.getEnd();
+                    const range = new vscode.Range(
+                        document.positionAt(start),
+                        document.positionAt(end)
+                    );
+
+                    return new vscode.CodeLens(range, {
+                        title: '⏳ Time Travel Debug',
+                        tooltip: `Debug ${methodInfo.name} with the DBOS Time Travel Debugger`,
+                        command: startDebuggingCodeLensCommandName,
+                        arguments: [folder, { name: methodInfo.name, type: methodType }]
+                    });
+                })
+                .filter(<T>(x?: T): x is T => !!x);
+        } catch (e) {
+            logger.error("provideCodeLenses", e);
+        }
+    }
+}
+
+
+interface ImportInfo {
+    readonly name: string;
+    readonly module: string;
+};
+
+interface MethodInfo {
+    readonly node: ts.MethodDeclaration;
+    readonly name: string;
+    readonly decorators: readonly ImportInfo[];
+}
+
+function getDbosMethodType(decorators: readonly ImportInfo[]): DbosMethodType | undefined {
+    for (const d of decorators) {
+        if (d.module !== '@dbos-inc/dbos-sdk') { continue; }
+        if (d.name === "Workflow") { return "Workflow"; }
+        if (d.name === "Transaction") { return "Transaction"; }
+        if (d.name === "Communicator") { return "Communicator"; }
+    }
+    return undefined;
+}
+
+
+function parse(file: ts.SourceFile): readonly MethodInfo[] {
 
     if (file.isDeclarationFile) { return []; }
 

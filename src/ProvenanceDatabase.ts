@@ -1,6 +1,6 @@
 import { Client, type ClientConfig } from 'pg';
 import { logger } from './extension';
-import { type DbosMethodType, getDbosWorkflowName } from './sourceParser';
+import { type DbosMethodType, getDbosWorkflowName } from './CodeLensProvider';
 import type { DbosDebugConfig } from './configuration';
 import { fast1a32 } from 'fnv-plus';
 
