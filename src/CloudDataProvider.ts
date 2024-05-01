@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DbosCloudApp, DbosCloudCredentials, getCloudDomain, DbosCloudDomain, DbosCloudDbInstance, listApps, listDbInstances, isUnauthorized } from './dbosCloudApi';
+import { DbosCloudApp, getCloudDomain, DbosCloudDbInstance, listApps, listDbInstances, isUnauthorized } from './dbosCloudApi';
 import { config } from './extension';
 
 export interface CloudDomainNode {
@@ -40,6 +40,32 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
     this.domains = [{ kind: "cloudDomain", domain: cloudDomain }];
   }
 
+  async login(domain: string) {
+    const credentials = await config.getStoredCloudCredentials(domain);
+    if (credentials) { return; }
+
+    await config.cloudLogin(domain);
+    await this.refresh(domain);
+  }
+
+  async logout(domain: string) {
+    const changed = await config.deleteStoredCloudCredentials(domain);
+    if (changed) {
+      await this.refresh(domain);
+    }
+  }
+
+  async refresh(domain: string | CloudDomainNode) {
+    const $domain = typeof domain === 'string' ? domain : domain.domain;
+    this.apps.delete($domain);
+    this.dbInstances.delete($domain);
+
+    const node = typeof domain === 'string' ? this.domains.find(d => d.domain === domain) : domain;
+    if (node) {
+      this.onDidChangeTreeDataEmitter.fire(node);
+    }
+  }
+
   async getChildren(element?: CloudProviderNode | undefined): Promise<CloudProviderNode[]> {
     if (element === undefined) {
       return this.domains;
@@ -48,18 +74,17 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
     if (element.kind === "cloudDomain") {
       if (!this.apps.has(element.domain) || !this.dbInstances.has(element.domain)) {
         const credentials = await config.getCredentials(element.domain);
-        if (credentials) {
-          const [apps, dbInstances] = await Promise.all([listApps(credentials), listDbInstances(credentials)]);
-          if (isUnauthorized(apps)) {
-            this.apps.delete(element.domain);
-          } else {
-            this.apps.set(element.domain, apps.map(a => ({ kind: "cloudApp", domain: element.domain, app: a })));
-          }
-          if (isUnauthorized(dbInstances)) {
-            this.dbInstances.delete(element.domain);
-          } else {
-            this.dbInstances.set(element.domain, dbInstances.map(dbi => ({ kind: "cloudDbInstance", domain: element.domain, dbInstance: dbi })));
-          }
+        if (!credentials) { return []; }
+        const [apps, dbInstances] = await Promise.all([listApps(credentials), listDbInstances(credentials)]);
+        if (isUnauthorized(apps)) {
+          this.apps.delete(element.domain);
+        } else {
+          this.apps.set(element.domain, apps.map(a => ({ kind: "cloudApp", domain: element.domain, app: a })));
+        }
+        if (isUnauthorized(dbInstances)) {
+          this.dbInstances.delete(element.domain);
+        } else {
+          this.dbInstances.set(element.domain, dbInstances.map(dbi => ({ kind: "cloudDbInstance", domain: element.domain, dbInstance: dbi })));
         }
         return [
           { kind: "cloudResourceType", type: "apps", domain: element.domain },
@@ -133,7 +158,7 @@ Host Name: ${dbi.HostName}\n
 Port: ${dbi.Port}\n
 Username: ${dbi.DatabaseUsername}\n
 Status: ${dbi.Status}`;
-        
+
         return {
           label: element.dbInstance.PostgresInstanceName,
           collapsibleState: vscode.TreeItemCollapsibleState.None,

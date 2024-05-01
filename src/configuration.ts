@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { getPackageName } from './utils';
 import { logger } from './extension';
-import { DbosCloudApp, DbosCloudCredentials, DbosCloudDomain, authenticate, getApp, getCloudDomain, getDbInstance, isUnauthorized } from './dbosCloudApi';
+import { DbosCloudApp, DbosCloudCredentials, DbosCloudDomain, authenticate, getApp, getCloudDomain, getDbInstance, isTokenExpired, isUnauthorized } from './dbosCloudApi';
 import { validateCredentials } from './userFlows';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
@@ -81,7 +81,15 @@ export class Configuration {
     const { cloudDomain } = getCloudDomain(domain);
     const secretKey = domainSecretKey(cloudDomain);
     const json = await this.secrets.get(secretKey);
-    return json ? JSON.parse(json) as DbosCloudCredentials : undefined;
+    if (!json) { return undefined; }
+
+    const credentials = JSON.parse(json) as DbosCloudCredentials;
+    if (isTokenExpired(credentials.token)) {
+      await this.secrets.delete(secretKey);
+      return undefined;
+    } else {
+      return credentials;
+    }
   }
 
   async cloudLogin(domain?: string | DbosCloudDomain) {
@@ -103,8 +111,14 @@ export class Configuration {
   async deleteStoredCloudCredentials(domain?: string | DbosCloudDomain) {
     const { cloudDomain } = getCloudDomain(domain);
     const secretKey = domainSecretKey(cloudDomain);
-    await this.secrets.delete(secretKey);
-    logger.debug("Deleted DBOS Cloud credentials", { cloudDomain });
+    const json = await this.secrets.get(secretKey);
+    if (json) {
+      await this.secrets.delete(secretKey);
+      logger.debug("Deleted DBOS Cloud credentials", { cloudDomain });
+      return true;
+    } else {
+      return false;
+    }
   }
 
   async getDebugConfig(folder: vscode.WorkspaceFolder, credentials: DbosCloudCredentials): Promise<DbosDebugConfig> {

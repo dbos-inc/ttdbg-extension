@@ -1,19 +1,16 @@
 import * as vscode from 'vscode';
-import { logger, debugProxy, config } from './extension';
+import { logger, debugProxy, config, cloudDataProvider } from './extension';
 import { getDebugConfigFolder, getWorkspaceFolder } from './utils';
 import { DbosMethodInfo } from './ProvenanceDatabase';
 import { startDebugging, showWorkflowPick, validateCredentials } from './userFlows';
-import { DbosCloudDomain, getCloudDomain } from './dbosCloudApi';
-import { CloudAppNode } from './CloudDataProvider';
+import { CloudAppNode, CloudDomainNode } from './CloudDataProvider';
 import { getDebugConfigFromDbosCloud } from './configuration';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
-export async function cloudLogin(host?: string) {
-  logger.debug("cloudLogin", { host });
-  try {
-    await config.cloudLogin(host);
-  } catch (e) {
-    logger.error("cloudLogin", e);
+export async function cloudLogin(node?: CloudDomainNode) {
+  logger.debug("cloudLogin", { node: node ?? null });
+  if (node) {
+    cloudDataProvider.login(node.domain).catch(e => logger.error("cloudLogin", e));
   }
 }
 
@@ -28,15 +25,18 @@ export function shutdownDebugProxy() {
 }
 
 export const deleteDomainCredentialsCommandName = "dbos-ttdbg.delete-domain-credentials";
-export async function deleteDomainCredentials(domain?: string | DbosCloudDomain) {
-  logger.debug("deleteDomainCredentials", { domain: domain ?? null });
+export async function deleteDomainCredentials(node?: CloudDomainNode) {
+  logger.debug("deleteDomainCredentials", { node: node ?? null });
+  if (node) {
+    cloudDataProvider.logout(node.domain).catch(e => logger.error("deleteDomainCredentials", e));
+  }
+}
 
-  try {
-    domain = getCloudDomain(domain);
-    logger.info("deleteDomainCredentials", domain);
-    await config.deleteStoredCloudCredentials(domain);
-  } catch (e) {
-    logger.error("shutdownDebugProxy", { domain: domain ?? null, error: e });
+export const refreshDomainCommandName = "dbos-ttdbg.refresh-domain";
+export async function refreshDomain(node?: CloudDomainNode) {
+  logger.debug("refreshDomain", { node: node ?? null });
+  if (node) {
+    cloudDataProvider.refresh(node).catch(e => logger.error("refreshDomain", e));
   }
 }
 
