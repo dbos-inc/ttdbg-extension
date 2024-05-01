@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import { logger } from './extension';
-import { cancellableFetch } from './utils';
 
 export type Unauthorized = { status: "unauthorized" };
 
@@ -326,5 +325,15 @@ async function fetchHelper<T>(name: string, url: string, request: Omit<RequestIn
     throw new Error(`${name} request failed`, {
       cause: { url, status: response.status, statusText: response.statusText }
     });
+  }
+}
+
+async function cancellableFetch(url: string, request: Omit<RequestInit, 'signal'>, token?: vscode.CancellationToken) {
+  const abort = new AbortController();
+  const tokenListener = token?.onCancellationRequested(reason => { abort.abort(reason); });
+  try {
+    return await fetch(url, { ...request, signal: abort.signal });
+  } finally {
+    tokenListener?.dispose();
   }
 }

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { getPackageName } from './utils';
+import { exists } from './utils';
 import { logger } from './extension';
-import { DbosCloudApp, DbosCloudCredentials, DbosCloudDomain, authenticate, getApp, getCloudDomain, getDbInstance, isTokenExpired, isUnauthorized } from './dbosCloudApi';
+import { type DbosCloudApp, type DbosCloudCredentials, type DbosCloudDomain, authenticate, getApp, getCloudDomain, getDbInstance, isTokenExpired, isUnauthorized } from './dbosCloudApi';
 import { validateCredentials } from './userFlows';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
@@ -204,5 +204,20 @@ export class Configuration {
       logger.debug("Deleted DBOS database credentials", { key });
     }
     await this.secrets.delete(databaseSetKey);
+  }
+}
+
+async function getPackageName(folder: vscode.WorkspaceFolder): Promise<string | undefined> {
+  const packageJsonUri = vscode.Uri.joinPath(folder.uri, "package.json");
+  if (!await exists(packageJsonUri)) { return undefined; }
+
+  try {
+    const packageJsonBuffer = await vscode.workspace.fs.readFile(packageJsonUri);
+    const packageJsonText = new TextDecoder().decode(packageJsonBuffer);
+    const packageJson = JSON.parse(packageJsonText);
+    return packageJson.name;
+  } catch (e) {
+    logger.error("getPackageName", e);
+    return undefined;
   }
 }

@@ -2,10 +2,12 @@ import * as vscode from 'vscode';
 import { ChildProcessWithoutNullStreams as ChildProcess, spawn } from "child_process";
 import jszip from 'jszip';
 import * as fs from 'node:fs/promises';
+import { execFile as cpExecFile } from "node:child_process";
+import { promisify } from 'node:util';
 import * as semver from 'semver';
 import { CloudStorage } from './CloudStorage';
 import { logger } from './extension';
-import { execFile, exists } from './utils';
+import { exists } from './utils';
 import { DbosDebugConfig } from './configuration';
 
 const IS_WINDOWS = process.platform === "win32";
@@ -14,6 +16,8 @@ const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
 function exeFileName(storageUri: vscode.Uri) {
   return vscode.Uri.joinPath(storageUri, EXE_FILE_NAME);
 }
+
+const execFile = promisify(cpExecFile);
 
 async function getLocalVersion(storageUri: vscode.Uri) {
   const exeUri = exeFileName(storageUri);

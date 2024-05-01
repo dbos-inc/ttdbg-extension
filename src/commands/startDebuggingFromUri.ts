@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import { logger } from '../extension';
-import { getWorkspaceFolder } from '../utils';
 import { startDebugging } from '../userFlows';
-
 
 export const startDebuggingUriCommandName = "dbos-ttdbg.start-debugging-uri";
 export async function startDebuggingFromUri(workflowID: string) {
@@ -17,3 +15,30 @@ export async function startDebuggingFromUri(workflowID: string) {
     vscode.window.showErrorMessage(`Failed to debug ${workflowID} workflow`);
   }
 }
+
+async function getWorkspaceFolder(rootPath?: string | vscode.Uri) {
+  if (rootPath) {
+    if (typeof rootPath === "string") {
+      rootPath = vscode.Uri.file(rootPath);
+    }
+    const folder = vscode.workspace.getWorkspaceFolder(rootPath);
+    if (folder) {
+      return folder;
+    }
+  }
+
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  if (folders.length === 1) {
+    return folders[0];
+  }
+
+  if (vscode.window.activeTextEditor) {
+    const folder = vscode.workspace.getWorkspaceFolder(vscode.window.activeTextEditor.document.uri);
+    if (folder) {
+      return folder;
+    }
+  }
+
+  return await vscode.window.showWorkspaceFolderPick();
+}
+
