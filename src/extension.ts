@@ -11,7 +11,6 @@ import { CloudDataProvider } from './CloudDataProvider';
 export let logger: Logger;
 export let config: Configuration;
 export let provDB: ProvenanceDatabase;
-export let cloudDataProvider: CloudDataProvider;
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -27,10 +26,10 @@ export async function activate(context: vscode.ExtensionContext) {
   const cloudStorage = new S3CloudStorage();
   context.subscriptions.push(cloudStorage);
 
-  cloudDataProvider = new CloudDataProvider();
+  const cloudDataProvider = new CloudDataProvider();
 
   context.subscriptions.push(
-    ...registerCommands(cloudStorage, context.globalStorageUri),
+    ...registerCommands(cloudStorage, context.globalStorageUri, (domain: string) => cloudDataProvider.refresh(domain)),
 
     vscode.window.registerTreeDataProvider("dbos-ttdbg.views.resources", cloudDataProvider),
 

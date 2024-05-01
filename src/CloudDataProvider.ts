@@ -40,27 +40,11 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
     this.domains = [{ kind: "cloudDomain", domain: cloudDomain }];
   }
 
-  async login(domain: string) {
-    const credentials = await config.getStoredCloudCredentials(domain);
-    if (credentials) { return; }
+  async refresh(domain: string) {
+    this.apps.delete(domain);
+    this.dbInstances.delete(domain);
 
-    await config.cloudLogin(domain);
-    await this.refresh(domain);
-  }
-
-  async logout(domain: string) {
-    const changed = await config.deleteStoredCloudCredentials(domain);
-    if (changed) {
-      await this.refresh(domain);
-    }
-  }
-
-  async refresh(domain: string | CloudDomainNode) {
-    const $domain = typeof domain === 'string' ? domain : domain.domain;
-    this.apps.delete($domain);
-    this.dbInstances.delete($domain);
-
-    const node = typeof domain === 'string' ? this.domains.find(d => d.domain === domain) : domain;
+    const node = this.domains.find(d => d.domain === domain);
     if (node) {
       this.onDidChangeTreeDataEmitter.fire(node);
     }
