@@ -69,6 +69,12 @@
         "title": "Launch Debug Proxy",
         "category": "DBOS",
         "icon": "$(debug)"
+      },
+      {
+        "command": "dbos-ttdbg.launch-dashboard",
+        "title": "Launch DBOS Dashboard",
+        "category": "DBOS",
+        "icon": "$(globe)"
       }
     ],
     "configuration": {
@@ -100,6 +106,11 @@
         {
           "command": "dbos-ttdbg.cloud-login",
           "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain",
+          "group": "inline"
+        },
+        {
+          "command": "dbos-ttdbg.launch-dashboard",
+          "when": "view == dbos-ttdbg.views.resources && (viewItem == cloudDomain || viewItem == cloudApp)",
           "group": "inline"
         },
         {

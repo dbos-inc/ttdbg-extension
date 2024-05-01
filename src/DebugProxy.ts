@@ -4,8 +4,8 @@ import jszip from 'jszip';
 import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
 import { CloudStorage } from './CloudStorage';
-import { config, logger } from './extension';
-import { execFile, exists, hashClientConfig } from './utils';
+import { logger } from './extension';
+import { execFile, exists } from './utils';
 import { DbosDebugConfig } from './configuration';
 
 const IS_WINDOWS = process.platform === "win32";

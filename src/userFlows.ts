@@ -2,29 +2,8 @@ import * as vscode from 'vscode';
 import { logger, config, provDB } from './extension';
 import { DbosDebugConfig } from './configuration';
 import { DbosMethodInfo } from './ProvenanceDatabase';
-import { DbosCloudCredentials, createDashboard, getDashboard, isTokenExpired } from './dbosCloudApi';
-import { launchDebugProxy } from './DebugProxy';
-
-function getDebugLaunchConfig(folder: vscode.WorkspaceFolder, workflowID: string): vscode.DebugConfiguration {
-    const debugConfigs = vscode.workspace.getConfiguration("launch", folder).get('configurations') as ReadonlyArray<vscode.DebugConfiguration> | undefined;
-    for (const config of debugConfigs ?? []) {
-      const command = config["command"] as string | undefined;
-      if (command && command.includes("npx dbos-sdk debug")) {
-        const newCommand = command.replace("${command:dbos-ttdbg.pick-workflow-id}", `${workflowID}`);
-        return { ...config, command: newCommand };
-      }
-    }
-
-    const preLaunchTask = config.getPreLaunchTask(folder);
-    const proxyPort = config.getProxyPort(folder);
-    return <vscode.DebugConfiguration>{
-      name: `Time-Travel Debug ${workflowID}`,
-      type: 'node-terminal',
-      request: 'launch',
-      command: `npx dbos-sdk debug -x http://localhost:${proxyPort} -u ${workflowID}`,
-      preLaunchTask,
-    };
-  }
+import { DbosCloudCredentials, isTokenExpired } from './dbosCloudApi';
+import { launchDashboardCommandName } from './commands';
 
 export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cloudConfig: DbosDebugConfig) => Promise<string | undefined>) {
     await vscode.window.withProgress(
@@ -152,53 +131,14 @@ export async function showWorkflowPick(
         if (result === editButton) {
             return await vscode.window.showInputBox({ prompt: "Enter the workflow ID" });
         } else if (result === dashboardButton) {
-            startOpenDashboardFlow(cloudConfig.appName, options?.method)
-                .catch(e => logger.error("startOpenDashboard", e));
+            vscode.commands.executeCommand(launchDashboardCommandName, cloudConfig.appName, options?.method)
+                .then(undefined, e => logger.error(launchDashboardCommandName, e));
             return undefined;
         } else {
             throw new Error(`Unexpected button: ${result.tooltip ?? "<unknown>"}`);
         }
     } finally {
         disposables.forEach(d => d.dispose());
-    }
-}
-
-async function startOpenDashboardFlow(appName: string | undefined, method?: DbosMethodInfo): Promise<void> {
-    logger.debug(`startOpenDashboardFlow enter`, { appName: appName ?? null, method: method ?? null });
-    const credentials = await config.getStoredCloudCredentials();
-    if (!validateCredentials(credentials)) {
-        logger.warn("startOpenDashboardFlow: config.getStoredCloudCredentials returned invalid credentials", { credentials });
-        return undefined;
-    }
-
-    let dashboardUrl = await getDashboard(credentials);
-    if (!dashboardUrl) {
-        await vscode.window.withProgress({
-            location: vscode.ProgressLocation.Window,
-            cancellable: false,
-            title: "Creating DBOS dashboard"
-        }, async () => { await createDashboard(credentials); });
-
-        dashboardUrl = await getDashboard(credentials);
-        if (!dashboardUrl) { 
-            vscode.window.showErrorMessage("Failed to create DBOS dashboard");
-            return;
-        }
-    }
-
-    const params = new URLSearchParams();
-    if (method) {
-        params.append("var-operation_name", method.name);
-        params.append("var-operation_type", method.type.toLowerCase());
-    }
-    if (appName) {
-        params.append("var-app_name", appName);
-    }
-    const dashboardQueryUrl = `${dashboardUrl}?${params}`;
-    logger.info(`startOpenDashboardFlow uri`, { uri: dashboardQueryUrl });
-    const openResult = await vscode.env.openExternal(vscode.Uri.parse(dashboardQueryUrl));
-    if (!openResult) {
-        throw new Error(`failed to open dashboard URL: ${dashboardQueryUrl}`);
     }
 }
 

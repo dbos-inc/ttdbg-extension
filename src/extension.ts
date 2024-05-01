@@ -1,7 +1,21 @@
 import * as vscode from 'vscode';
 import { S3CloudStorage } from './CloudStorage';
 import { TTDbgCodeLensProvider } from './codeLensProvider';
-import { deleteStoredPasswords, deleteStoredPasswordsCommandName, shutdownDebugProxyCommandName, shutdownDebugProxy, cloudLoginCommandName, cloudLogin, startDebuggingCodeLensCommandName, startDebuggingFromCodeLens, startDebuggingFromUri, startDebuggingUriCommandName, getProxyUrl, getProxyUrlCommandName, pickWorkflowIdCommandName, pickWorkflowId, deleteDomainCredentials, deleteDomainCredentialsCommandName, deleteAppDatabasePassword, deleteAppDatabasePasswordCommandName, refreshDomainCommandName, refreshDomain, updateDebugProxyCommandName, getUpdateDebugProxyCommand, launchDebugProxyCommandName, getLaunchDebugProxyCommand } from './commands';
+import {
+  deleteStoredPasswords, deleteStoredPasswordsCommandName,
+  shutdownDebugProxy, shutdownDebugProxyCommandName,
+  cloudLogin, cloudLoginCommandName,
+  startDebuggingFromCodeLens, startDebuggingCodeLensCommandName,
+  startDebuggingFromUri, startDebuggingUriCommandName,
+  getProxyUrl, getProxyUrlCommandName,
+  pickWorkflowId, pickWorkflowIdCommandName,
+  deleteDomainCredentials, deleteDomainCredentialsCommandName,
+  deleteAppDatabasePassword, deleteAppDatabasePasswordCommandName,
+  refreshDomain, refreshDomainCommandName,
+  getUpdateDebugProxyCommand, updateDebugProxyCommandName,
+  getLaunchDebugProxyCommand, launchDebugProxyCommandName,
+  launchDashboard, launchDashboardCommandName,
+} from './commands';
 import { Configuration } from './configuration';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { ProvenanceDatabase } from './ProvenanceDatabase';
@@ -40,6 +54,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(refreshDomainCommandName, refreshDomain),
     vscode.commands.registerCommand(updateDebugProxyCommandName, getUpdateDebugProxyCommand(cloudStorage, context.globalStorageUri)),
     vscode.commands.registerCommand(launchDebugProxyCommandName, getLaunchDebugProxyCommand(context.globalStorageUri)),
+    vscode.commands.registerCommand(launchDashboardCommandName, launchDashboard),
 
     vscode.commands.registerCommand(getProxyUrlCommandName, getProxyUrl),
     vscode.commands.registerCommand(pickWorkflowIdCommandName, pickWorkflowId),
