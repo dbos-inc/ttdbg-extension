@@ -94,6 +94,12 @@ export class Configuration {
     return credentials;
   }
 
+  async getCredentials(domain?: string | DbosCloudDomain) {
+    const { cloudDomain } = getCloudDomain(domain);
+    const storedCredentials = await this.getStoredCloudCredentials(cloudDomain);
+    return storedCredentials ?? await this.cloudLogin(cloudDomain);
+  }
+
   async deleteStoredCloudCredentials(domain?: string | DbosCloudDomain) {
     const { cloudDomain } = getCloudDomain(domain);
     const secretKey = domainSecretKey(cloudDomain);

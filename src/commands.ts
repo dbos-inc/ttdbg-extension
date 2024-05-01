@@ -44,13 +44,14 @@ export const deleteAppDatabasePasswordCommandName = "dbos-ttdbg.delete-app-db-pa
 export async function deleteAppDatabasePassword(node?: CloudAppNode) {
   logger.debug("deleteAppDatabasePassword", { node: node ?? null });
   if (node) {
-    const debugConfig = await getDebugConfigFromDbosCloud(node.app, node.credentials);
-    if (debugConfig) {
-      try {
-        await config.deleteStoredAppDatabasePassword(debugConfig);
-      } catch (e) {
-        logger.error("deleteAppDatabasePassword", e);
-      }
+    const credentials = await config.getStoredCloudCredentials(node.domain);
+    if (!credentials) { return; }
+    const debugConfig = await getDebugConfigFromDbosCloud(node.app, credentials);
+    if (!debugConfig) { return; }
+    try {
+      await config.deleteStoredAppDatabasePassword(debugConfig);
+    } catch (e) {
+      logger.error("deleteAppDatabasePassword", e);
     }
   }
 }
