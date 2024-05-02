@@ -135,17 +135,6 @@ async function getAuthToken(deviceCodeResponse: DeviceCodeResponse, domain?: str
   return undefined;
 }
 
-export function isTokenExpired(authToken: string | AuthTokenResponse): boolean {
-  const $authToken = typeof authToken === 'string' ? authToken : authToken.access_token;
-  try {
-    const { exp } = jwt.decode($authToken) as jwt.JwtPayload;
-    if (!exp) { return false; }
-    return Date.now() >= exp * 1000;
-  } catch (error) {
-    return true;
-  }
-}
-
 export async function verifyToken(authToken: string | AuthTokenResponse, domain?: string | DbosCloudDomain, token?: vscode.CancellationToken): Promise<JwtPayload> {
   const $authToken = typeof authToken === 'string' ? authToken : authToken.access_token;
 

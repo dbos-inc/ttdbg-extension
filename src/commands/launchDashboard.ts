@@ -3,6 +3,7 @@ import { logger, config } from '../extension';
 import type { DbosMethodInfo } from '../ProvenanceDatabase';
 import type { CloudAppNode, CloudDomainNode } from '../CloudDataProvider';
 import { createDashboard, getCloudDomain, getDashboard, isUnauthorized } from '../dbosCloudApi';
+import { validateCredentials } from '../validateCredentials';
 
 export async function launchDashboard(node?: string | CloudDomainNode | CloudAppNode, method?: DbosMethodInfo) {
   logger.debug("launchDashboard", { node: node ?? null });
@@ -17,7 +18,7 @@ export async function launchDashboard(node?: string | CloudDomainNode | CloudApp
   }
 
   const credentials = await config.getStoredCloudCredentials(domain);
-  if (!credentials) { return; }
+  if (!validateCredentials(credentials)) { return; }
 
   let dashboardUrl = await getDashboard(credentials);
   if (isUnauthorized(dashboardUrl)) { return; }

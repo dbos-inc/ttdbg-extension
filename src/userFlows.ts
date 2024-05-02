@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 import { logger, config } from './extension';
 import { DbosDebugConfig } from './configuration';
 import { DbosMethodInfo } from './ProvenanceDatabase';
-import { DbosCloudCredentials, isTokenExpired } from './dbosCloudApi';
 import { launchDashboardCommandName } from './commands';
+import { validateCredentials } from './validateCredentials';
 
 export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (cloudConfig: DbosDebugConfig) => Promise<string | undefined>) {
     await vscode.window.withProgress(
@@ -146,36 +146,3 @@ export async function showWorkflowPick(
     // }
 }
 
-export function validateCredentials(credentials?: DbosCloudCredentials): credentials is DbosCloudCredentials {
-    if (!credentials) {
-        startInvalidCredentialsFlow(credentials)
-            .catch(e => logger.error("startInvalidCredentialsFlow", e));
-        return false;
-    }
-
-    if (isTokenExpired(credentials.token)) {
-        startInvalidCredentialsFlow(credentials)
-            .catch(e => logger.error("startInvalidCredentialsFlow", e));
-        return false;
-    }
-
-    return true;
-}
-
-export async function startInvalidCredentialsFlow(credentials?: DbosCloudCredentials): Promise<void> {
-    const message = credentials
-        ? "DBOS Cloud credentials have expired. Please login again."
-        : "You need to login to DBOS Cloud.";
-
-    const items = ["Login", "Cancel"];
-
-    // TODO: Register support
-    // if (!credentials) { items.unshift("Register"); }
-    const result = await vscode.window.showWarningMessage(message, ...items);
-    switch (result) {
-        // case "Register": break;
-        case "Login":
-            await config.cloudLogin();
-            break;
-    }
-}

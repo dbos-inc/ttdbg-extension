@@ -1,5 +1,6 @@
 import { config, logger } from '../extension';
 import type { CloudDomainNode } from '../CloudDataProvider';
+import { validateCredentials } from '../validateCredentials';
 
 export function getCloudLoginCommand(refresh: (domain: string) => Promise<void>) {
   return async function (node?: CloudDomainNode) {
@@ -7,7 +8,7 @@ export function getCloudLoginCommand(refresh: (domain: string) => Promise<void>)
     if (node) {
       const domain = node.domain;
       const credentials = await config.getStoredCloudCredentials(domain);
-      if (credentials) { return; }
+      if (!validateCredentials(credentials)) { return; }
 
       await config.cloudLogin(domain);
       await refresh(domain);

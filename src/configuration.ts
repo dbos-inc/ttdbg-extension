@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { exists } from './utils';
 import { logger } from './extension';
-import { type DbosCloudApp, type DbosCloudCredentials, type DbosCloudDomain, authenticate, getApp, getCloudDomain, getDbInstance, isTokenExpired, isUnauthorized } from './dbosCloudApi';
-import { validateCredentials } from './userFlows';
+import { type DbosCloudApp, type DbosCloudCredentials, type DbosCloudDomain, authenticate, getApp, getCloudDomain, getDbInstance, isUnauthorized } from './dbosCloudApi';
+import { validateCredentials } from './validateCredentials';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
 const PROV_DB_HOST = "prov_db_host";
@@ -81,15 +81,7 @@ export class Configuration {
     const { cloudDomain } = getCloudDomain(domain);
     const secretKey = domainSecretKey(cloudDomain);
     const json = await this.secrets.get(secretKey);
-    if (!json) { return undefined; }
-
-    const credentials = JSON.parse(json) as DbosCloudCredentials;
-    if (isTokenExpired(credentials.token)) {
-      await this.secrets.delete(secretKey);
-      return undefined;
-    } else {
-      return credentials;
-    }
+    return json ? JSON.parse(json) as DbosCloudCredentials : undefined;
   }
 
   async cloudLogin(domain?: string | DbosCloudDomain) {

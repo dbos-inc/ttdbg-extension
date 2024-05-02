@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { logger, config } from '../extension';
 import { getDebugConfigFolder } from '../utils';
-import { showWorkflowPick, validateCredentials } from '../userFlows';
+import { showWorkflowPick } from '../userFlows';
+import { validateCredentials } from '../validateCredentials';
 
 export async function pickWorkflowId(cfg?: vscode.DebugConfiguration) {
   try {

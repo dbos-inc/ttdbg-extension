@@ -3,6 +3,7 @@ import { logger, config } from '../extension';
 import type { CloudAppNode } from '../CloudDataProvider';
 import { launchDebugProxy } from '../DebugProxy';
 import { getDbInstance, isUnauthorized } from '../dbosCloudApi';
+import { validateCredentials } from '../validateCredentials';
 
 export function getLaunchDebugProxyCommand(storageUri: vscode.Uri) {
 
@@ -11,8 +12,8 @@ export function getLaunchDebugProxyCommand(storageUri: vscode.Uri) {
     if (!node) { return; }
 
     const credentials = await config.getStoredCloudCredentials(node.domain);
-    if (!credentials) { return; }
-
+    if (!validateCredentials(credentials)) { return; }
+    
     const { PostgresInstanceName, ApplicationDatabaseName } = node.app;
     const dbInstance = await getDbInstance(PostgresInstanceName, credentials);
     if (isUnauthorized(dbInstance)) { return; }

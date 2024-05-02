@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
 import { logger, config } from '../extension';
 import { getDebugConfigFolder } from '../utils';
+import { isTokenExpired } from '../validateCredentials';
 
 export async function getProxyUrl(cfg?: vscode.DebugConfiguration & { rootPath?: string; }) {
   try {
     const folder = getDebugConfigFolder(cfg);
     const credentials = await config.getStoredCloudCredentials();
-    if (!credentials) { return; }
+    if (!credentials || isTokenExpired(credentials.token)) { return; }
 
     // TODO
     vscode.window.showErrorMessage("getProxyUrl currently disabled");
