@@ -36,12 +36,6 @@ export interface CloudStorage {
   getVersions(token?: vscode.CancellationToken): AsyncGenerator<string>;
 }
 
-export interface S3CloudStorageOptions {
-  region?: string;
-  bucket?: string;
-  releaseName?: string;
-}
-
 export class S3CloudStorage implements CloudStorage {
   private readonly bucket: string;
   private readonly region: string;
@@ -49,7 +43,11 @@ export class S3CloudStorage implements CloudStorage {
   private readonly s3: S3Client;
   private readonly regexVersion: RegExp;
 
-  constructor(options?: S3CloudStorageOptions) {
+  constructor(options?: {
+    region?: string;
+    bucket?: string;
+    releaseName?: string;
+  }) {
     this.bucket = options?.bucket ?? "dbos-releases";
     this.region = options?.region ?? "us-east-2";
     this.releaseName = options?.releaseName ?? "debug-proxy";

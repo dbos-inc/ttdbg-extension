@@ -1,6 +1,6 @@
 import { logger, config } from '../extension';
 import type { CloudAppNode } from '../CloudDataProvider';
-import { getDebugConfigFromDbosCloud } from '../configuration';
+import { getDebugConfigFromDbosCloud } from '../Config';
 import { isTokenExpired } from '../validateCredentials';
 
 export async function deleteAppDatabasePassword(node?: CloudAppNode) {

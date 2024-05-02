@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { S3CloudStorage } from './CloudStorage';
 import { CodeLensProvider } from './CodeLensProvider';
 import { registerCommands, updateDebugProxyCommandName, } from './commands';
-import { Configuration } from './configuration';
+import { Configuration } from './Config';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { UriHandler } from './UriHandler';
 import { CloudDataProvider } from './CloudDataProvider';

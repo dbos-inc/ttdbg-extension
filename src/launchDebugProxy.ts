@@ -8,7 +8,7 @@ import * as semver from 'semver';
 import { CloudStorage } from './CloudStorage';
 import { logger } from './extension';
 import { exists } from './utility';
-import { DbosDebugConfig } from './configuration';
+import { DbosDebugConfig } from './Config';
 
 const IS_WINDOWS = process.platform === "win32";
 const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;

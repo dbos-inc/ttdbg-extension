@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { Client, ClientConfig, Pool } from 'pg';
 import { getDbosWorkflowName, type DbosMethodInfo } from './CodeLensProvider';
-import type { DbosDebugConfig } from './configuration';
+import type { DbosDebugConfig } from './Config';
 import { logger } from './extension';
 
 export interface workflow_status {
