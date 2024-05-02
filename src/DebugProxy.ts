@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import * as semver from 'semver';
 import { CloudStorage } from './CloudStorage';
 import { logger } from './extension';
-import { exists } from './utils';
+import { exists } from './utility';
 import { DbosDebugConfig } from './configuration';
 
 const IS_WINDOWS = process.platform === "win32";

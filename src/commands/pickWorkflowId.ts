@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { logger, config } from '../extension';
-import { getDebugConfigFolder } from '../utils';
+import { getDebugConfigFolder } from '../utility';
 import { showWorkflowPick } from '../userFlows';
 import { validateCredentials } from '../validateCredentials';
 

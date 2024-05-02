@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { exists } from './utils';
+import { exists } from './utility';
 import { logger } from './extension';
 import { type DbosCloudApp, type DbosCloudCredentials, type DbosCloudDomain, authenticate, getApp, getCloudDomain, getDbInstance, isUnauthorized } from './dbosCloudApi';
 import { validateCredentials } from './validateCredentials';
