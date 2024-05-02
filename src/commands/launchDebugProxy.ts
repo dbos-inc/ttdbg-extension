@@ -4,7 +4,7 @@ import type { CloudAppNode } from '../CloudDataProvider';
 import { launchDebugProxy } from '../launchDebugProxy';
 import { getDbInstance, isUnauthorized } from '../dbosCloudApi';
 import { validateCredentials } from '../validateCredentials';
-import { DbosDebugConfig } from '../Config';
+import { DbosDebugConfig } from '../Configuration';
 
 function isDebugConfig(node: CloudAppNode | DbosDebugConfig): node is DbosDebugConfig {
   return (node as DbosDebugConfig).host !== undefined;

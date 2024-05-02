@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { logger, config } from './extension';
-import type { DbosDebugConfig } from './Config';
+import type { DbosDebugConfig } from './Configuration';
 import { validateCredentials } from './validateCredentials';
 import { getWorkflowStatus } from './getWorkflowStatuses';
 import { launchDebugProxyCommandName } from './commands';
