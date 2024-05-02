@@ -9,12 +9,15 @@ export async function getProxyUrl(cfg?: vscode.DebugConfiguration & { rootPath?:
   try {
     const folder = getDebugConfigFolder(cfg);
     const credentials = await config.getStoredCloudCredentials();
-    if (!validateCredentials(credentials)) { return undefined; }
-    const cloudConfig = await config.getDebugConfig(folder, credentials);
+    if (!credentials) { return; }
 
     // TODO
     vscode.window.showErrorMessage("getProxyUrl currently disabled");
     return undefined;
+
+    // if (!validateCredentials(credentials)) { return undefined; }
+    // const cloudConfig = await config.getDebugConfig(folder, credentials);
+
 
     // const proxyLaunched = await launchDebugProxy(folder, cloudConfig);
     // if (!proxyLaunched) {

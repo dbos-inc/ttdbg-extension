@@ -121,12 +121,41 @@ export async function updateDebugProxy(s3: CloudStorage, storageUri: vscode.Uri,
   });
 }
 
+let terminal: DebugProxyTerminal | undefined = undefined;
+
+class DebugProxyTerminal implements vscode.Disposable {
+
+  constructor(private readonly terminal: vscode.Terminal, private readonly config: DbosDebugConfig) { }
+
+  matches(config?:DbosDebugConfig) {
+    if (!config) { return false; }
+    return this.config.host === config.host 
+      && this.config.database === config.database
+      && this.config.user === config.user
+      && this.config.port === config.port;
+  }
+
+  dispose() { this.terminal.dispose(); }
+}
+
+export function shutdownDebugProxy(config?: DbosDebugConfig) {
+  if (terminal) { 
+    if (terminal.matches(config)) { return; }
+    const $terminal = terminal;
+    terminal = undefined;
+    $terminal.dispose();
+  }
+}
+
 export async function launchDebugProxy(storageUri: vscode.Uri, options: DbosDebugConfig & { proxyPort?: number }) {
+
   const exeUri = exeFileName(storageUri);
   logger.debug("launchDebugProxy", { exeUri, launchOptions: options });
   if (!(await exists(exeUri))) {
     throw new Error("debug proxy doesn't exist", { cause: { path: exeUri.fsPath } });
   }
+
+  shutdownDebugProxy(options);
 
   let { password } = options;
   if (typeof password === 'function') {
@@ -138,10 +167,10 @@ export async function launchDebugProxy(storageUri: vscode.Uri, options: DbosDebu
     }
   }
 
-  const pty = new DebugProxyTerminal(exeUri, { ...options, password });
-  const terminal = vscode.window.createTerminal({ name: "DBOS Debug Proxy", pty });
-  terminal.show();
-  return terminal;
+  const pty = new DebugProxyPseudoterminal(exeUri, { ...options, password });
+  const $terminal = vscode.window.createTerminal({ name: "DBOS Debug Proxy", pty });
+  terminal = new DebugProxyTerminal($terminal, options);
+  $terminal.show();
 }
 
 const ansiReset = "\x1b[0m";
@@ -172,7 +201,7 @@ interface DebugProxyTerminalOptions {
   proxyPort?: number
 }
 
-export class DebugProxyTerminal implements vscode.Pseudoterminal {
+export class DebugProxyPseudoterminal implements vscode.Pseudoterminal {
   private readonly _writeEmitter = new vscode.EventEmitter<string>;
   private readonly _closeEmitter = new vscode.EventEmitter<number | void>;
   private process: ChildProcess | undefined;
