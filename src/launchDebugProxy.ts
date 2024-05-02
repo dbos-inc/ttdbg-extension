@@ -138,9 +138,8 @@ class DebugProxyTerminal implements vscode.Disposable {
   dispose() { this.terminal.dispose(); }
 }
 
-export function shutdownDebugProxy(config?: DbosDebugConfig) {
+export function shutdownDebugProxy() {
   if (terminal) { 
-    if (terminal.matches(config)) { return; }
     const $terminal = terminal;
     terminal = undefined;
     $terminal.dispose();
@@ -155,7 +154,9 @@ export async function launchDebugProxy(storageUri: vscode.Uri, options: DbosDebu
     throw new Error("debug proxy doesn't exist", { cause: { path: exeUri.fsPath } });
   }
 
-  shutdownDebugProxy(options);
+  if (terminal?.matches(options) ?? false) { return; }
+
+  shutdownDebugProxy();
 
   let { password } = options;
   if (typeof password === 'function') {

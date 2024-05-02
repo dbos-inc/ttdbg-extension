@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { logger } from '../extension';
-import type { DbosMethodInfo } from '../ProvenanceDatabase';
-import { startDebugging, showWorkflowPick } from '../userFlows';
+import { startDebugging } from '../startDebugging';
+import { showWorkflowPick } from '../showWorkflowPick';
+import type { DbosMethodInfo } from '../CodeLensProvider';
 
 export async function startDebuggingFromCodeLens(folder: vscode.WorkspaceFolder, method: DbosMethodInfo) {
   try {

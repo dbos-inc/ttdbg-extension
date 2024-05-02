@@ -5,6 +5,8 @@ import { logger } from './extension';
 
 export type DbosMethodType = "Workflow" | "Transaction" | "Communicator";
 
+export type DbosMethodInfo = { name: string; type: DbosMethodType };
+
 export function getDbosWorkflowName(name: string, $type: DbosMethodType): string {
     switch ($type) {
         case "Workflow": return name;

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { logger } from '../extension';
-import { updateDebugProxy } from '../DebugProxy';
+import { updateDebugProxy } from '../launchDebugProxy';
 import type { CloudStorage } from '../CloudStorage';
 
 export function getUpdateDebugProxyCommand(s3: CloudStorage, storageUri: vscode.Uri) {

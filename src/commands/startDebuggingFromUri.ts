@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { logger } from '../extension';
-import { startDebugging } from '../userFlows';
+import { startDebugging } from '../startDebugging';
 
 export async function startDebuggingFromUri(workflowID: string) {
   try {
