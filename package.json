@@ -74,7 +74,7 @@
         "command": "dbos-ttdbg.launch-dashboard",
         "title": "Launch DBOS Dashboard",
         "category": "DBOS",
-        "icon": "$(globe)"
+        "icon": "$(server)"
       }
     ],
     "configuration": {
