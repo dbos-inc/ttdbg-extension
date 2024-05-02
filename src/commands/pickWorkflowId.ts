@@ -3,8 +3,6 @@ import { logger, config } from '../extension';
 import { getDebugConfigFolder } from '../utils';
 import { showWorkflowPick, validateCredentials } from '../userFlows';
 
-
-export const pickWorkflowIdCommandName = "dbos-ttdbg.pick-workflow-id";
 export async function pickWorkflowId(cfg?: vscode.DebugConfiguration) {
   try {
     const folder = getDebugConfigFolder(cfg);

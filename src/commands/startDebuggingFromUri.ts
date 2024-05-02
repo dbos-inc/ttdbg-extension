@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import { logger } from '../extension';
 import { startDebugging } from '../userFlows';
 
-export const startDebuggingUriCommandName = "dbos-ttdbg.start-debugging-uri";
 export async function startDebuggingFromUri(workflowID: string) {
   try {
     const folder = await getWorkspaceFolder();

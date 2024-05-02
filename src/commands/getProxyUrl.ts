@@ -1,10 +1,7 @@
 import * as vscode from 'vscode';
 import { logger, config } from '../extension';
 import { getDebugConfigFolder } from '../utils';
-import { validateCredentials } from '../userFlows';
 
-
-export const getProxyUrlCommandName = "dbos-ttdbg.get-proxy-url";
 export async function getProxyUrl(cfg?: vscode.DebugConfiguration & { rootPath?: string; }) {
   try {
     const folder = getDebugConfigFolder(cfg);

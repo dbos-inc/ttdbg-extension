@@ -1,49 +1,49 @@
 import * as vscode from 'vscode';
 import type { CloudStorage } from '../CloudStorage';
-import { cloudLoginCommandName, getCloudLoginCommand } from './cloudLogin';
-import { deleteAppDatabasePasswordCommandName, deleteAppDatabasePassword } from './deleteAppDatabasePassword';
-import { deleteDomainCredentialsCommandName, getDeleteDomainCredentialsCommand,  } from './deleteDomainCredentials';
-import { deleteStoredPasswordsCommandName, deleteStoredPasswords } from './deleteStoredPasswords';
-import { getProxyUrlCommandName, getProxyUrl } from './getProxyUrl';
-import { launchDashboardCommandName, launchDashboard } from './launchDashboard';
-import { launchDebugProxyCommandName, getLaunchDebugProxyCommand } from './launchDebugProxy';
-import { pickWorkflowIdCommandName, pickWorkflowId } from './pickWorkflowId';
-import { getRefreshDomainCommand, refreshDomainCommandName,  } from './refreshDomain';
-import { shutdownDebugProxyCommandName, shutdownDebugProxy } from './shutdownDebugProxy';
-import { startDebuggingCodeLensCommandName, startDebuggingFromCodeLens } from './startDebuggingFromCodeLens';
-import { startDebuggingUriCommandName, startDebuggingFromUri } from './startDebuggingFromUri';
-import { updateDebugProxyCommandName, getUpdateDebugProxyCommand } from './updateDebugProxy';
-import type { CloudDomainNode } from '../CloudDataProvider';
+import { getCloudLoginCommand } from './cloudLogin';
+import { deleteAppDatabasePassword } from './deleteAppDatabasePassword';
+import { getDeleteDomainCredentialsCommand, } from './deleteDomainCredentials';
+import { deleteStoredPasswords } from './deleteStoredPasswords';
+import { getProxyUrl } from './getProxyUrl';
+import { launchDashboard } from './launchDashboard';
+import { getLaunchDebugProxyCommand } from './launchDebugProxy';
+import { pickWorkflowId } from './pickWorkflowId';
 
-export { cloudLoginCommandName } from "./cloudLogin";
-export { deleteAppDatabasePasswordCommandName } from "./deleteAppDatabasePassword";
-export { deleteDomainCredentialsCommandName } from "./deleteDomainCredentials";
-export { deleteStoredPasswordsCommandName } from "./deleteStoredPasswords";
-export { getProxyUrlCommandName } from "./getProxyUrl";
-export { launchDashboardCommandName } from "./launchDashboard";
-export { launchDebugProxyCommandName } from "./launchDebugProxy";
-export { pickWorkflowIdCommandName } from "./pickWorkflowId";
-export { refreshDomainCommandName } from "./refreshDomain";
-export { shutdownDebugProxyCommandName } from "./shutdownDebugProxy";
-export { startDebuggingCodeLensCommandName } from "./startDebuggingFromCodeLens";
-export { startDebuggingUriCommandName } from "./startDebuggingFromUri";
-export { updateDebugProxyCommandName } from "./updateDebugProxy";
+import { shutdownDebugProxy } from './shutdownDebugProxy';
+import { startDebuggingFromCodeLens } from './startDebuggingFromCodeLens';
+import { startDebuggingFromUri } from './startDebuggingFromUri';
+import { getUpdateDebugProxyCommand } from './updateDebugProxy';
+import { getRefreshDomainCommand } from './refreshDomain';
+
+export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
+export const deleteAppDatabasePasswordCommandName = "dbos-ttdbg.delete-app-db-password";
+export const deleteDomainCredentialsCommandName = "dbos-ttdbg.delete-domain-credentials";
+export const deleteStoredPasswordsCommandName = "dbos-ttdbg.delete-stored-passwords";
+export const getProxyUrlCommandName = "dbos-ttdbg.get-proxy-url";
+export const launchDashboardCommandName = "dbos-ttdbg.launch-dashboard";
+export const launchDebugProxyCommandName = "dbos-ttdbg.launch-debug-proxy";
+export const pickWorkflowIdCommandName = "dbos-ttdbg.pick-workflow-id";
+export const refreshDomainCommandName = "dbos-ttdbg.refresh-domain";
+export const shutdownDebugProxyCommandName = "dbos-ttdbg.shutdown-debug-proxy";
+export const startDebuggingCodeLensCommandName = "dbos-ttdbg.start-debugging-code-lens";
+export const startDebuggingUriCommandName = "dbos-ttdbg.start-debugging-uri";
+export const updateDebugProxyCommandName = "dbos-ttdbg.update-debug-proxy";
 
 export function registerCommands(cloudStorage: CloudStorage, storageUri: vscode.Uri, refresh: (domain: string) => Promise<void>) {
     const disposables = [
         vscode.commands.registerCommand(cloudLoginCommandName, getCloudLoginCommand(refresh)),
-        vscode.commands.registerCommand(deleteDomainCredentialsCommandName, getDeleteDomainCredentialsCommand(refresh)),
         vscode.commands.registerCommand(deleteAppDatabasePasswordCommandName, deleteAppDatabasePassword),
+        vscode.commands.registerCommand(deleteDomainCredentialsCommandName, getDeleteDomainCredentialsCommand(refresh)),
         vscode.commands.registerCommand(deleteStoredPasswordsCommandName, deleteStoredPasswords),
+        vscode.commands.registerCommand(getProxyUrlCommandName, getProxyUrl),
+        vscode.commands.registerCommand(launchDashboardCommandName, launchDashboard),
+        vscode.commands.registerCommand(launchDebugProxyCommandName, getLaunchDebugProxyCommand(storageUri)),
+        vscode.commands.registerCommand(pickWorkflowIdCommandName, pickWorkflowId),
+        vscode.commands.registerCommand(refreshDomainCommandName, getRefreshDomainCommand(refresh)),
         vscode.commands.registerCommand(shutdownDebugProxyCommandName, shutdownDebugProxy),
         vscode.commands.registerCommand(startDebuggingCodeLensCommandName, startDebuggingFromCodeLens),
         vscode.commands.registerCommand(startDebuggingUriCommandName, startDebuggingFromUri),
-        vscode.commands.registerCommand(refreshDomainCommandName, getRefreshDomainCommand(refresh)),
         vscode.commands.registerCommand(updateDebugProxyCommandName, getUpdateDebugProxyCommand(cloudStorage, storageUri)),
-        vscode.commands.registerCommand(launchDebugProxyCommandName, getLaunchDebugProxyCommand(storageUri)),
-        vscode.commands.registerCommand(launchDashboardCommandName, launchDashboard),
-        vscode.commands.registerCommand(getProxyUrlCommandName, getProxyUrl),
-        vscode.commands.registerCommand(pickWorkflowIdCommandName, pickWorkflowId),
     ];
 
     return disposables;

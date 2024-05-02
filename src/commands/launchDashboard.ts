@@ -4,10 +4,8 @@ import type { DbosMethodInfo } from '../ProvenanceDatabase';
 import type { CloudAppNode, CloudDomainNode } from '../CloudDataProvider';
 import { createDashboard, getCloudDomain, getDashboard, isUnauthorized } from '../dbosCloudApi';
 
-
-export const launchDashboardCommandName = "dbos-ttdbg.launch-dashboard";
 export async function launchDashboard(node?: string | CloudDomainNode | CloudAppNode, method?: DbosMethodInfo) {
-  logger.debug(launchDashboardCommandName, { node: node ?? null });
+  logger.debug("launchDashboard", { node: node ?? null });
   if (!node) { return; }
 
   let domain: string;

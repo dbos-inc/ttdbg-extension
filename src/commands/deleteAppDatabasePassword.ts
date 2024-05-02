@@ -2,8 +2,6 @@ import { logger, config } from '../extension';
 import type { CloudAppNode } from '../CloudDataProvider';
 import { getDebugConfigFromDbosCloud } from '../configuration';
 
-
-export const deleteAppDatabasePasswordCommandName = "dbos-ttdbg.delete-app-db-password";
 export async function deleteAppDatabasePassword(node?: CloudAppNode) {
   logger.debug("deleteAppDatabasePassword", { node: node ?? null });
   if (node) {

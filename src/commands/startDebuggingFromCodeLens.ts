@@ -3,7 +3,6 @@ import { logger } from '../extension';
 import type { DbosMethodInfo } from '../ProvenanceDatabase';
 import { startDebugging, showWorkflowPick } from '../userFlows';
 
-export const startDebuggingCodeLensCommandName = "dbos-ttdbg.start-debugging-code-lens";
 export async function startDebuggingFromCodeLens(folder: vscode.WorkspaceFolder, method: DbosMethodInfo) {
   try {
     logger.info(`startDebuggingFromCodeLens`, { folder: folder.uri.fsPath, method });

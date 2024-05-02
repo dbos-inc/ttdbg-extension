@@ -4,11 +4,10 @@ import type { CloudAppNode } from '../CloudDataProvider';
 import { launchDebugProxy } from '../DebugProxy';
 import { getDbInstance, isUnauthorized } from '../dbosCloudApi';
 
-export const launchDebugProxyCommandName = "dbos-ttdbg.launch-debug-proxy";
 export function getLaunchDebugProxyCommand(storageUri: vscode.Uri) {
 
   return async function (node?: CloudAppNode) {
-    logger.debug(launchDebugProxyCommandName, { app: node ?? null });
+    logger.debug("launchDebugProxy", { app: node ?? null });
     if (!node) { return; }
 
     const credentials = await config.getStoredCloudCredentials(node.domain);

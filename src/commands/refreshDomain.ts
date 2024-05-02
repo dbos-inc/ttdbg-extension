@@ -1,7 +1,6 @@
 import { logger } from '../extension';
 import type { CloudDomainNode } from '../CloudDataProvider';
 
-export const refreshDomainCommandName = "dbos-ttdbg.refresh-domain";
 export function getRefreshDomainCommand(refresh: (domain: string) => Promise<void>) {
   return function (node?: CloudDomainNode) {
     logger.debug("refreshDomain", { domain: node ?? null });
