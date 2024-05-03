@@ -6,7 +6,8 @@ import { Configuration } from './Configuration';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { UriHandler } from './UriHandler';
 import { CloudDataProvider } from './CloudDataProvider';
-import { getPoolDisposable } from './getWorkflowStatuses';
+import { shutdownProvenanceDbConnectionPool } from './provenanceDb';
+import { shutdownDebugProxy } from './debugProxy';
 
 export let logger: Logger;
 export let config: Configuration;
@@ -26,7 +27,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     ...registerCommands(cloudStorage, context.globalStorageUri, (domain: string) => cloudDataProvider.refresh(domain)),
-    getPoolDisposable(),
+    { dispose() { shutdownProvenanceDbConnectionPool(); } },
+    { dispose() { shutdownDebugProxy(); } },
 
     vscode.window.registerTreeDataProvider("dbos-ttdbg.views.resources", cloudDataProvider),
 

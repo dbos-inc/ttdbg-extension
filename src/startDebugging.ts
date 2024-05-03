@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { logger, config } from './extension';
 import type { DbosDebugConfig } from './Configuration';
 import { validateCredentials } from './validateCredentials';
-import { getWorkflowStatus } from './getWorkflowStatuses';
+import { getWorkflowStatus } from './provenanceDb';
 import { launchDebugProxyCommandName } from './commands';
 
 export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (debugConfig: DbosDebugConfig) => Promise<string | undefined>) {

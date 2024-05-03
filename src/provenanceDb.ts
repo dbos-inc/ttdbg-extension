@@ -54,14 +54,10 @@ function getPool(debugConfig: DbosDebugConfig): Pool {
   return pool;
 }
 
-export function getPoolDisposable(): vscode.Disposable {
-  return {
-    dispose() {
-      for (const pool of connections.values()) {
-        pool.end().catch(e => logger.error("Failed to end pool", e));
-      }
-    }
-  };
+export function shutdownProvenanceDbConnectionPool() {
+  for (const pool of connections.values()) {
+    pool.end().catch(e => logger.error("Failed to end pool", e));
+  }
 }
 
 export async function getWorkflowStatuses(debugConfig: DbosDebugConfig, method?: DbosMethodInfo): Promise<workflow_status[]> {

@@ -123,23 +123,8 @@ export async function updateDebugProxy(s3: CloudStorage, storageUri: vscode.Uri,
 
 let terminal: DebugProxyTerminal | undefined = undefined;
 
-class DebugProxyTerminal implements vscode.Disposable {
-
-  constructor(private readonly terminal: vscode.Terminal, private readonly config: DbosDebugConfig) { }
-
-  matches(config?:DbosDebugConfig) {
-    if (!config) { return false; }
-    return this.config.host === config.host 
-      && this.config.database === config.database
-      && this.config.user === config.user
-      && this.config.port === config.port;
-  }
-
-  dispose() { this.terminal.dispose(); }
-}
-
 export function shutdownDebugProxy() {
-  if (terminal) { 
+  if (terminal) {
     const $terminal = terminal;
     terminal = undefined;
     $terminal.dispose();
@@ -154,24 +139,52 @@ export async function launchDebugProxy(storageUri: vscode.Uri, options: DbosDebu
     throw new Error("debug proxy doesn't exist", { cause: { path: exeUri.fsPath } });
   }
 
-  if (terminal?.matches(options) ?? false) { return; }
+  if (terminal?.matches(options)) { return; }
+  shutdownDebugProxy();  
 
-  shutdownDebugProxy();
+  const password = typeof options.password === 'function' ? await options.password() : options.password;
+  if (!password) { throw new Error("Invalid password"); }
 
-  let { password } = options;
-  if (typeof password === 'function') {
-    const $password = await password();
-    if ($password) {
-      password = $password;
-    } else {
-      throw new Error("could not retrieve password");
-    }
+  terminal = new DebugProxyTerminal(exeUri, { ...options, password });
+  terminal.show();
+}
+
+class DebugProxyTerminal implements vscode.Disposable {
+
+  private readonly pty: DebugProxyPseudoterminal;
+  private readonly terminal: vscode.Terminal;
+
+  constructor(
+    exeUri: vscode.Uri,
+    private readonly options: DebugProxyTerminalOptions,
+  ) {
+    this.pty = new DebugProxyPseudoterminal(exeUri, options);
+    this.terminal = vscode.window.createTerminal({
+      name: "DBOS Debug Proxy",
+      pty: this.pty,
+      iconPath: new vscode.ThemeIcon('debug'),
+    });
   }
 
-  const pty = new DebugProxyPseudoterminal(exeUri, { ...options, password });
-  const $terminal = vscode.window.createTerminal({ name: "DBOS Debug Proxy", pty });
-  terminal = new DebugProxyTerminal($terminal, options);
-  $terminal.show();
+  get isRunning() { 
+    return this.pty.isRunning; 
+  }
+
+  dispose() {
+    this.terminal.dispose();
+  }
+
+  show() {
+    this.terminal.show();
+  }
+
+  matches(config: DbosDebugConfig) {
+    if (!this.isRunning) { return false; }
+    return this.options.host === config.host
+      && this.options.database === config.database
+      && this.options.user === config.user
+      && this.options.port === config.port;
+  }
 }
 
 const ansiReset = "\x1b[0m";
@@ -185,7 +198,7 @@ const ansiWhite = "\x1b[37m";
 
 function getEscapeCode(level: string) {
   switch (level.toLowerCase()) {
-    case "error": return ansiRed;
+    case "error": return ansiMagenta;
     case "warn": return ansiYellow;
     case "info": return ansiWhite;
     case "debug": return ansiCyan;
@@ -194,26 +207,28 @@ function getEscapeCode(level: string) {
 }
 
 interface DebugProxyTerminalOptions {
-  host: string,
-  port?: number,
-  database: string,
-  user: string,
-  password: string,
-  proxyPort?: number
+  host: string;
+  port?: number;
+  database: string;
+  user: string;
+  password: string;
+  proxyPort?: number;
 }
 
-export class DebugProxyPseudoterminal implements vscode.Pseudoterminal {
-  private readonly _writeEmitter = new vscode.EventEmitter<string>;
-  private readonly _closeEmitter = new vscode.EventEmitter<number | void>;
+class DebugProxyPseudoterminal implements vscode.Pseudoterminal {
+  private readonly onDidWriteEmitter = new vscode.EventEmitter<string>;
+  private readonly onDidCloseEmitter = new vscode.EventEmitter<number | void>;
   private process: ChildProcess | undefined;
 
-  readonly onDidWrite = this._writeEmitter.event;
-  readonly onDidClose = this._closeEmitter.event;
+  readonly onDidWrite = this.onDidWriteEmitter.event;
+  readonly onDidClose = this.onDidCloseEmitter.event;
 
   constructor(
     private readonly exeUri: vscode.Uri,
     private readonly options: DebugProxyTerminalOptions
   ) { }
+
+  get isRunning() { return !!this.process && !this.process.exitCode; }
 
   open(_: vscode.TerminalDimensions | undefined): void {
     const { host, database, password, user, port, proxyPort } = this.options;
@@ -242,23 +257,23 @@ export class DebugProxyPseudoterminal implements vscode.Pseudoterminal {
 
       const { time, level, msg, ...properties } = JSON.parse(data.toString()) as DebugProxyStdOut;
       const escapeCode = getEscapeCode(level);
-      this._writeEmitter.fire("\r\n" + escapeCode + msg.trim());
+      this.onDidWriteEmitter.fire("\r\n" + escapeCode + msg.trim());
       for (const [key, value] of Object.entries(properties)) {
         const $value = typeof value === 'object' ? JSON.stringify(value) : `${value}`;
-        this._writeEmitter.fire(`\r\n  ${key}: ${$value}`);
+        this.onDidWriteEmitter.fire(`\r\n  ${key}: ${$value}`);
       }
-      this._writeEmitter.fire(ansiReset);
+      this.onDidWriteEmitter.fire(ansiReset);
     });
     this.process.stderr.on("data", (data: Buffer) => {
-      this._writeEmitter.fire("\r\n" + ansiMagenta + data.toString().trim() + "\x1b[0m");
+      this.onDidWriteEmitter.fire("\r\n" + ansiRed + data.toString().trim() + "\x1b[0m");
     });
     this.process.on("close", (code) => {
       let message = "DBOS Proxy has exited" + (code ? ` with code ${code}.` : ".");
-      this._writeEmitter.fire("\r\n\r\n" + ansiGreen + `${message}\r\nPress any key to close this terminal` + ansiReset);
+      this.onDidWriteEmitter.fire("\r\n\r\n" + ansiGreen + `${message}\r\nPress any key to close this terminal` + ansiReset);
       this.process = undefined;
     });
     this.process.on("error", () => {
-      this._writeEmitter.fire("\r\n\r\n" + ansiMagenta + `DBOS Debug Proxy has encountered an error.\r\nPress any key to close this terminal` + ansiReset);
+      this.onDidWriteEmitter.fire("\r\n\r\n" + ansiRed + `DBOS Debug Proxy has encountered an error.\r\nPress any key to close this terminal` + ansiReset);
       this.process = undefined;
     });
   }
@@ -270,7 +285,7 @@ export class DebugProxyPseudoterminal implements vscode.Pseudoterminal {
     } else if (this.process?.exitCode === null) {
       this.process.send(data);
     } else {
-      this._closeEmitter.fire();
+      this.onDidCloseEmitter.fire();
     }
   }
 
