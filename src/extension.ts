@@ -1,18 +1,16 @@
 import * as vscode from 'vscode';
 import { S3CloudStorage } from './CloudStorage';
-import { TTDbgCodeLensProvider } from './codeLensProvider';
-import { deleteStoredPasswords, deleteStoredPasswordsCommandName, shutdownDebugProxyCommandName, shutdownDebugProxy, cloudLoginCommandName, cloudLogin, startDebuggingCodeLensCommandName, startDebuggingFromCodeLens, startDebuggingFromUri, startDebuggingUriCommandName, getProxyUrl, getProxyUrlCommandName, pickWorkflowIdCommandName, pickWorkflowId, deleteDomainCredentials, deleteDomainCredentialsCommandName, deleteAppDatabasePassword, deleteAppDatabasePasswordCommandName } from './commands';
-import { Configuration } from './configuration';
-import { DebugProxy, } from './DebugProxy';
+import { CodeLensProvider } from './CodeLensProvider';
+import { registerCommands, updateDebugProxyCommandName, } from './commands';
+import { Configuration } from './Configuration';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
-import { ProvenanceDatabase } from './ProvenanceDatabase';
-import { TTDbgUriHandler } from './uriHandler';
+import { UriHandler } from './UriHandler';
 import { CloudDataProvider } from './CloudDataProvider';
+import { shutdownProvenanceDbConnectionPool } from './provenanceDb';
+import { shutdownDebugProxy } from './debugProxy';
 
 export let logger: Logger;
 export let config: Configuration;
-export let provDB: ProvenanceDatabase;
-export let debugProxy: DebugProxy;
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -22,42 +20,28 @@ export async function activate(context: vscode.ExtensionContext) {
 
   config = new Configuration(context.secrets);
 
-  provDB = new ProvenanceDatabase();
-  context.subscriptions.push(provDB);
-
   const cloudStorage = new S3CloudStorage();
   context.subscriptions.push(cloudStorage);
 
-  debugProxy = new DebugProxy(cloudStorage, context.globalStorageUri);
-  context.subscriptions.push(debugProxy);
+  const cloudDataProvider = new CloudDataProvider();
 
   context.subscriptions.push(
-    vscode.commands.registerCommand(cloudLoginCommandName, cloudLogin),
-    vscode.commands.registerCommand(deleteDomainCredentialsCommandName, deleteDomainCredentials),
-    vscode.commands.registerCommand(deleteAppDatabasePasswordCommandName, deleteAppDatabasePassword),
-    vscode.commands.registerCommand(deleteStoredPasswordsCommandName, deleteStoredPasswords),
-    vscode.commands.registerCommand(shutdownDebugProxyCommandName, shutdownDebugProxy),
-    vscode.commands.registerCommand(startDebuggingCodeLensCommandName, startDebuggingFromCodeLens),
-    vscode.commands.registerCommand(startDebuggingUriCommandName, startDebuggingFromUri),
+    ...registerCommands(cloudStorage, context.globalStorageUri, (domain: string) => cloudDataProvider.refresh(domain)),
+    { dispose() { shutdownProvenanceDbConnectionPool(); } },
+    { dispose() { shutdownDebugProxy(); } },
 
-    vscode.commands.registerCommand(getProxyUrlCommandName, getProxyUrl),
-    vscode.commands.registerCommand(pickWorkflowIdCommandName, pickWorkflowId),
-
-    vscode.window.registerTreeDataProvider(
-      "dbos-ttdbg.views.resources", 
-      new CloudDataProvider()),
+    vscode.window.registerTreeDataProvider("dbos-ttdbg.views.resources", cloudDataProvider),
 
     vscode.languages.registerCodeLensProvider(
       { scheme: 'file', language: 'typescript' },
-      new TTDbgCodeLensProvider()),
+      new CodeLensProvider()),
 
-    vscode.window.registerUriHandler(new TTDbgUriHandler())
+    vscode.window.registerUriHandler(new UriHandler())
   );
 
-  await debugProxy.update().catch(e => {
-    logger.error("Debug Proxy Update Failed", e);
-    vscode.window.showErrorMessage(`Debug Proxy Update Failed`);
-  });
+  vscode.commands.executeCommand(updateDebugProxyCommandName);
 }
 
 export function deactivate() { }
+
+

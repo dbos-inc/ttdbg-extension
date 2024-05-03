@@ -32,6 +32,12 @@
         "icon": "$(log-in)"
       },
       {
+        "command": "dbos-ttdbg.refresh-domain",
+        "title": "Refresh DBOS Cloud Resources",
+        "category": "DBOS",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "dbos-ttdbg.delete-domain-credentials",
         "title": "Delete Stored DBOS Cloud Credentials",
         "category": "DBOS",
@@ -52,6 +58,23 @@
         "command": "dbos-ttdbg.shutdown-debug-proxy",
         "title": "Shutdown Debug Proxy",
         "category": "DBOS"
+      },
+      {
+        "command": "dbos-ttdbg.update-debug-proxy",
+        "title": "Update Debug Proxy",
+        "category": "DBOS"
+      },
+      {
+        "command": "dbos-ttdbg.launch-debug-proxy",
+        "title": "Launch Debug Proxy",
+        "category": "DBOS",
+        "icon": "$(debug)"
+      },
+      {
+        "command": "dbos-ttdbg.launch-dashboard",
+        "title": "Launch DBOS Dashboard",
+        "category": "DBOS",
+        "icon": "$(server)"
       }
     ],
     "configuration": {
@@ -86,12 +109,27 @@
           "group": "inline"
         },
         {
+          "command": "dbos-ttdbg.launch-dashboard",
+          "when": "view == dbos-ttdbg.views.resources && (viewItem == cloudDomain || viewItem == cloudApp)",
+          "group": "inline"
+        },
+        {
+          "command": "dbos-ttdbg.refresh-domain",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain",
+          "group": "inline"
+        },
+        {
           "command": "dbos-ttdbg.delete-domain-credentials",
           "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain"
         },
         {
           "command": "dbos-ttdbg.delete-app-db-password",
           "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp"
+        },
+        {
+          "command": "dbos-ttdbg.launch-debug-proxy",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp",
+          "group": "inline"
         }
       ]
     },

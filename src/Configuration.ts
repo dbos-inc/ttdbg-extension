@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
-import { getPackageName } from './utils';
+import { exists } from './utility';
 import { logger } from './extension';
-import { DbosCloudApp, DbosCloudCredentials, DbosCloudDomain, authenticate, getAppInfo, getCloudDomain, getDatabaseInfo } from './dbosCloudApi';
-import { validateCredentials } from './userFlows';
+import { type DbosCloudApp, type DbosCloudCredentials, type DbosCloudDomain, authenticate, getApp, getCloudDomain, getDbInstance, isUnauthorized } from './dbosCloudApi';
+import { validateCredentials } from './validateCredentials';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
 const PROV_DB_HOST = "prov_db_host";
@@ -24,8 +24,13 @@ export interface DbosDebugConfig {
 export async function getDebugConfigFromDbosCloud(app: string | DbosCloudApp, credentials: DbosCloudCredentials): Promise<Omit<DbosDebugConfig, 'password'> | undefined> {
   if (!validateCredentials(credentials)) { return undefined; }
 
-  if (typeof app === 'string') { app = await getAppInfo(app, credentials); }
-  const db = await getDatabaseInfo(app.PostgresInstanceName, credentials);
+  if (typeof app === 'string') { 
+    const $app = await getApp(app, credentials);
+    if (isUnauthorized($app)) { return undefined; }
+    app = $app;
+  }
+  const db = await getDbInstance(app.PostgresInstanceName, credentials);
+  if (isUnauthorized(db)) { return undefined; }
   const cloudConfig = {
     host: db.HostName,
     port: db.Port,
@@ -89,11 +94,23 @@ export class Configuration {
     return credentials;
   }
 
+  async getCredentials(domain?: string | DbosCloudDomain) {
+    const { cloudDomain } = getCloudDomain(domain);
+    const storedCredentials = await this.getStoredCloudCredentials(cloudDomain);
+    return storedCredentials ?? await this.cloudLogin(cloudDomain);
+  }
+
   async deleteStoredCloudCredentials(domain?: string | DbosCloudDomain) {
     const { cloudDomain } = getCloudDomain(domain);
     const secretKey = domainSecretKey(cloudDomain);
-    await this.secrets.delete(secretKey);
-    logger.debug("Deleted DBOS Cloud credentials", { cloudDomain });
+    const json = await this.secrets.get(secretKey);
+    if (json) {
+      await this.secrets.delete(secretKey);
+      logger.debug("Deleted DBOS Cloud credentials", { cloudDomain });
+      return true;
+    } else {
+      return false;
+    }
   }
 
   async getDebugConfig(folder: vscode.WorkspaceFolder, credentials: DbosCloudCredentials): Promise<DbosDebugConfig> {
@@ -119,7 +136,7 @@ export class Configuration {
 
     if (cloudConfig) {
       logger.debug("getCloudConfig", { folder: folder.uri.fsPath, cloudConfig });
-      return { ...cloudConfig, password: () => this.#getAppDatabasePassword(cloudConfig) };
+      return { ...cloudConfig, password: () => this.getAppDatabasePassword(cloudConfig) };
     } else {
       throw new Error("Invalid CloudConfig", { cause: { folder: folder.uri.fsPath, credentials } });
     }
@@ -148,7 +165,7 @@ export class Configuration {
     await this.secrets.store(databaseSetKey, JSON.stringify(Array.from(set)));
   }
 
-  async #getAppDatabasePassword(debugConfig: Pick<DbosDebugConfig, 'user' | 'host' | 'port' | 'database'>): Promise<string | undefined> {
+  async getAppDatabasePassword(debugConfig: Pick<DbosDebugConfig, 'user' | 'host' | 'port' | 'database'>): Promise<string | undefined> {
     const key = databaseSecretKey(debugConfig);
     let password = await this.secrets.get(key);
     if (!password) {
@@ -179,5 +196,20 @@ export class Configuration {
       logger.debug("Deleted DBOS database credentials", { key });
     }
     await this.secrets.delete(databaseSetKey);
+  }
+}
+
+async function getPackageName(folder: vscode.WorkspaceFolder): Promise<string | undefined> {
+  const packageJsonUri = vscode.Uri.joinPath(folder.uri, "package.json");
+  if (!await exists(packageJsonUri)) { return undefined; }
+
+  try {
+    const packageJsonBuffer = await vscode.workspace.fs.readFile(packageJsonUri);
+    const packageJsonText = new TextDecoder().decode(packageJsonBuffer);
+    const packageJson = JSON.parse(packageJsonText);
+    return packageJson.name;
+  } catch (e) {
+    logger.error("getPackageName", e);
+    return undefined;
   }
 }

@@ -2,7 +2,12 @@ import * as vscode from 'vscode';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import { logger } from './extension';
-import { cancellableFetch } from './utils';
+
+export type Unauthorized = { status: "unauthorized" };
+
+export function isUnauthorized(obj: any): obj is Unauthorized {
+  return obj?.status === "unauthorized";
+}
 
 export interface DbosCloudCredentials {
   token: string;
@@ -20,7 +25,7 @@ export interface DbosCloudApp {
   AppURL: string;
 }
 
-export interface DbosCloudDatabase {
+export interface DbosCloudDbInstance {
   PostgresInstanceName: string;
   HostName: string;
   Status: string;
@@ -130,17 +135,6 @@ async function getAuthToken(deviceCodeResponse: DeviceCodeResponse, domain?: str
   return undefined;
 }
 
-export function isTokenExpired(authToken: string | AuthTokenResponse): boolean {
-  const $authToken = typeof authToken === 'string' ? authToken : authToken.access_token;
-  try {
-    const { exp } = jwt.decode($authToken) as jwt.JwtPayload;
-    if (!exp) { return false; }
-    return Date.now() >= exp * 1000;
-  } catch (error) {
-    return true;
-  }
-}
-
 export async function verifyToken(authToken: string | AuthTokenResponse, domain?: string | DbosCloudDomain, token?: vscode.CancellationToken): Promise<JwtPayload> {
   const $authToken = typeof authToken === 'string' ? authToken : authToken.access_token;
 
@@ -235,83 +229,47 @@ async function getUser(accessToken: string, domain?: string | DbosCloudDomain, t
   return body;
 }
 
-export async function listApps({ domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken) {
+export async function listApps({ domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudApp[]> {
   const url = `https://${domain}/v1alpha1/${userName}/applications`;
   const request = <RequestInit>{
     method: 'GET',
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
-  const response = await cancellableFetch(url, request, token);
-  if (!response.ok) {
-    throw new Error(`listApps request failed`, {
-      cause: { url, status: response.status, statusText: response.statusText }
-    });
-  }
-
-  const body = await response.json() as DbosCloudApp[];
-  logger.debug("listApps", { url, status: response.status, body });
-  return body;
+  return fetchHelper('listApps', url, request, async (response) => await response.json() as DbosCloudApp[], token);
 }
 
-export async function getAppInfo(appName: string, { domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken) {
+export async function getApp(appName: string, { domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudApp> {
   const url = `https://${domain}/v1alpha1/${userName}/applications/${appName}`;
   const request = <RequestInit>{
     method: 'GET',
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
-  const response = await cancellableFetch(url, request, token);
-  if (!response.ok) {
-    throw new Error(`getAppInfo request failed`, {
-      cause: { url, status: response.status, statusText: response.statusText }
-    });
-  }
-
-  const body = await response.json() as DbosCloudApp;
-  logger.debug("getAppInfo", { url, status: response.status, body });
-  return body;
+  return fetchHelper('getApp', url, request, async (response) => await response.json() as DbosCloudApp, token);
 }
 
-export async function listDatabases({ domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken) {
+export async function listDbInstances({ domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbInstance[]> {
   const url = `https://${domain}/v1alpha1/${userName}/databases`;
   const request = <RequestInit>{
     method: 'GET',
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
-  const response = await cancellableFetch(url, request, token);
-  if (!response.ok) {
-    throw new Error(`listDatabases request failed`, {
-      cause: { url, status: response.status, statusText: response.statusText }
-    });
-  }
-
-  const body = await response.json() as DbosCloudDatabase[];
-  logger.debug("listDatabases", { url, status: response.status, body });
-  return body;
+  return fetchHelper('listDatabaseInstances', url, request, async (response) => await response.json() as DbosCloudDbInstance[], token);
 }
 
-export async function getDatabaseInfo(dbName: string, { domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken) {
+export async function getDbInstance(dbName: string, { domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbInstance> {
   const url = `https://${domain}/v1alpha1/${userName}/databases/userdb/info/${dbName}`;
   const request = <RequestInit>{
     method: 'GET',
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
-  const response = await cancellableFetch(url, request, token);
-  if (!response.ok) {
-    throw new Error(`getDatabaseInfo request failed`, {
-      cause: { url, status: response.status, statusText: response.statusText }
-    });
-  }
-
-  const body = await response.json() as DbosCloudDatabase;
-  logger.debug("getDatabaseInfo", { url, status: response.status, body });
-  return body;
+  return fetchHelper('listDatabaseInstances', url, request, async (response) => await response.json() as DbosCloudDbInstance, token);
 }
 
-export async function createDashboard({ domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken) {
+export async function createDashboard({ domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken): Promise<string | Unauthorized> {
 
   const url = `https://${domain}/v1alpha1/${userName}/dashboard`;
   const request = <RequestInit>{
@@ -319,31 +277,52 @@ export async function createDashboard({ domain, token: accessToken, userName }: 
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
-  const response = await cancellableFetch(url, request, token);
-  if (!response.ok) {
-    throw new Error(`createDashboard request failed`, {
-      cause: { url, status: response.status, statusText: response.statusText }
-    });
-  }
-  const body = await response.text();
-  logger.debug("createDashboard", { url, status: response.status, body });
-  return body;
+  return fetchHelper('createDashboard', url, request, (response) => response.text(), token);
 }
 
-export async function getDashboard({ domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken) {
+export async function getDashboard({ domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken): Promise<string | Unauthorized | undefined> {
   const url = `https://${domain}/v1alpha1/${userName}/dashboard`;
   const request = <RequestInit>{
     method: 'GET',
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
   const response = await cancellableFetch(url, request, token);
-  if (!response.ok && response.status !== 500) {
+  logger.debug("getDashboard", { url, status: response.status });
+  if (response.ok || response.status === 500) {
+    const body = response.ok ? await response.text() : undefined;;
+    logger.debug("getDashboard", { body: body ?? null });
+    return body;
+  } else if (response.status === 401) {
+    return <Unauthorized>{ status: "unauthorized" };
+  } else {
     throw new Error(`getDashboard request failed`, {
       cause: { url, status: response.status, statusText: response.statusText }
     });
   }
+}
 
-  const body = response.status === 500 ? undefined : await response.text();
-  logger.debug("getDashboard", { url, status: response.status, body });
-  return body;
+async function fetchHelper<T>(name: string, url: string, request: Omit<RequestInit, 'signal'>, onOk: (resp: Response) => Promise<T>, token?: vscode.CancellationToken): Promise<T | Unauthorized> {
+  const response = await cancellableFetch(url, request, token);
+  logger.debug(name, { url, status: response.status });
+  if (response.ok) {
+    const body = await onOk(response);
+    logger.debug(name, { body });
+    return body;
+  } else if (response.status === 401) {
+    return { status: "unauthorized" };
+  } else {
+    throw new Error(`${name} request failed`, {
+      cause: { url, status: response.status, statusText: response.statusText }
+    });
+  }
+}
+
+async function cancellableFetch(url: string, request: Omit<RequestInit, 'signal'>, token?: vscode.CancellationToken) {
+  const abort = new AbortController();
+  const tokenListener = token?.onCancellationRequested(reason => { abort.abort(reason); });
+  try {
+    return await fetch(url, { ...request, signal: abort.signal });
+  } finally {
+    tokenListener?.dispose();
+  }
 }

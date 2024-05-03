@@ -2,7 +2,30 @@ import * as vscode from 'vscode';
 import { GetObjectCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import { HttpHandlerOptions } from "@aws-sdk/types";
 import * as semver from "semver";
-import { PLATFORM, ARCHITECTURE } from './utils';
+
+const PLATFORM = function () {
+  switch (process.platform) {
+    case "linux":
+      return "linux";
+    case "darwin":
+      return "macos";
+    case "win32":
+      return "windows";
+    default:
+      throw new Error(`Unsupported platform: ${process.platform}`);
+  }
+}();
+
+const ARCHITECTURE = function () {
+  switch (process.arch) {
+    case "arm64":
+      return "arm64";
+    case "x64":
+      return "x64";
+    default:
+      throw new Error(`Unsupported architecture: ${process.arch}`);
+  }
+}();
 
 export interface CloudObject {
   asByteArray(): Promise<Uint8Array>;
@@ -13,12 +36,6 @@ export interface CloudStorage {
   getVersions(token?: vscode.CancellationToken): AsyncGenerator<string>;
 }
 
-export interface S3CloudStorageOptions {
-  region?: string;
-  bucket?: string;
-  releaseName?: string;
-}
-
 export class S3CloudStorage implements CloudStorage {
   private readonly bucket: string;
   private readonly region: string;
@@ -26,7 +43,11 @@ export class S3CloudStorage implements CloudStorage {
   private readonly s3: S3Client;
   private readonly regexVersion: RegExp;
 
-  constructor(options?: S3CloudStorageOptions) {
+  constructor(options?: {
+    region?: string;
+    bucket?: string;
+    releaseName?: string;
+  }) {
     this.bucket = options?.bucket ?? "dbos-releases";
     this.region = options?.region ?? "us-east-2";
     this.releaseName = options?.releaseName ?? "debug-proxy";
