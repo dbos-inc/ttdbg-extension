@@ -1,5 +1,5 @@
 import { logger } from '../extension';
-import * as DebugProxy from '../launchDebugProxy';
+import * as DebugProxy from '../debugProxy';
 
 export function shutdownDebugProxy() {
   logger.debug("shutdownDebugProxy");

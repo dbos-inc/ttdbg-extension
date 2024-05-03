@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { logger, config } from '../extension';
 import type { CloudAppNode } from '../CloudDataProvider';
-import { launchDebugProxy } from '../launchDebugProxy';
+import { launchDebugProxy } from '../debugProxy';
 import { getDbInstance, isUnauthorized } from '../dbosCloudApi';
 import { validateCredentials } from '../validateCredentials';
 import { DbosDebugConfig } from '../Configuration';
