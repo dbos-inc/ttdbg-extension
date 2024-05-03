@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { DbosCloudApp, getCloudDomain, DbosCloudDbInstance, listApps, listDbInstances, isUnauthorized } from './dbosCloudApi';
 import { config } from './extension';
+import { validateCredentials } from './validateCredentials';
 
 export interface CloudDomainNode {
   kind: "cloudDomain";
@@ -58,7 +59,8 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
     if (element.kind === "cloudDomain") {
       if (!this.apps.has(element.domain) || !this.dbInstances.has(element.domain)) {
         const credentials = await config.getCredentials(element.domain);
-        if (!credentials) { return []; }
+        if (!validateCredentials(credentials)) { return []; }
+
         const [apps, dbInstances] = await Promise.all([listApps(credentials), listDbInstances(credentials)]);
         if (isUnauthorized(apps)) {
           this.apps.delete(element.domain);
