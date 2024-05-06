@@ -1,7 +1,7 @@
 # DBOS Time Travel Debugger
 
 This extension enables developers to debug their DBOS applications deployed to the DBOS Cloud using VS Code.
-DBOS Cloud allows time travel debugging of any DBOS application execution that has occurred in the past three days.
+DBOS Cloud allows time-travel debugging of any DBOS application execution that has occurred in the past three days.
 
 ## Time Travel Debug CodeLens 
 
@@ -52,7 +52,7 @@ for handling version numbers:
 > For example: `0.2.*` for release and `0.3.*` for pre-release.
 
 The `main` branch of this repo tracks unreleased work.
-Extension releases published to the VS Code marketplace from `main` will always have an odd minor version number and will be marked as 
+Extension releases published to the VS Code marketplace from the `main` branch will always have an odd minor version number and will be marked as 
 [pre-release](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#prerelease-extensions).
 
 Release versions of the extension are published out of release branches.
