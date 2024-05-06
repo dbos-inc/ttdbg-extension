@@ -1,6 +1,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { assert } from 'node:console';
 
 /**
  * @param {string} versionJsonName
@@ -62,7 +64,7 @@ export function prepareRelease(repoName, releaseVersion, mainVersion) {
 }
 
 const dirName = path.dirname(fileURLToPath(import.meta.url));
-const repoName = path.join(dirName, 'extension');
+const repoName = path.join(dirName, '..');
 
 const { major, minor, prerel } = getVersion(repoName);
 assert(minor % 2 === 1 && prerel === 'preview', 'Current version must have odd minor and preview prerelease tag');
