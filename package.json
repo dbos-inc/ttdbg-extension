@@ -75,6 +75,11 @@
         "title": "Launch DBOS Dashboard",
         "category": "DBOS",
         "icon": "$(server)"
+      },
+      {
+        "command": "dbos-ttdbg.set-app-name",
+        "title": "Set Application Name",
+        "category": "DBOS"
       }
     ],
     "configuration": {

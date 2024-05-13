@@ -18,7 +18,7 @@ export async function activate(context: vscode.ExtensionContext) {
   logger = createLogger(transport);
   context.subscriptions.push({ dispose() { logger.close(); transport.close(); } });
 
-  config = new Configuration(context.secrets);
+  config = new Configuration(context.secrets, context.workspaceState);
 
   const cloudStorage = new S3CloudStorage();
   context.subscriptions.push(cloudStorage);
