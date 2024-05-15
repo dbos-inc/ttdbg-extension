@@ -14,6 +14,7 @@ import { startDebuggingFromCodeLens } from './startDebuggingFromCodeLens';
 import { startDebuggingFromUri } from './startDebuggingFromUri';
 import { getUpdateDebugProxyCommand } from './updateDebugProxy';
 import { getRefreshDomainCommand } from './refreshDomain';
+import { setApplicationName } from './setAppName';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
 export const deleteAppDatabasePasswordCommandName = "dbos-ttdbg.delete-app-db-password";
@@ -24,6 +25,7 @@ export const launchDashboardCommandName = "dbos-ttdbg.launch-dashboard";
 export const launchDebugProxyCommandName = "dbos-ttdbg.launch-debug-proxy";
 export const pickWorkflowIdCommandName = "dbos-ttdbg.pick-workflow-id";
 export const refreshDomainCommandName = "dbos-ttdbg.refresh-domain";
+export const setApplicationNameCommandName = "dbos-ttdbg.set-app-name";
 export const shutdownDebugProxyCommandName = "dbos-ttdbg.shutdown-debug-proxy";
 export const startDebuggingCodeLensCommandName = "dbos-ttdbg.start-debugging-code-lens";
 export const startDebuggingUriCommandName = "dbos-ttdbg.start-debugging-uri";
@@ -40,6 +42,7 @@ export function registerCommands(cloudStorage: CloudStorage, storageUri: vscode.
         vscode.commands.registerCommand(launchDebugProxyCommandName, getLaunchDebugProxyCommand(storageUri)),
         vscode.commands.registerCommand(pickWorkflowIdCommandName, pickWorkflowId),
         vscode.commands.registerCommand(refreshDomainCommandName, getRefreshDomainCommand(refresh)),
+        vscode.commands.registerCommand(setApplicationNameCommandName, setApplicationName),
         vscode.commands.registerCommand(shutdownDebugProxyCommandName, shutdownDebugProxy),
         vscode.commands.registerCommand(startDebuggingCodeLensCommandName, startDebuggingFromCodeLens),
         vscode.commands.registerCommand(startDebuggingUriCommandName, startDebuggingFromUri),

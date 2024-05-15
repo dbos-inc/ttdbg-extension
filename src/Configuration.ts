@@ -24,7 +24,7 @@ export interface DbosDebugConfig {
 export async function getDebugConfigFromDbosCloud(app: string | DbosCloudApp, credentials: DbosCloudCredentials): Promise<Omit<DbosDebugConfig, 'password'> | undefined> {
   if (!validateCredentials(credentials)) { return undefined; }
 
-  if (typeof app === 'string') { 
+  if (typeof app === 'string') {
     const $app = await getApp(app, credentials);
     if (isUnauthorized($app)) { return undefined; }
     app = $app;
@@ -73,9 +73,10 @@ function databaseSecretKey(db: Pick<DbosDebugConfig, 'user' | 'host' | 'port' | 
 }
 
 const databaseSetKey = `dbos-ttdbg:databases`;
+const appNameKey = `dbos-ttdbg:app-name`;
 
 export class Configuration {
-  constructor(private readonly secrets: vscode.SecretStorage) { }
+  constructor(private readonly secrets: vscode.SecretStorage, private readonly workspaceState: vscode.Memento) { }
 
   async getStoredCloudCredentials(domain?: string | DbosCloudDomain): Promise<DbosCloudCredentials | undefined> {
     const { cloudDomain } = getCloudDomain(domain);
@@ -117,7 +118,7 @@ export class Configuration {
     const cloudConfig = await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Window },
       async (): Promise<Omit<DbosDebugConfig, 'password'> | undefined> => {
-        const packageName = await getPackageName(folder);
+        const packageName = this.getAppName() ?? await getPackageName(folder);
         if (!packageName) { return undefined; }
 
         const cloudConfig = await getDebugConfigFromDbosCloud(packageName, credentials);
@@ -196,6 +197,14 @@ export class Configuration {
       logger.debug("Deleted DBOS database credentials", { key });
     }
     await this.secrets.delete(databaseSetKey);
+  }
+
+  async setAppName(appName?: string) {
+    await this.workspaceState.update(appNameKey, appName);
+  }
+
+  getAppName() {
+    return this.workspaceState.get<string>(appNameKey);
   }
 }
 
