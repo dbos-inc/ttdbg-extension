@@ -72,7 +72,7 @@ function getDebugLaunchConfig(folder: vscode.WorkspaceFolder, workflowID: string
     name: `Time-Travel Debug ${workflowID}`,
     type: 'node-terminal',
     request: 'launch',
-    command: `npx dbos-sdk debug -x http://127.0.0.1:${proxyPort} -u ${workflowID}`,
+    command: `npx dbos-sdk debug -x postgresql://127.0.0.1:${proxyPort} -u ${workflowID}`,
     preLaunchTask,
   };
 }
