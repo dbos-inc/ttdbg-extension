@@ -15,7 +15,7 @@ export async function getProxyUrl(cfg?: vscode.DebugConfiguration & { rootPath?:
     if (!proxyLaunched) {
       throw new Error("Failed to launch debug proxy", { cause: { folder: folder.uri.fsPath, debugConfig } });
     }
-    return `http://localhost:${config.getProxyPort(folder)}`;
+    return `http://127.0.0.1:${config.getProxyPort(folder)}`;
   } catch (e) {
     logger.error("getProxyUrl", e);
     vscode.window.showErrorMessage(`Failed to get proxy URL`);
