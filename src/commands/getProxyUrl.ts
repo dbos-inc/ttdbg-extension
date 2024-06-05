@@ -15,7 +15,7 @@ export async function getProxyUrl(cfg?: vscode.DebugConfiguration & { rootPath?:
     if (!proxyLaunched) {
       throw new Error("Failed to launch debug proxy", { cause: { folder: folder.uri.fsPath, debugConfig } });
     }
-    return `postgresql://127.0.0.1:${config.getProxyPort(folder)}`;
+    return `postgresql://localhost:${config.getProxyPort(folder)}`;
   } catch (e) {
     logger.error("getProxyUrl", e);
     vscode.window.showErrorMessage(`Failed to get proxy URL`);
