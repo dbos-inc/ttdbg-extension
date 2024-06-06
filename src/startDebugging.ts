@@ -60,7 +60,7 @@ function getDebugLaunchConfig(folder: vscode.WorkspaceFolder, workflowID: string
   const debugConfigs = vscode.workspace.getConfiguration("launch", folder).get('configurations') as ReadonlyArray<vscode.DebugConfiguration> | undefined;
   for (const config of debugConfigs ?? []) {
     const command = config["command"] as string | undefined;
-    if (command && command.includes("npx dbos-sdk debug")) {
+    if (command && command.includes("npx dbos debug")) {
       const newCommand = command.replace("${command:dbos-ttdbg.pick-workflow-id}", `${workflowID}`);
       return { ...config, command: newCommand };
     }
@@ -72,7 +72,7 @@ function getDebugLaunchConfig(folder: vscode.WorkspaceFolder, workflowID: string
     name: `Time-Travel Debug ${workflowID}`,
     type: 'node-terminal',
     request: 'launch',
-    command: `npx dbos-sdk debug -x http://localhost:${proxyPort} -u ${workflowID}`,
+    command: `npx dbos debug -x postgresql://localhost:${proxyPort} -u ${workflowID}`,
     preLaunchTask,
   };
 }
