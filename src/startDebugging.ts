@@ -60,7 +60,9 @@ function getDebugLaunchConfig(folder: vscode.WorkspaceFolder, workflowID: string
   const debugConfigs = vscode.workspace.getConfiguration("launch", folder).get('configurations') as ReadonlyArray<vscode.DebugConfiguration> | undefined;
   for (const config of debugConfigs ?? []) {
     const command = config["command"] as string | undefined;
-    if (command && command.includes("npx dbos debug")) {
+    if (command 
+      && (command.includes("npx dbos debug") || command.includes("npx dbos-sdk debug"))
+    ) {
       const newCommand = command.replace("${command:dbos-ttdbg.pick-workflow-id}", `${workflowID}`);
       return { ...config, command: newCommand };
     }
