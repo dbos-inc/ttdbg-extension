@@ -92,6 +92,15 @@
           "type": "number",
           "default": 2345
         },
+        "dbos-ttdbg.debug_proxy_path": {
+          "type": "string",
+          "description": "Path to the debug proxy executable. Overrides downloading the latest version of the debug proxy."
+        },
+        "dbos-ttdbg.debug_proxy_launch": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically launch the debug proxy when debugging."
+        },
         "dbos-ttdbg.prov_db_database": {
           "type": "string"
         },

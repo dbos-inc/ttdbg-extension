@@ -11,6 +11,19 @@ const PROV_DB_DATABASE = "prov_db_database";
 const PROV_DB_USER = "prov_db_user";
 const DEBUG_PROXY_PORT = "debug_proxy_port";
 const DEBUG_PRE_LAUNCH_TASK = "debug_pre_launch_task";
+const DEBUG_PROXY_PATH = "debug_proxy_path";
+const DEBUG_PROXY_LAUNCH = "debug_proxy_launch";
+
+export function getLaunchProxyConfig() {
+  const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION);
+  return cfg.get<boolean>(DEBUG_PROXY_LAUNCH, true);
+}
+
+export function getProxyPathConfig() {
+  const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION);
+  const proxyPath = cfg.get<string>(DEBUG_PROXY_PATH);
+  return proxyPath ? vscode.Uri.file(proxyPath) : undefined;
+}
 
 export interface DbosDebugConfig {
   user: string;
