@@ -8,7 +8,7 @@ import * as semver from 'semver';
 import { CloudStorage } from './CloudStorage';
 import { logger } from './extension';
 import { exists } from './utility';
-import { DbosDebugConfig } from './Configuration';
+import { DbosDebugConfig, getLaunchProxyConfig, getProxyPathConfig } from './Configuration';
 
 const IS_WINDOWS = process.platform === "win32";
 const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
@@ -19,11 +19,10 @@ function exeFileName(storageUri: vscode.Uri) {
 
 const execFile = promisify(cpExecFile);
 
-async function getLocalVersion(storageUri: vscode.Uri) {
-  const exeUri = exeFileName(storageUri);
-  if (!(await exists(exeUri))) {
-    return Promise.resolve(undefined);
-  }
+async function getLocalVersion(exeUri: vscode.Uri) {
+  // if (!(await exists(exeUri))) {
+  //   return Promise.resolve(undefined);
+  // }
 
   try {
     const { stdout } = await execFile(exeUri.fsPath, ["-version"]);
@@ -78,6 +77,17 @@ interface UpdateDebugProxyOptions {
 
 export async function updateDebugProxy(s3: CloudStorage, storageUri: vscode.Uri, options?: UpdateDebugProxyOptions) {
   logger.debug("updateDebugProxy", { storageUri: storageUri.fsPath, includePrerelease: options?.includePrerelease ?? false });
+  
+  const pathConfig = getProxyPathConfig();
+  if (pathConfig !== undefined) {
+    const localVersion = await getLocalVersion(pathConfig);
+    if (localVersion) {
+      logger.info(`Configured Debug Proxy version v${localVersion}.`);
+    } else {
+      logger.error("Failed to get the version of configured Debug Proxy.");
+    }
+    return;
+  }
 
   const remoteVersion = await getRemoteVersion(s3, options);
   if (remoteVersion === undefined) {
@@ -86,7 +96,8 @@ export async function updateDebugProxy(s3: CloudStorage, storageUri: vscode.Uri,
   }
   logger.info(`Debug Proxy remote version v${remoteVersion}.`);
 
-  const localVersion = await getLocalVersion(storageUri);
+  const exeUri = exeFileName(storageUri);
+  const localVersion = await getLocalVersion(exeUri);
   if (localVersion && semver.valid(localVersion) !== null) {
     logger.info(`Debug Proxy local version v${localVersion}.`);
     if (semver.satisfies(localVersion, `>=${remoteVersion}`, { includePrerelease: true })) {
@@ -133,7 +144,12 @@ export function shutdownDebugProxy() {
 
 export async function launchDebugProxy(storageUri: vscode.Uri, options: DbosDebugConfig & { proxyPort?: number }) {
 
-  const exeUri = exeFileName(storageUri);
+  if (!getLaunchProxyConfig()) {
+    logger.info("debug proxy launch is disabled");
+    return;
+  }
+
+  const exeUri = getProxyPathConfig() ?? exeFileName(storageUri);
   logger.debug("launchDebugProxy", { exeUri, launchOptions: options });
   if (!(await exists(exeUri))) {
     throw new Error("debug proxy doesn't exist", { cause: { path: exeUri.fsPath } });
