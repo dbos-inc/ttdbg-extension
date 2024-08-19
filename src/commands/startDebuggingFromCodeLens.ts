@@ -4,6 +4,10 @@ import { startDebugging } from '../startDebugging';
 import { showWorkflowPick } from '../showWorkflowPick';
 import type { DbosMethodInfo } from '../CodeLensProvider';
 
+function isError(e: any): e is Error {
+  return e instanceof Error;
+}
+
 export async function startDebuggingFromCodeLens(folder: vscode.WorkspaceFolder, method: DbosMethodInfo) {
   try {
     logger.info(`startDebuggingFromCodeLens`, { folder: folder.uri.fsPath, method });
@@ -12,6 +16,10 @@ export async function startDebuggingFromCodeLens(folder: vscode.WorkspaceFolder,
     });
   } catch (e) {
     logger.error("startDebuggingFromCodeLens", e);
-    vscode.window.showErrorMessage(`Failed to debug ${method.name} method`);
+    if (isError(e)) {
+      vscode.window.showErrorMessage(`Failed to debug ${method.name} method: ${e.message}`);
+    } else {
+      vscode.window.showErrorMessage(`Failed to debug ${method.name} method`);
+    }
   }
 }
