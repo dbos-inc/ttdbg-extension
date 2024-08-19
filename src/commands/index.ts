@@ -1,9 +1,7 @@
 import * as vscode from 'vscode';
 import type { CloudStorage } from '../CloudStorage';
 import { getCloudLoginCommand } from './cloudLogin';
-import { deleteAppDatabasePassword } from './deleteAppDatabasePassword';
 import { getDeleteDomainCredentialsCommand, } from './deleteDomainCredentials';
-import { deleteStoredPasswords } from './deleteStoredPasswords';
 import { getProxyUrl } from './getProxyUrl';
 import { launchDashboard } from './launchDashboard';
 import { getLaunchDebugProxyCommand } from './launchDebugProxy';
@@ -17,7 +15,6 @@ import { getRefreshDomainCommand } from './refreshDomain';
 import { setApplicationName } from './setAppName';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
-export const deleteAppDatabasePasswordCommandName = "dbos-ttdbg.delete-app-db-password";
 export const deleteDomainCredentialsCommandName = "dbos-ttdbg.delete-domain-credentials";
 export const deleteStoredPasswordsCommandName = "dbos-ttdbg.delete-stored-passwords";
 export const getProxyUrlCommandName = "dbos-ttdbg.get-proxy-url";
@@ -34,9 +31,7 @@ export const updateDebugProxyCommandName = "dbos-ttdbg.update-debug-proxy";
 export function registerCommands(cloudStorage: CloudStorage, storageUri: vscode.Uri, refresh: (domain: string) => Promise<void>) {
     const disposables = [
         vscode.commands.registerCommand(cloudLoginCommandName, getCloudLoginCommand(refresh)),
-        vscode.commands.registerCommand(deleteAppDatabasePasswordCommandName, deleteAppDatabasePassword),
         vscode.commands.registerCommand(deleteDomainCredentialsCommandName, getDeleteDomainCredentialsCommand(refresh)),
-        vscode.commands.registerCommand(deleteStoredPasswordsCommandName, deleteStoredPasswords),
         vscode.commands.registerCommand(getProxyUrlCommandName, getProxyUrl),
         vscode.commands.registerCommand(launchDashboardCommandName, launchDashboard),
         vscode.commands.registerCommand(launchDebugProxyCommandName, getLaunchDebugProxyCommand(storageUri)),
