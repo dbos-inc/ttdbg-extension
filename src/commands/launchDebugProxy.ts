@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { logger, config } from '../extension';
 import type { CloudAppNode } from '../CloudDataProvider';
 import { launchDebugProxy } from '../debugProxy';
-import { getDbInstance, isUnauthorized } from '../dbosCloudApi';
+import { getDbInstance, getDbProxyRole, isUnauthorized } from '../dbosCloudApi';
 import { validateCredentials } from '../validateCredentials';
 import { DbosDebugConfig } from '../Configuration';
 
@@ -27,16 +27,16 @@ export function getLaunchDebugProxyCommand(storageUri: vscode.Uri) {
       const dbInstance = await getDbInstance(PostgresInstanceName, credentials);
       if (isUnauthorized(dbInstance)) { return false; }
 
+      const role = await getDbProxyRole(PostgresInstanceName, credentials);
+      if (isUnauthorized(role)) { return false; }
+
       debugConfig = {
         host: dbInstance.HostName,
         database: ApplicationDatabaseName + "_dbos_prov",
-        user: dbInstance.DatabaseUsername,
+        user: role.RoleName,
         port: dbInstance.Port,
-        password: "",
+        password: role.Secret,
       };
-      const password = await config.getAppDatabasePassword(debugConfig);
-      if (!password) { return false; }
-      debugConfig.password = password;
     }
 
     await launchDebugProxy(storageUri, debugConfig)

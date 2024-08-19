@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { Client, ClientConfig, Pool } from 'pg';
+import { Client, ClientConfig, Pool, PoolClient } from 'pg';
 import { getDbosWorkflowName, type DbosMethodInfo } from './CodeLensProvider';
 import type { DbosDebugConfig } from './Configuration';
 import { logger } from './extension';
@@ -60,8 +60,13 @@ export function shutdownProvenanceDbConnectionPool() {
   }
 }
 
+function isPgError(e: any): e is { code: string } {
+  return 'code' in e;
+}
+
+
 export async function getWorkflowStatuses(debugConfig: DbosDebugConfig, method?: DbosMethodInfo): Promise<workflow_status[]> {
-  const client = await getPool(debugConfig).connect();
+  const client = await getPoolClient();
   try {
     const results = method
       ? await client.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1 ORDER BY created_at DESC LIMIT 10', [getDbosWorkflowName(method.name, method.type)])
@@ -69,6 +74,18 @@ export async function getWorkflowStatuses(debugConfig: DbosDebugConfig, method?:
     return results.rows;
   } finally {
     client.release();
+  }
+
+  async function getPoolClient(): Promise<PoolClient> {
+    try {
+      return await getPool(debugConfig).connect();
+    } catch (e) {
+      if (isPgError(e) && e.code === '3D000') {
+        throw new Error(`Provenance database does not exist. This app was not deployed with --enable-timetravel.`);
+      } else {
+        throw e;
+      }
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { exists } from './utility';
 import { logger } from './extension';
-import { type DbosCloudApp, type DbosCloudCredentials, type DbosCloudDomain, authenticate, getApp, getCloudDomain, getDbInstance, isUnauthorized } from './dbosCloudApi';
+import { type DbosCloudApp, type DbosCloudCredentials, type DbosCloudDomain, authenticate, getApp, getCloudDomain, getDbInstance, getDbProxyRole, isUnauthorized } from './dbosCloudApi';
 import { validateCredentials } from './validateCredentials';
 
 const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
@@ -34,7 +34,7 @@ export interface DbosDebugConfig {
   appName?: string;
 }
 
-export async function getDebugConfigFromDbosCloud(app: string | DbosCloudApp, credentials: DbosCloudCredentials): Promise<Omit<DbosDebugConfig, 'password'> | undefined> {
+export async function getDebugConfigFromDbosCloud(app: string | DbosCloudApp, credentials: DbosCloudCredentials): Promise<Omit<DbosDebugConfig, 'password'> & { dbInstance: string } | undefined> {
   if (!validateCredentials(credentials)) { return undefined; }
 
   if (typeof app === 'string') {
@@ -50,6 +50,7 @@ export async function getDebugConfigFromDbosCloud(app: string | DbosCloudApp, cr
     database: app.ApplicationDatabaseName,
     user: db.DatabaseUsername,
     appName: app.Name,
+    dbInstance: app.PostgresInstanceName,
   };
   logger.debug("getCloudConfigFromVSCodeConfig", { app, credentials, cloudConfig });
   return cloudConfig;
@@ -128,32 +129,42 @@ export class Configuration {
   }
 
   async getDebugConfig(folder: vscode.WorkspaceFolder, credentials: DbosCloudCredentials): Promise<DbosDebugConfig> {
-    const cloudConfig = await vscode.window.withProgress(
+    return await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Window },
-      async (): Promise<Omit<DbosDebugConfig, 'password'> | undefined> => {
+      async (): Promise<DbosDebugConfig> => {
         const packageName = this.getAppName() ?? await getPackageName(folder);
-        if (!packageName) { return undefined; }
+        if (!packageName) { 
+          throw new Error("Failed to get application name", { cause: { folder: folder.uri.fsPath, credentials } });
+        }
 
-        const cloudConfig = await getDebugConfigFromDbosCloud(packageName, credentials);
+        const cloudConfig =  await getDebugConfigFromDbosCloud(packageName, credentials);
+        if (cloudConfig === undefined) {
+          throw new Error('failed to get cloud config', { cause: { packageName, credentials } });
+        }
         const localConfig = getDebugConfigFromVSCode(folder);
 
-        const host = localConfig.host ?? cloudConfig?.host;
-        const port = localConfig.port ?? cloudConfig?.port ?? 5432;
-        const database = localConfig.database ?? cloudConfig?.database;
-        const user = localConfig.user ?? cloudConfig?.user;
-        const appName = cloudConfig?.appName;
-        if (!host || !database || !user) { return undefined; }
+        const host = localConfig.host ?? cloudConfig.host;
+        const port = localConfig.port ?? cloudConfig.port ?? 5432;
+        const database = localConfig.database ?? cloudConfig.database;
+        if (!host || !database) {
+          throw new Error("Failed to get database info", { cause: { folder: folder.uri.fsPath, credentials, host, port, database } });
+        }
 
-        return <Omit<DbosDebugConfig, 'password'>>{ host, port, database: `${database}_dbos_prov`, user, appName };
+        const role = await getDbProxyRole(cloudConfig.dbInstance, credentials);
+        if (isUnauthorized(role)) {
+          throw new Error("Unable to retrieve DB proxy role", { cause: { credentials } });
+        }
+
+        return {
+          host,
+          port,
+          database: `${database}_dbos_prov`,
+          user: role.RoleName,
+          password: role.Secret,
+          appName: cloudConfig.appName
+        };
       }
     );
-
-    if (cloudConfig) {
-      logger.debug("getCloudConfig", { folder: folder.uri.fsPath, cloudConfig });
-      return { ...cloudConfig, password: () => this.getAppDatabasePassword(cloudConfig) };
-    } else {
-      throw new Error("Invalid CloudConfig", { cause: { folder: folder.uri.fsPath, credentials } });
-    }
   }
 
   getProxyPort(folder: vscode.WorkspaceFolder): number {
@@ -164,52 +175,6 @@ export class Configuration {
   getPreLaunchTask(folder: vscode.WorkspaceFolder) {
     const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
     return cfgString(cfg.get<string | undefined>(DEBUG_PRE_LAUNCH_TASK, undefined));
-  }
-
-  async #getAppDatabaseKeys(): Promise<Set<string>> {
-    const set = await this.secrets.get(databaseSetKey);
-    return set
-      ? new Set(JSON.parse(set))
-      : new Set<string>();
-  }
-
-  async #updateAppDatabaseKeys(key: string): Promise<void> {
-    const set = await this.#getAppDatabaseKeys();
-    set.add(key);
-    await this.secrets.store(databaseSetKey, JSON.stringify(Array.from(set)));
-  }
-
-  async getAppDatabasePassword(debugConfig: Pick<DbosDebugConfig, 'user' | 'host' | 'port' | 'database'>): Promise<string | undefined> {
-    const key = databaseSecretKey(debugConfig);
-    let password = await this.secrets.get(key);
-    if (!password) {
-      password = await vscode.window.showInputBox({
-        prompt: "Enter application database password",
-        password: true,
-      });
-      if (password) {
-        await this.#updateAppDatabaseKeys(key);
-        await this.secrets.store(key, password);
-      }
-    }
-    return password;
-  }
-
-  async deleteStoredAppDatabasePassword(debugConfig: Pick<DbosDebugConfig, 'user' | 'host' | 'port' | 'database'>): Promise<void> {
-    const key = databaseSecretKey(debugConfig);
-    await this.secrets.delete(key);
-    logger.debug("Deleted DBOS database credentials", { debugConfig, key });
-  }
-
-  async deletePasswords() {
-    await this.deleteStoredCloudCredentials();
-
-    const set = await this.#getAppDatabaseKeys();
-    for (const key of set) {
-      await this.secrets.delete(key);
-      logger.debug("Deleted DBOS database credentials", { key });
-    }
-    await this.secrets.delete(databaseSetKey);
   }
 
   async setAppName(appName?: string) {

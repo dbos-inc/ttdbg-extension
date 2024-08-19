@@ -137,10 +137,6 @@
           "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain"
         },
         {
-          "command": "dbos-ttdbg.delete-app-db-password",
-          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp"
-        },
-        {
           "command": "dbos-ttdbg.launch-debug-proxy",
           "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp",
           "group": "inline"

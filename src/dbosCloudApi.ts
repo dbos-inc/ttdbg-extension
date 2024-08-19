@@ -34,6 +34,11 @@ export interface DbosCloudDbInstance {
   // AdminUsername: string;
 }
 
+export interface DbosCloudDbProxyRole {
+  RoleName: string;
+  Secret: string;
+}
+
 export interface DbosCloudDomain {
   cloudDomain: string;
   loginDomain: string;
@@ -256,7 +261,7 @@ export async function listDbInstances({ domain, token: accessToken, userName }: 
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
-  return fetchHelper('listDatabaseInstances', url, request, async (response) => await response.json() as DbosCloudDbInstance[], token);
+  return fetchHelper('listDbInstances', url, request, async (response) => await response.json() as DbosCloudDbInstance[], token);
 }
 
 export async function getDbInstance(dbName: string, { domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbInstance> {
@@ -266,7 +271,17 @@ export async function getDbInstance(dbName: string, { domain, token: accessToken
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
-  return fetchHelper('listDatabaseInstances', url, request, async (response) => await response.json() as DbosCloudDbInstance, token);
+  return fetchHelper('getDbInstance', url, request, async (response) => await response.json() as DbosCloudDbInstance, token);
+}
+
+export async function getDbProxyRole(dbName: string, { domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbProxyRole> {
+  const url = `https://${domain}/v1alpha1/${userName}/databases/userdb/${dbName}/proxyrole`;
+  const request = <RequestInit>{
+    method: 'GET',
+    headers: { 'authorization': `Bearer ${accessToken}` }
+  };
+
+  return fetchHelper('getDbProxyRole', url, request, async (response) => await response.json() as DbosCloudDbProxyRole, token);
 }
 
 export async function createDashboard({ domain, token: accessToken, userName }: DbosCloudCredentials, token?: vscode.CancellationToken): Promise<string | Unauthorized> {
