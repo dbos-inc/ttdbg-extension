@@ -34,7 +34,7 @@ export interface DbosDebugConfig {
   appName?: string;
 }
 
-export async function getDebugConfigFromDbosCloud(app: string | DbosCloudApp, credentials: DbosCloudCredentials): Promise<Omit<DbosDebugConfig, 'password'> | undefined> {
+export async function getDebugConfigFromDbosCloud(app: string | DbosCloudApp, credentials: DbosCloudCredentials): Promise<Omit<DbosDebugConfig, 'password'> & { dbInstance: string } | undefined> {
   if (!validateCredentials(credentials)) { return undefined; }
 
   if (typeof app === 'string') {
@@ -50,6 +50,7 @@ export async function getDebugConfigFromDbosCloud(app: string | DbosCloudApp, cr
     database: app.ApplicationDatabaseName,
     user: db.DatabaseUsername,
     appName: app.Name,
+    dbInstance: app.PostgresInstanceName,
   };
   logger.debug("getCloudConfigFromVSCodeConfig", { app, credentials, cloudConfig });
   return cloudConfig;
@@ -136,17 +137,20 @@ export class Configuration {
           throw new Error("Failed to get application name", { cause: { folder: folder.uri.fsPath, credentials } });
         }
 
-        const cloudConfig = await getDebugConfigFromDbosCloud(packageName, credentials);
+        const cloudConfig =  await getDebugConfigFromDbosCloud(packageName, credentials);
+        if (cloudConfig === undefined) {
+          throw new Error('failed to get cloud config', { cause: { packageName, credentials } });
+        }
         const localConfig = getDebugConfigFromVSCode(folder);
 
-        const host = localConfig.host ?? cloudConfig?.host;
-        const port = localConfig.port ?? cloudConfig?.port ?? 5432;
-        const database = localConfig.database ?? cloudConfig?.database;
+        const host = localConfig.host ?? cloudConfig.host;
+        const port = localConfig.port ?? cloudConfig.port ?? 5432;
+        const database = localConfig.database ?? cloudConfig.database;
         if (!host || !database) {
           throw new Error("Failed to get database info", { cause: { folder: folder.uri.fsPath, credentials, host, port, database } });
         }
 
-        const role = await getDbProxyRole(database, credentials);
+        const role = await getDbProxyRole(cloudConfig.dbInstance, credentials);
         if (isUnauthorized(role)) {
           throw new Error("Unable to retrieve DB proxy role", { cause: { credentials } });
         }
@@ -157,7 +161,7 @@ export class Configuration {
           database: `${database}_dbos_prov`,
           user: role.RoleName,
           password: role.Secret,
-          appName: cloudConfig?.appName
+          appName: cloudConfig.appName
         };
       }
     );
