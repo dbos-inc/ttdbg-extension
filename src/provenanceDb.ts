@@ -81,7 +81,7 @@ export async function getWorkflowStatuses(debugConfig: DbosDebugConfig, method?:
       return await getPool(debugConfig).connect();
     } catch (e) {
       if (isPgError(e) && e.code === '3D000') {
-        throw new Error(`Provenance database does not exist. This app was not registered with --enable-timetravel.`);
+        throw new Error(`Provenance database does not exist. This app was not deployed with --enable-timetravel.`);
       } else {
         throw e;
       }
