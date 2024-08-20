@@ -16,7 +16,6 @@ import { setApplicationName } from './setAppName';
 
 export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
 export const deleteDomainCredentialsCommandName = "dbos-ttdbg.delete-domain-credentials";
-export const deleteStoredPasswordsCommandName = "dbos-ttdbg.delete-stored-passwords";
 export const getProxyUrlCommandName = "dbos-ttdbg.get-proxy-url";
 export const launchDashboardCommandName = "dbos-ttdbg.launch-dashboard";
 export const launchDebugProxyCommandName = "dbos-ttdbg.launch-debug-proxy";

@@ -50,11 +50,6 @@
         "icon": "$(log-out)"
       },
       {
-        "command": "dbos-ttdbg.delete-stored-passwords",
-        "title": "Delete Stored Passwords",
-        "category": "DBOS"
-      },
-      {
         "command": "dbos-ttdbg.shutdown-debug-proxy",
         "title": "Shutdown Debug Proxy",
         "category": "DBOS"
