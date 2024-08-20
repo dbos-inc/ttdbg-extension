@@ -44,12 +44,6 @@
         "icon": "$(log-out)"
       },
       {
-        "command": "dbos-ttdbg.delete-app-db-password",
-        "title": "Delete Stored Application Database Password",
-        "category": "DBOS",
-        "icon": "$(log-out)"
-      },
-      {
         "command": "dbos-ttdbg.shutdown-debug-proxy",
         "title": "Shutdown Debug Proxy",
         "category": "DBOS"
