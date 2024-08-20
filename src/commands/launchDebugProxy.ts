@@ -22,7 +22,7 @@ export function getLaunchDebugProxyCommand(storageUri: vscode.Uri) {
     } else {
       const credentials = await config.getStoredCloudCredentials(arg.domain);
       if (!validateCredentials(credentials)) { return false; }
-      
+
       const { PostgresInstanceName, ApplicationDatabaseName } = arg.app;
       const dbInstance = await getDbInstance(PostgresInstanceName, credentials);
       if (isUnauthorized(dbInstance)) { return false; }

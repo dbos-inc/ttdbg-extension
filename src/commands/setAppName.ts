@@ -5,7 +5,7 @@ export async function setApplicationName() {
 
     const currentAppName = config.getAppName();
 
-    const deleteCurrentNameButton = { iconPath: new vscode.ThemeIcon("trash"), tooltip: "Clear app name"};
+    const deleteCurrentNameButton = { iconPath: new vscode.ThemeIcon("trash"), tooltip: "Clear app name" };
 
     const inputBox = vscode.window.createInputBox();
     inputBox.title = "Set DBOS Cloud app name";
