@@ -9,6 +9,26 @@ This project adheres to [Semantic Versioning](https://semver.org) and uses
 As per [VSCode recommendation](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#prerelease-extensions),
 this project uses *EVEN* minor version numbers for release versions and *ODD* minor version numbers for pre-release versions,
 
+## [1.4] 2024-08-20
+
+### Added
+
+- Custom app name support ([#35](https://github.com/dbos-inc/ttdbg-extension/pull/35))
+- `debug_proxy_path` and `debug_proxy_launch` settings ([#40](https://github.com/dbos-inc/ttdbg-extension/pull/40))
+- Use Debug Proxy Role for connection to provenance DB ([#41](https://github.com/dbos-inc/ttdbg-extension/pull/41))
+
+
+### Fixed
+
+- Update URL protocol to use ipv4 ([#36](https://github.com/dbos-inc/ttdbg-extension/pull/36))
+- Look for launch config using dbos or dbos-sdk ([#37](https://github.com/dbos-inc/ttdbg-extension/pull/37))
+
+### Removed
+
+- removed `Delete Stored Application Database Password` and `Delete Stored Passwords` commands (obsoleted by [#41](https://github.com/dbos-inc/ttdbg-extension/pull/41))
+
+
+
 ## [1.2] 2024-05-06
 
 ### Added
