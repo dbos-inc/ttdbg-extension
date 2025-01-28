@@ -55,20 +55,65 @@ export class CodeLensProvider implements vscode.CodeLensProvider {
     }
 }
 
-export function* getImports(file: ts.SourceFile) {
+interface NamedImportInfo {
+    name: string;
+    propertyName: string | undefined;
+    moduleName: string;
+}
+
+export function* getImports(file: ts.SourceFile): Generator<NamedImportInfo, void, unknown> {
     for (const node of file.statements) {
         if (ts.isImportDeclaration(node)) {
             const moduleName = getName(node.moduleSpecifier);
             const bindings = node.importClause?.namedBindings;
             if (!bindings) { continue; }
-            if (ts.isNamedImports(bindings)) {
+            else if (ts.isNamedImports(bindings)) {
                 for (const binding of bindings.elements) {
                     yield { name: binding.name.text, propertyName: binding.propertyName?.text, moduleName };
+                }
+            }
+            else {
+                throw Error(`Unsupported NamedImportBindings kind: ${ts.SyntaxKind[node.kind]}`);
+            }
+        }
+    }
+}
+
+export function parseDecorator(node: ts.Decorator): { name: string; propertyName?: string; } | undefined {
+    if (!ts.isCallExpression(node.expression)) { return; }
+    const expr = node.expression.expression;
+    if (ts.isIdentifier(expr)) {
+        return { name: expr.text, propertyName: undefined };
+    }
+    if (ts.isPropertyAccessExpression(expr)) {
+        return { name: getName(expr.expression), propertyName: expr.name.text };
+    }
+}
+
+export function* getStaticMethods(file: ts.SourceFile) {
+    for (const node of file.statements) {
+        if (ts.isClassDeclaration(node)) {
+            const className = node.name?.text;
+            for (const memberNode of node.members) {
+                if (ts.isMethodDeclaration(memberNode)) {
+                    const isStatic = (memberNode.modifiers ?? []).some(m => m.kind === ts.SyntaxKind.StaticKeyword);
+                    if (isStatic) { 
+                        const decorators = (ts.getDecorators(memberNode) ?? []).map(parseDecorator).filter(v => !!v);
+                        yield {
+                            name: getName(memberNode.name),
+                            className,
+                            start: memberNode.getStart(file),
+                            end: memberNode.getEnd(),
+                            decorators,
+                        };
+                    }
                 }
             }
         }
     }
 }
+
+
 
 interface ImportInfo {
     readonly name: string;
@@ -128,7 +173,7 @@ function parse(file: ts.SourceFile): readonly MethodInfo[] {
     return methods;
 }
 
-function getName(node: ts.PropertyName | ts.Expression) {
+function getName(node: ts.PropertyName | ts.Expression | ts.LeftHandSideExpression) {
     switch (true) {
         case ts.isCallExpression(node): return getName(node.expression);
         case ts.isIdentifier(node): return node.text;
