@@ -55,6 +55,20 @@ export class CodeLensProvider implements vscode.CodeLensProvider {
     }
 }
 
+export function* getImports(file: ts.SourceFile) {
+    for (const node of file.statements) {
+        if (ts.isImportDeclaration(node)) {
+            const moduleName = getName(node.moduleSpecifier);
+            const bindings = node.importClause?.namedBindings;
+            if (!bindings) { continue; }
+            if (ts.isNamedImports(bindings)) {
+                for (const binding of bindings.elements) {
+                    yield { name: binding.name.text, propertyName: binding.propertyName?.text, moduleName };
+                }
+            }
+        }
+    }
+}
 
 interface ImportInfo {
     readonly name: string;
