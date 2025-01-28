@@ -155,10 +155,10 @@
     "esbuild-base": "rimraf out && esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
     "compile": "npm run esbuild-base -- --sourcemap",
     "watch": "npm run esbuild-base -- --sourcemap --watch",
-    "test-compile": "tsc -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
-    "test": "vscode-test"
+    "test-compile": "rimraf out && tsc -p ./",
+    "pretest": "npm run test-compile",
+    "test": "vscode-test",
+    "lint": "eslint src --ext ts"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.525.0",
