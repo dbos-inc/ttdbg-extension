@@ -20,7 +20,7 @@ suite('Extension Test Suite', () => {
 import { Workflow as TestWorkflow } from "@dbos-inc/dbos-sdk";`;
 		const file = ts.createSourceFile("test.ts", code, ts.ScriptTarget.Latest);
 		const expected = [
-			{ name: "Workflow", propertyName: undefined, moduleName: "@dbos-inc/dbos-sdk" },
+			{ name: "Workflow", propertyName: "Workflow", moduleName: "@dbos-inc/dbos-sdk" },
 			{ name: "TestWorkflow", propertyName: "Workflow", moduleName: "@dbos-inc/dbos-sdk" }
 		]
 		const actual = [...getImports(file)];

@@ -69,7 +69,8 @@ export function* getImports(file: ts.SourceFile): Generator<NamedImportInfo, voi
             if (!bindings) { continue; }
             else if (ts.isNamedImports(bindings)) {
                 for (const binding of bindings.elements) {
-                    yield { name: binding.name.text, propertyName: binding.propertyName?.text, moduleName };
+                    const propertyName = binding.propertyName?.text ?? binding.name.text;
+                    yield { name: binding.name.text, propertyName, moduleName };
                 }
             }
             else {
@@ -97,7 +98,7 @@ export function* getStaticMethods(file: ts.SourceFile) {
             for (const memberNode of node.members) {
                 if (ts.isMethodDeclaration(memberNode)) {
                     const isStatic = (memberNode.modifiers ?? []).some(m => m.kind === ts.SyntaxKind.StaticKeyword);
-                    if (isStatic) { 
+                    if (isStatic) {
                         const decorators = (ts.getDecorators(memberNode) ?? []).map(parseDecorator).filter(v => !!v);
                         yield {
                             name: getName(memberNode.name),
