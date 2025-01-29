@@ -10,11 +10,6 @@ import { getImports, getStaticMethods, parseDecorator } from '../CodeLensProvide
 suite('Extension Test Suite', () => {
 	vscode.window.showInformationMessage('Start all tests.');
 
-	// test('Sample test', () => {
-	// 	assert.strictEqual(-1, [1, 2, 3].indexOf(5));
-	// 	assert.strictEqual(-1, [1, 2, 3].indexOf(0));
-	// });
-
 	test('getImports', () => {
 		const code = `import { Workflow } from "@dbos-inc/dbos-sdk";
 import { Workflow as TestWorkflow } from "@dbos-inc/dbos-sdk";`;
@@ -112,22 +107,6 @@ class Test2 {
 		const expected = { name: "Test", propertyName: "prop" };
 		assert.deepEqual(expected, actual);
 	})
-
-	// test("parseMethod", () => {
-	// 	const code = `class TestClass {
-	// 		@TestDecorator.prop()
-	// 		static testMethod() {}
-	// 	}`;
-	// 	const file = ts.createSourceFile("test.ts", code, ts.ScriptTarget.Latest);
-	// 	const classNode = file.statements[0] as ts.ClassDeclaration;
-	// 	const methodNode = classNode.members[0] as ts.MethodDeclaration;
-	// 	const actual = parseMethod(methodNode);
-	// 	const expected = { 
-	// 		name: "testMethod", 
-	// 		decorators: [{ name: "TestDecorator", propertyName: "prop" }]
-	// 	};
-	// 	assert.deepEqual(expected, actual);
-	// })
 });
 
 
