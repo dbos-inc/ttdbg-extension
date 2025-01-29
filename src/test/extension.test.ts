@@ -4,7 +4,7 @@ import ts from 'typescript';
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
 import * as vscode from 'vscode';
-import { getImports, getStaticMethods, parseDecorator } from '../CodeLensProvider';
+import { getImports, getStaticMethods, getWorkflowMethods, parseDecorator, StaticMethodInfo } from '../CodeLensProvider';
 // import * as myExtension from '../../extension';
 
 suite('Extension Test Suite', () => {
@@ -15,11 +15,11 @@ suite('Extension Test Suite', () => {
 import { Workflow as TestWorkflow } from "@dbos-inc/dbos-sdk";`;
 		const file = ts.createSourceFile("test.ts", code, ts.ScriptTarget.Latest);
 		const expected = [
-			{ name: "Workflow", propertyName: "Workflow", moduleName: "@dbos-inc/dbos-sdk" },
-			{ name: "TestWorkflow", propertyName: "Workflow", moduleName: "@dbos-inc/dbos-sdk" }
+			{ name: "Workflow", alias: "Workflow", moduleName: "@dbos-inc/dbos-sdk" },
+			{ name: "Workflow", alias: "TestWorkflow", moduleName: "@dbos-inc/dbos-sdk" }
 		]
 		const actual = [...getImports(file)];
-		assert.deepStrictEqual(expected, actual);
+		assert.deepStrictEqual(actual, expected);
 	})
 
 	test('getStaticMethods', () => {
@@ -91,7 +91,7 @@ class Test2 {
 		const decoratorNodes = ts.getDecorators(methodNode) ?? [];
 		const actual = parseDecorator(decoratorNodes[0]);
 		const expected = { name: "Test", propertyName: undefined };
-		assert.deepEqual(expected, actual);
+		assert.deepEqual(actual, expected);
 	})
 
 	test("parseDecorator-property", () => {
@@ -105,8 +105,109 @@ class Test2 {
 		const decoratorNodes = ts.getDecorators(methodNode) ?? [];
 		const actual = parseDecorator(decoratorNodes[0]);
 		const expected = { name: "Test", propertyName: "prop" };
-		assert.deepEqual(expected, actual);
-	})
+		assert.deepEqual(actual, expected);
+	});
+
+	test("getWorkflowMethods-v1", () => {
+		const code = `
+		import { Workflow } from "@dbos-inc/dbos-sdk";
+
+		class Test {
+			@Workflow()
+			static test() {}
+
+			static test2() {}
+		}`;
+		const file = ts.createSourceFile("test.ts", code, ts.ScriptTarget.Latest);
+		const actual = [...getWorkflowMethods(file)];
+		const expected: Array<StaticMethodInfo> = [
+			{
+				className: "Test",
+				name: "test",
+				decorators: [{ name: "Workflow", propertyName: undefined }],
+				start: 69,
+				end: 100,
+			}
+		];
+		assert.deepEqual(actual, expected);
+
+	});
+
+	test("getWorkflowMethods-v1-alias", () => {
+		const code = `
+		import { Workflow as TestWorkflow } from "@dbos-inc/dbos-sdk";
+
+		class Test {
+			@TestWorkflow()
+			static test() {}
+
+			static test2() {}
+		}`;
+		const file = ts.createSourceFile("test.ts", code, ts.ScriptTarget.Latest);
+		const actual = [...getWorkflowMethods(file)];
+		const expected: Array<StaticMethodInfo> = [
+			{
+				className: "Test",
+				name: "test",
+				decorators: [{ name: "TestWorkflow", propertyName: undefined }],
+				start: 85,
+				end: 120,
+			}
+		];
+		assert.deepEqual(actual, expected);
+
+	});
+
+	test("getWorkflowMethods-v2", () => {
+		const code = `
+		import { DBOS } from "@dbos-inc/dbos-sdk";
+
+		class Test {
+			@DBOS.workflow()
+			static test() {}
+
+			static test2() {}
+		}`;
+		const file = ts.createSourceFile("test.ts", code, ts.ScriptTarget.Latest);
+		const actual = [...getWorkflowMethods(file)];
+		const expected: Array<StaticMethodInfo> = [
+			{
+				className: "Test",
+				name: "test",
+				decorators: [{ name: "DBOS", propertyName: "workflow" }],
+				start: 65,
+				end: 101,
+			}
+		];
+		assert.deepEqual(actual, expected);
+
+	});
+
+	test("getWorkflowMethods-v2", () => {
+		const code = `
+		import { DBOS as TestDBOS } from "@dbos-inc/dbos-sdk";
+
+		class Test {
+			@TestDBOS.workflow()
+			static test() {}
+
+			static test2() {}
+		}`;
+		const file = ts.createSourceFile("test.ts", code, ts.ScriptTarget.Latest);
+		const actual = [...getWorkflowMethods(file)];
+		const expected: Array<StaticMethodInfo> = [
+			{
+				className: "Test",
+				name: "test",
+				decorators: [{ name: "TestDBOS", propertyName: "workflow" }],
+				start: 77,
+				end: 117,
+			}
+		];
+		assert.deepEqual(actual, expected);
+
+	});
+
 });
 
 

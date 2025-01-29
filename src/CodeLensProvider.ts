@@ -29,36 +29,44 @@ export class CodeLensProvider implements vscode.CodeLensProvider {
                 ts.ScriptTarget.Latest
             );
 
-            return parse(file)
-                .map(methodInfo => {
-                    const methodType = getDbosMethodType(methodInfo.decorators);
-                    if (!methodType) { return undefined; }
-
-                    const start = methodInfo.node.getStart(file);
-                    const end = methodInfo.node.getEnd();
-                    const range = new vscode.Range(
-                        document.positionAt(start),
-                        document.positionAt(end)
-                    );
-
-                    return new vscode.CodeLens(range, {
-                        title: '⏳ Time Travel Debug',
-                        tooltip: `Debug ${methodInfo.name} with the DBOS Time Travel Debugger`,
-                        command: startDebuggingCodeLensCommandName,
-                        arguments: [folder, { name: methodInfo.name, type: methodType }]
-                    });
-                })
-                .filter(<T>(x?: T): x is T => !!x);
+            const lenses = new Array<vscode.CodeLens>();
+            for (const method of getWorkflowMethods(file)) {
+                logger.info("provideCodeLenses", method);
+                const start = document.positionAt(method.start);
+                const end = document.positionAt(method.end);
+                const range = new vscode.Range(start, end);
+                const name = method.name;
+                lenses.push(new vscode.CodeLens(range, {
+                    title: 'Replay Debug',
+                    tooltip: `Debug ${name} with the replay debugger`,
+                    command: startDebuggingCodeLensCommandName,
+                    arguments: [folder, { name, type: "Workflow", debug: "replay" }]
+                }));
+            }
+            return lenses;
         } catch (e) {
             logger.error("provideCodeLenses", e);
         }
     }
 }
 
-interface NamedImportInfo {
+export interface NamedImportInfo {
     name: string;
-    propertyName: string | undefined;
+    alias: string;
     moduleName: string;
+}
+
+export interface DecoratorInfo {
+    name: string;
+    propertyName?: string;
+}
+
+export interface StaticMethodInfo {
+    name: string;
+    className: string | undefined;
+    start: number;
+    end: number;
+    decorators: DecoratorInfo[];
 }
 
 export function* getImports(file: ts.SourceFile): Generator<NamedImportInfo, void, unknown> {
@@ -69,8 +77,9 @@ export function* getImports(file: ts.SourceFile): Generator<NamedImportInfo, voi
             if (!bindings) { continue; }
             else if (ts.isNamedImports(bindings)) {
                 for (const binding of bindings.elements) {
-                    const propertyName = binding.propertyName?.text ?? binding.name.text;
-                    yield { name: binding.name.text, propertyName, moduleName };
+                    const name = binding.propertyName?.text ?? binding.name.text;
+                    const alias = binding.name.text;
+                    yield { name, alias, moduleName };
                 }
             }
             else {
@@ -80,7 +89,8 @@ export function* getImports(file: ts.SourceFile): Generator<NamedImportInfo, voi
     }
 }
 
-export function parseDecorator(node: ts.Decorator): { name: string; propertyName?: string; } | undefined {
+
+export function parseDecorator(node: ts.Decorator): DecoratorInfo | undefined {
     if (!ts.isCallExpression(node.expression)) { return; }
     const expr = node.expression.expression;
     if (ts.isIdentifier(expr)) {
@@ -91,87 +101,52 @@ export function parseDecorator(node: ts.Decorator): { name: string; propertyName
     }
 }
 
-export function* getStaticMethods(file: ts.SourceFile) {
+function isValid<T>(value: T | null | undefined): value is T { return !!value; }
+
+export function* getStaticMethods(file: ts.SourceFile): Generator<StaticMethodInfo, void, unknown> {
     for (const node of file.statements) {
         if (ts.isClassDeclaration(node)) {
             const className = node.name?.text;
             for (const memberNode of node.members) {
-                if (ts.isMethodDeclaration(memberNode)) {
-                    const isStatic = (memberNode.modifiers ?? []).some(m => m.kind === ts.SyntaxKind.StaticKeyword);
-                    if (isStatic) {
-                        const decorators = (ts.getDecorators(memberNode) ?? []).map(parseDecorator).filter(v => !!v);
-                        yield {
-                            name: getName(memberNode.name),
-                            className,
-                            start: memberNode.getStart(file),
-                            end: memberNode.getEnd(),
-                            decorators,
-                        };
-                    }
-                }
+                if (!ts.isMethodDeclaration(memberNode)) { continue; }
+
+                const isStatic = (memberNode.modifiers ?? []).some(m => m.kind === ts.SyntaxKind.StaticKeyword);
+                if (!isStatic) { continue; }
+
+                const decorators = (ts.getDecorators(memberNode) ?? [])
+                    .map(parseDecorator)
+                    .filter(isValid);
+                yield {
+                    name: getName(memberNode.name),
+                    className,
+                    start: memberNode.getStart(file),
+                    end: memberNode.getEnd(),
+                    decorators,
+                };
             }
         }
     }
 }
 
-
-
-interface ImportInfo {
-    readonly name: string;
-    readonly module: string;
-};
-
-interface MethodInfo {
-    readonly node: ts.MethodDeclaration;
-    readonly name: string;
-    readonly decorators: readonly ImportInfo[];
-}
-
-function getDbosMethodType(decorators: readonly ImportInfo[]): DbosMethodType | undefined {
-    for (const d of decorators) {
-        if (d.module !== '@dbos-inc/dbos-sdk') { continue; }
-        if (d.name === "Workflow") { return "Workflow"; }
-        if (d.name === "Transaction") { return "Transaction"; }
-        if (d.name === "Communicator") { return "Communicator"; }
+export function* getWorkflowMethods(file: ts.SourceFile) {
+    const importMap = new Map<string, NamedImportInfo>();
+    for (const imp of getImports(file)) {
+        importMap.set(imp.alias, imp);
     }
-    return undefined;
-}
 
-
-function parse(file: ts.SourceFile): readonly MethodInfo[] {
-
-    if (file.isDeclarationFile) { return []; }
-
-    const importMap = new Map<string, ImportInfo>();
-    for (const node of file.statements) {
-        if (ts.isImportDeclaration(node)) {
-            const moduleName = getName(node.moduleSpecifier);
-            for (const bind of getBindings(node.importClause?.namedBindings)) {
-                importMap.set(bind.name, { name: bind.propertyName ?? bind.name, module: moduleName });
+    for (const method of getStaticMethods(file)) {
+        for (const d of method.decorators) {
+            const imp = importMap.get(d.name);
+            if (!imp) { continue; }
+            if (imp.moduleName !== '@dbos-inc/dbos-sdk') { continue; }
+            if (imp.name === 'Workflow' && d.propertyName === undefined) {
+                yield method;
+            }
+            else if (imp.name === 'DBOS' && d.propertyName === 'workflow') {
+                yield method;
             }
         }
     }
-
-    const methods = new Array<MethodInfo>();
-    for (const node of file.statements) {
-        if (ts.isClassDeclaration(node)) {
-            for (const mNode of node.members) {
-                if (ts.isMethodDeclaration(mNode)) {
-                    const isStatic = (mNode.modifiers ?? []).some(m => m.kind === ts.SyntaxKind.StaticKeyword);
-                    if (!isStatic) { continue; }
-                    const mName = getName(mNode.name);
-                    const decorators = new Array<ImportInfo>();
-                    for (const dNode of ts.getDecorators(mNode) ?? []) {
-                        const dName = importMap.get(getName(dNode.expression));
-                        if (dName) { decorators.push(dName); }
-                    }
-                    methods.push({ node: mNode, name: mName, decorators });
-                }
-            }
-        }
-    }
-
-    return methods;
 }
 
 function getName(node: ts.PropertyName | ts.Expression | ts.LeftHandSideExpression) {
@@ -180,19 +155,5 @@ function getName(node: ts.PropertyName | ts.Expression | ts.LeftHandSideExpressi
         case ts.isIdentifier(node): return node.text;
         case ts.isStringLiteral(node): return node.text;
         default: throw Error(`Unsupported name kind: ${ts.SyntaxKind[node.kind]}`);
-    }
-}
-
-function getBindings(node?: ts.NamedImportBindings) {
-    if (!node) { return []; }
-    switch (true) {
-        case ts.isNamedImports(node):
-            return node.elements.map(node => ({
-                node,
-                name: node.name.text,
-                propertyName: node.propertyName?.text
-            }));
-        default:
-            throw Error(`Unsupported NamedImportBindings kind: ${ts.SyntaxKind[node.kind]}`);
     }
 }
