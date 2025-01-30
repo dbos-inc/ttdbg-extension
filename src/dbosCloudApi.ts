@@ -50,6 +50,7 @@ export function getCloudDomain(domain?: string | DbosCloudDomain): DbosCloudDoma
   const cloudDomain = domain ?? "cloud.dbos.dev";
   const isProduction = cloudDomain === "cloud.dbos.dev";
   const loginDomain = isProduction ? 'login.dbos.dev' : 'dbos-inc.us.auth0.com';
+  // spell-checker: disable-next-line
   const clientId = isProduction ? '6p7Sjxf13cyLMkdwn14MxlH7JdhILled' : 'G38fLmVErczEo9ioCFjVIHea6yd0qMZu';
   return { cloudDomain, loginDomain, clientId };
 }
