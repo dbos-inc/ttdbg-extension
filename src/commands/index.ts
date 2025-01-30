@@ -28,19 +28,19 @@ export const startDebuggingUriCommandName = "dbos-ttdbg.start-debugging-uri";
 export const updateDebugProxyCommandName = "dbos-ttdbg.update-debug-proxy";
 
 export function registerCommands(cloudStorage: CloudStorage, storageUri: vscode.Uri, refresh: (domain: string) => Promise<void>) {
-    const disposables = [
-        vscode.commands.registerCommand(cloudLoginCommandName, getCloudLoginCommand(refresh)),
-        vscode.commands.registerCommand(deleteDomainCredentialsCommandName, getDeleteDomainCredentialsCommand(refresh)),
-        vscode.commands.registerCommand(getProxyUrlCommandName, getProxyUrl),
-        vscode.commands.registerCommand(launchDashboardCommandName, launchDashboard),
-        vscode.commands.registerCommand(launchDebugProxyCommandName, getLaunchDebugProxyCommand(storageUri)),
-        vscode.commands.registerCommand(pickWorkflowIdCommandName, pickWorkflowId),
-        vscode.commands.registerCommand(refreshDomainCommandName, getRefreshDomainCommand(refresh)),
-        vscode.commands.registerCommand(setApplicationNameCommandName, setApplicationName),
-        vscode.commands.registerCommand(shutdownDebugProxyCommandName, shutdownDebugProxy),
-        vscode.commands.registerCommand(startDebuggingCodeLensCommandName, startDebuggingFromCodeLens),
-        vscode.commands.registerCommand(startDebuggingUriCommandName, startDebuggingFromUri),
-        vscode.commands.registerCommand(updateDebugProxyCommandName, getUpdateDebugProxyCommand(cloudStorage, storageUri)),
+    const disposables: vscode.Disposable[] = [
+        // vscode.commands.registerCommand(cloudLoginCommandName, getCloudLoginCommand(refresh)),
+        // vscode.commands.registerCommand(deleteDomainCredentialsCommandName, getDeleteDomainCredentialsCommand(refresh)),
+        // vscode.commands.registerCommand(getProxyUrlCommandName, getProxyUrl),
+        // vscode.commands.registerCommand(launchDashboardCommandName, launchDashboard),
+        // vscode.commands.registerCommand(launchDebugProxyCommandName, getLaunchDebugProxyCommand(storageUri)),
+        // vscode.commands.registerCommand(pickWorkflowIdCommandName, pickWorkflowId),
+        // vscode.commands.registerCommand(refreshDomainCommandName, getRefreshDomainCommand(refresh)),
+        // vscode.commands.registerCommand(setApplicationNameCommandName, setApplicationName),
+        // vscode.commands.registerCommand(shutdownDebugProxyCommandName, shutdownDebugProxy),
+        // vscode.commands.registerCommand(startDebuggingCodeLensCommandName, startDebuggingFromCodeLens),
+        // vscode.commands.registerCommand(startDebuggingUriCommandName, startDebuggingFromUri),
+        // vscode.commands.registerCommand(updateDebugProxyCommandName, getUpdateDebugProxyCommand(cloudStorage, storageUri)),
     ];
 
     return disposables;
