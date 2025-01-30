@@ -56,7 +56,7 @@ async function downloadRemoteVersion(s3: CloudStorage, storageUri: vscode.Uri, v
   if (!response) { throw new Error(`Failed to download version ${version}`); }
   if (token?.isCancellationRequested) { throw new vscode.CancellationError(); }
 
-  const zipFile = await jszip.loadAsync(response.asByteArray());
+  const zipFile = await jszip.loadAsync(response);
   if (token?.isCancellationRequested) { throw new vscode.CancellationError(); }
 
   const files = Object.keys(zipFile.files);

@@ -27,12 +27,8 @@ const ARCHITECTURE = function () {
   }
 }();
 
-export interface CloudObject {
-  asByteArray(): Promise<Uint8Array>;
-}
-
 export interface CloudStorage {
-  downloadVersion(version: string, token?: vscode.CancellationToken): Promise<CloudObject | undefined>;
+  downloadVersion(version: string, token?: vscode.CancellationToken): Promise<Uint8Array | undefined>;
   getVersions(token?: vscode.CancellationToken): AsyncGenerator<string>;
 }
 
@@ -75,15 +71,11 @@ export class S3CloudStorage implements CloudStorage {
     }
   }
 
-  async downloadVersion(version: string, token?: vscode.CancellationToken | undefined): Promise<CloudObject | undefined> {
+  async downloadVersion(version: string, token?: vscode.CancellationToken | undefined): Promise<Uint8Array | undefined> {
     const key = `${this.releaseName}/${version}/${this.releaseName}-${PLATFORM}-${ARCHITECTURE}-${version}.zip`;
     const cmd = new GetObjectCommand({ Bucket: this.bucket, Key: key, });
     const response = await this.#send(options => this.s3.send(cmd, options), token);
-
-    const body = response?.Body;
-    return body
-      ? { asByteArray: () => body.transformToByteArray() }
-      : undefined;
+    return await response.Body?.transformToByteArray();
   }
 
   async* getVersions(token?: vscode.CancellationToken | undefined): AsyncGenerator<string> {
