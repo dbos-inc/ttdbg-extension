@@ -2,18 +2,18 @@ import * as vscode from 'vscode';
 import { logger } from './extension';
 import type { DbosDebugConfig } from './Configuration';
 import { validateCredentials } from './validateCredentials';
-import type { DbosMethodInfo } from './CodeLensProvider';
-import { getWorkflowStatuses } from './provenanceDb';
+// import type { DbosMethodInfo } from './CodeLensProvider';
+// import { getWorkflowStatuses } from './provenanceDb';
 import { launchDashboardCommandName } from './commands';
 
-export async function showWorkflowPick(
-  folder: vscode.WorkspaceFolder,
-  options?: {
-    method?: DbosMethodInfo;
-    cloudConfig?: DbosDebugConfig;
-  }
-): Promise<string | undefined> {
-  return undefined;
+// export async function showWorkflowPick(
+//   folder: vscode.WorkspaceFolder,
+//   options?: {
+//     method?: DbosMethodInfo;
+//     cloudConfig?: DbosDebugConfig;
+//   }
+// ): Promise<string | undefined> {
+//   return undefined;
   // let cloudConfig = options?.cloudConfig;
   // if (!cloudConfig) {
   //   const credentials = await config.getStoredCloudCredentials();
@@ -89,4 +89,4 @@ export async function showWorkflowPick(
   // } finally {
   //   disposables.forEach(d => d.dispose());
   // }
-}
+// }

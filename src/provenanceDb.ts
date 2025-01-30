@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Client, ClientConfig, Pool, PoolClient } from 'pg';
-import { getDbosWorkflowName, type DbosMethodInfo } from './CodeLensProvider';
+// import { getDbosWorkflowName, type DbosMethodInfo } from './CodeLensProvider';
 import type { DbosDebugConfig } from './Configuration';
 import { logger } from './extension';
 
@@ -65,29 +65,29 @@ function isPgError(e: any): e is { code: string } {
 }
 
 
-export async function getWorkflowStatuses(debugConfig: DbosDebugConfig, method?: DbosMethodInfo): Promise<workflow_status[]> {
-  const client = await getPoolClient();
-  try {
-    const results = method
-      ? await client.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1 ORDER BY created_at DESC LIMIT 10', [getDbosWorkflowName(method.name, method.type)])
-      : await client.query<workflow_status>('SELECT * FROM dbos.workflow_status ORDER BY created_at DESC LIMIT 10');
-    return results.rows;
-  } finally {
-    client.release();
-  }
+// export async function getWorkflowStatuses(debugConfig: DbosDebugConfig, method?: DbosMethodInfo): Promise<workflow_status[]> {
+//   const client = await getPoolClient();
+//   try {
+//     const results = method
+//       ? await client.query<workflow_status>('SELECT * FROM dbos.workflow_status WHERE name = $1 ORDER BY created_at DESC LIMIT 10', [getDbosWorkflowName(method.name, method.type)])
+//       : await client.query<workflow_status>('SELECT * FROM dbos.workflow_status ORDER BY created_at DESC LIMIT 10');
+//     return results.rows;
+//   } finally {
+//     client.release();
+//   }
 
-  async function getPoolClient(): Promise<PoolClient> {
-    try {
-      return await getPool(debugConfig).connect();
-    } catch (e) {
-      if (isPgError(e) && e.code === '3D000') {
-        throw new Error(`Provenance database does not exist. This app was not deployed with --enable-timetravel.`);
-      } else {
-        throw e;
-      }
-    }
-  }
-}
+//   async function getPoolClient(): Promise<PoolClient> {
+//     try {
+//       return await getPool(debugConfig).connect();
+//     } catch (e) {
+//       if (isPgError(e) && e.code === '3D000') {
+//         throw new Error(`Provenance database does not exist. This app was not deployed with --enable-timetravel.`);
+//       } else {
+//         throw e;
+//       }
+//     }
+//   }
+// }
 
 export async function getWorkflowStatus(debugConfig: DbosDebugConfig, workflowID: string): Promise<workflow_status | undefined> {
   const client = await getPool(debugConfig).connect();

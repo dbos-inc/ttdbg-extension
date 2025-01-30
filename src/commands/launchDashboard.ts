@@ -3,9 +3,9 @@ import { logger } from '../extension';
 import type { CloudAppNode, CloudDomainNode } from '../CloudDataProvider';
 import { createDashboard, getCloudDomain, getDashboard, isUnauthorized } from '../dbosCloudApi';
 import { validateCredentials } from '../validateCredentials';
-import type { DbosMethodInfo } from '../CodeLensProvider';
+// import type { DbosMethodInfo } from '../CodeLensProvider';
 
-export async function launchDashboard(node?: string | CloudDomainNode | CloudAppNode, method?: DbosMethodInfo) {
+export async function launchDashboard(node?: string | CloudDomainNode | CloudAppNode /*, method?: DbosMethodInfo*/) {
   logger.debug("launchDashboard", { node: node ?? null });
   if (!node) { return; }
 

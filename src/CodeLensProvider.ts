@@ -3,18 +3,18 @@ import ts from 'typescript';
 import { startDebuggingCodeLensCommandName } from './commands';
 import { logger } from './extension';
 
-export type DbosMethodType = "Workflow" | "Transaction" | "Communicator";
+// export type DbosMethodType = "Workflow" | "Transaction" | "Communicator";
 
-export type DbosMethodInfo = { name: string; type: DbosMethodType };
+// export type DbosMethodInfo = { name: string; type: DbosMethodType };
 
-export function getDbosWorkflowName(name: string, $type: DbosMethodType): string {
-    switch ($type) {
-        case "Workflow": return name;
-        case "Transaction": return `temp_workflow-transaction-${name}`;
-        case "Communicator": return `temp_workflow-external-${name}`;
-        default: throw new Error(`Unsupported DbosMethodType: ${$type}`);
-    }
-}
+// export function getDbosWorkflowName(name: string, $type: DbosMethodType): string {
+//     switch ($type) {
+//         case "Workflow": return name;
+//         case "Transaction": return `temp_workflow-transaction-${name}`;
+//         case "Communicator": return `temp_workflow-external-${name}`;
+//         default: throw new Error(`Unsupported DbosMethodType: ${$type}`);
+//     }
+// }
 
 export class CodeLensProvider implements vscode.CodeLensProvider {
     provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {

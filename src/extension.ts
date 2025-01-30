@@ -23,8 +23,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const credManager = new CloudCredentialManager(context.secrets);
   const cloudDataProvider = new CloudDataProvider(credManager);
+  const codeLensProvider = new CodeLensProvider();
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider("dbos-ttdbg.views.resources", cloudDataProvider),
+    vscode.window.registerTreeDataProvider(
+      "dbos-ttdbg.views.resources", cloudDataProvider),
+    vscode.languages.registerCodeLensProvider(
+      { scheme: 'file', language: 'typescript' },
+      codeLensProvider),
   );
 
   // config = new Configuration(context.secrets, context.workspaceState);
