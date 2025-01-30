@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DbosCloudApp, getCloudDomain, DbosCloudDbInstance, listApps, listDbInstances, isUnauthorized } from './dbosCloudApi';
+import { DbosCloudApp, getCloudDomain, DbosCloudDbInstance, listApps, listDbInstances, isUnauthorized, CloudCredentialManager } from './dbosCloudApi';
 // import { config } from './extension';
 import { validateCredentials } from './validateCredentials';
 
@@ -36,7 +36,7 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
   private readonly apps = new Map<string, CloudAppNode[]>();
   private readonly dbInstances = new Map<string, CloudDbInstanceNode[]>();
 
-  constructor() {
+  constructor(private readonly credManager: CloudCredentialManager) {
     const { cloudDomain } = getCloudDomain();
     this.domains = [{ kind: "cloudDomain", domain: cloudDomain }];
   }
@@ -58,24 +58,24 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
 
     if (element.kind === "cloudDomain") {
       if (!this.apps.has(element.domain) || !this.dbInstances.has(element.domain)) {
-        // const credentials = await config.getCredentials(element.domain);
-        // if (!validateCredentials(credentials)) { return []; }
+        const credentials = await this.credManager.getCredentials(element.domain);
+        if (!validateCredentials(credentials)) { return []; }
 
-        // const [apps, dbInstances] = await Promise.all([listApps(credentials), listDbInstances(credentials)]);
-        // if (isUnauthorized(apps)) {
-        //   this.apps.delete(element.domain);
-        // } else {
-        //   this.apps.set(element.domain, apps.map(a => ({ kind: "cloudApp", domain: element.domain, app: a })));
-        // }
-        // if (isUnauthorized(dbInstances)) {
-        //   this.dbInstances.delete(element.domain);
-        // } else {
-        //   this.dbInstances.set(element.domain, dbInstances.map(dbi => ({ kind: "cloudDbInstance", domain: element.domain, dbInstance: dbi })));
-        // }
-        // return [
-        //   { kind: "cloudResourceType", type: "apps", domain: element.domain },
-        //   { kind: "cloudResourceType", type: "dbInstances", domain: element.domain },
-        // ];
+        const [apps, dbInstances] = await Promise.all([listApps(credentials), listDbInstances(credentials)]);
+        if (isUnauthorized(apps)) {
+          this.apps.delete(element.domain);
+        } else {
+          this.apps.set(element.domain, apps.map(a => ({ kind: "cloudApp", domain: element.domain, app: a })));
+        }
+        if (isUnauthorized(dbInstances)) {
+          this.dbInstances.delete(element.domain);
+        } else {
+          this.dbInstances.set(element.domain, dbInstances.map(dbi => ({ kind: "cloudDbInstance", domain: element.domain, dbInstance: dbi })));
+        }
+        return [
+          { kind: "cloudResourceType", type: "apps", domain: element.domain },
+          { kind: "cloudResourceType", type: "dbInstances", domain: element.domain },
+        ];
       }
     }
 

@@ -104,7 +104,7 @@
         }
       }
     },
-    "menus": {
+    "//menus": {
       "view/item/context": [
         {
           "command": "dbos-ttdbg.cloud-login",

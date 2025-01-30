@@ -8,6 +8,7 @@ import { UriHandler } from './UriHandler';
 import { CloudDataProvider } from './CloudDataProvider';
 import { shutdownProvenanceDbConnectionPool } from './provenanceDb';
 import { shutdownDebugProxy } from './debugProxy';
+import { CloudCredentialManager } from './dbosCloudApi';
 
 export let logger: Logger;
 // export let config: Configuration;
@@ -20,12 +21,18 @@ export async function activate(context: vscode.ExtensionContext) {
 
   logger.info("DBOS extension activated");
 
+  const credManager = new CloudCredentialManager(context.secrets);
+  const cloudDataProvider = new CloudDataProvider(credManager);
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider("dbos-ttdbg.views.resources", cloudDataProvider),
+  );
+
   // config = new Configuration(context.secrets, context.workspaceState);
 
   // const cloudStorage = new S3CloudStorage();
   // context.subscriptions.push(cloudStorage);
 
-  // const cloudDataProvider = new CloudDataProvider();
+  // 
 
   // context.subscriptions.push(
   //   ...registerCommands(cloudStorage, context.globalStorageUri, (domain: string) => cloudDataProvider.refresh(domain)),
