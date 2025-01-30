@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { logger, config } from './extension';
+import { logger } from './extension';
 import { DbosCloudCredentials } from './dbosCloudApi';
 import jwt from 'jsonwebtoken';
 
@@ -41,7 +41,7 @@ export function validateCredentials(credentials?: DbosCloudCredentials): credent
         switch (result) {
             // case "Register": break;
             case "Login":
-                await config.cloudLogin();
+                // await config.cloudLogin();
                 break;
         }
     }

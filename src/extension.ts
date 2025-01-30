@@ -10,7 +10,7 @@ import { shutdownProvenanceDbConnectionPool } from './provenanceDb';
 import { shutdownDebugProxy } from './debugProxy';
 
 export let logger: Logger;
-export let config: Configuration;
+// export let config: Configuration;
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -18,28 +18,30 @@ export async function activate(context: vscode.ExtensionContext) {
   logger = createLogger(transport);
   context.subscriptions.push({ dispose() { logger.close(); transport.close(); } });
 
-  config = new Configuration(context.secrets, context.workspaceState);
+  logger.info("DBOS extension activated");
 
-  const cloudStorage = new S3CloudStorage();
-  context.subscriptions.push(cloudStorage);
+  // config = new Configuration(context.secrets, context.workspaceState);
 
-  const cloudDataProvider = new CloudDataProvider();
+  // const cloudStorage = new S3CloudStorage();
+  // context.subscriptions.push(cloudStorage);
 
-  context.subscriptions.push(
-    ...registerCommands(cloudStorage, context.globalStorageUri, (domain: string) => cloudDataProvider.refresh(domain)),
-    { dispose() { shutdownProvenanceDbConnectionPool(); } },
-    { dispose() { shutdownDebugProxy(); } },
+  // const cloudDataProvider = new CloudDataProvider();
 
-    vscode.window.registerTreeDataProvider("dbos-ttdbg.views.resources", cloudDataProvider),
+  // context.subscriptions.push(
+  //   ...registerCommands(cloudStorage, context.globalStorageUri, (domain: string) => cloudDataProvider.refresh(domain)),
+  //   { dispose() { shutdownProvenanceDbConnectionPool(); } },
+  //   { dispose() { shutdownDebugProxy(); } },
 
-    vscode.languages.registerCodeLensProvider(
-      { scheme: 'file', language: 'typescript' },
-      new CodeLensProvider()),
+  //   vscode.window.registerTreeDataProvider("dbos-ttdbg.views.resources", cloudDataProvider),
 
-    vscode.window.registerUriHandler(new UriHandler())
-  );
+  //   vscode.languages.registerCodeLensProvider(
+  //     { scheme: 'file', language: 'typescript' },
+  //     new CodeLensProvider()),
 
-  vscode.commands.executeCommand(updateDebugProxyCommandName);
+  //   vscode.window.registerUriHandler(new UriHandler())
+  // );
+
+  // vscode.commands.executeCommand(updateDebugProxyCommandName);
 }
 
 export function deactivate() { }

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { logger, config } from './extension';
+import { logger } from './extension';
 import type { DbosDebugConfig } from './Configuration';
 import { validateCredentials } from './validateCredentials';
 import { getWorkflowStatus } from './provenanceDb';
@@ -12,46 +12,47 @@ export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflow
       title: "Launching DBOS Time Travel Debugger",
     },
     async () => {
-      const credentials = await config.getStoredCloudCredentials();
-      if (!validateCredentials(credentials)) {
-        logger.warn("startDebugging: getWorkflowID returned invalid credentials", { folder: folder.uri.fsPath, credentials: credentials ?? null });
-        return undefined;
-      }
+      return undefined;
+      // const credentials = await config.getStoredCloudCredentials();
+      // if (!validateCredentials(credentials)) {
+      //   logger.warn("startDebugging: getWorkflowID returned invalid credentials", { folder: folder.uri.fsPath, credentials: credentials ?? null });
+      //   return undefined;
+      // }
 
-      const debugConfig = await config.getDebugConfig(folder, credentials);
-      const workflowID = await getWorkflowID(debugConfig);
-      if (!workflowID) {
-        logger.warn("startDebugging: getWorkflowID returned undefined", { folder: folder.uri.fsPath, debugConfig });
-        return undefined;
-      }
+      // const debugConfig = await config.getDebugConfig(folder, credentials);
+      // const workflowID = await getWorkflowID(debugConfig);
+      // if (!workflowID) {
+      //   logger.warn("startDebugging: getWorkflowID returned undefined", { folder: folder.uri.fsPath, debugConfig });
+      //   return undefined;
+      // }
 
-      const workflowStatus = await getWorkflowStatus(debugConfig, workflowID);
-      if (!workflowStatus) {
-          logger.error(`startDebugging: Workflow ID ${workflowID} not found`, { folder: folder.uri.fsPath, debugConfig });
-          vscode.window.showErrorMessage(`Workflow ID ${workflowID} not found`);
-          return undefined;
-      }
+      // const workflowStatus = await getWorkflowStatus(debugConfig, workflowID);
+      // if (!workflowStatus) {
+      //     logger.error(`startDebugging: Workflow ID ${workflowID} not found`, { folder: folder.uri.fsPath, debugConfig });
+      //     vscode.window.showErrorMessage(`Workflow ID ${workflowID} not found`);
+      //     return undefined;
+      // }
 
-      const proxyLaunched = await vscode.commands.executeCommand<boolean>(launchDebugProxyCommandName, debugConfig);
-      if (!proxyLaunched) {
-          logger.warn("startDebugging: launchDebugProxy returned false", { folder: folder.uri.fsPath, debugConfig, workflowID });
-          return undefined;
-      }
+      // const proxyLaunched = await vscode.commands.executeCommand<boolean>(launchDebugProxyCommandName, debugConfig);
+      // if (!proxyLaunched) {
+      //     logger.warn("startDebugging: launchDebugProxy returned false", { folder: folder.uri.fsPath, debugConfig, workflowID });
+      //     return undefined;
+      // }
 
-      const launchConfig = getDebugLaunchConfig(folder, workflowID);
-      logger.info(`startDebugging`, { folder: folder.uri.fsPath, debugConfig, launchConfig });
+      // const launchConfig = getDebugLaunchConfig(folder, workflowID);
+      // logger.info(`startDebugging`, { folder: folder.uri.fsPath, debugConfig, launchConfig });
 
-      const debuggerStarted = await vscode.debug.startDebugging(folder, launchConfig);
-      if (!debuggerStarted) {
-          throw new Error("startDebugging: Debugger failed to start", {
-              cause: {
-                  folder: folder.uri.fsPath,
-                  debugConfig,
-                  workflowID,
-                  launchConfig,
-              }
-          });
-      }
+      // const debuggerStarted = await vscode.debug.startDebugging(folder, launchConfig);
+      // if (!debuggerStarted) {
+      //     throw new Error("startDebugging: Debugger failed to start", {
+      //         cause: {
+      //             folder: folder.uri.fsPath,
+      //             debugConfig,
+      //             workflowID,
+      //             launchConfig,
+      //         }
+      //     });
+      // }
     });
 }
 
@@ -68,13 +69,13 @@ function getDebugLaunchConfig(folder: vscode.WorkspaceFolder, workflowID: string
     }
   }
 
-  const preLaunchTask = config.getPreLaunchTask(folder);
-  const proxyPort = config.getProxyPort(folder);
+  // const preLaunchTask = config.getPreLaunchTask(folder);
+  // const proxyPort = config.getProxyPort(folder);
   return <vscode.DebugConfiguration>{
     name: `Time-Travel Debug ${workflowID}`,
     type: 'node-terminal',
     request: 'launch',
-    command: `npx dbos debug -x postgresql://localhost:${proxyPort} -u ${workflowID}`,
-    preLaunchTask,
+    // command: `npx dbos debug -x postgresql://localhost:${proxyPort} -u ${workflowID}`,
+    // preLaunchTask,
   };
 }
