@@ -4,7 +4,7 @@ import type { DbosDebugConfig } from './Configuration';
 import { validateCredentials } from './validateCredentials';
 // import type { DbosMethodInfo } from './CodeLensProvider';
 // import { getWorkflowStatuses } from './provenanceDb';
-import { launchDashboardCommandName } from './commands';
+// import { launchDashboardCommandName } from './commands';
 
 // export async function showWorkflowPick(
 //   folder: vscode.WorkspaceFolder,

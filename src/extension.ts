@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { S3CloudStorage } from './CloudStorage';
-import { CodeLensProvider } from './CodeLensProvider';
-import { registerCommands, updateDebugProxyCommandName, } from './commands';
+import { CodeLensProvider, startDebuggingFromCodeLens } from './CodeLensProvider';
 import { Configuration } from './Configuration';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { UriHandler } from './UriHandler';
@@ -12,6 +11,20 @@ import { CloudCredentialManager } from './dbosCloudApi';
 
 export let logger: Logger;
 // export let config: Configuration;
+
+export const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
+export const deleteDomainCredentialsCommandName = "dbos-ttdbg.delete-domain-credentials";
+export const getProxyUrlCommandName = "dbos-ttdbg.get-proxy-url";
+export const launchDashboardCommandName = "dbos-ttdbg.launch-dashboard";
+export const launchDebugProxyCommandName = "dbos-ttdbg.launch-debug-proxy";
+export const pickWorkflowIdCommandName = "dbos-ttdbg.pick-workflow-id";
+export const refreshDomainCommandName = "dbos-ttdbg.refresh-domain";
+export const setApplicationNameCommandName = "dbos-ttdbg.set-app-name";
+export const shutdownDebugProxyCommandName = "dbos-ttdbg.shutdown-debug-proxy";
+export const startDebuggingCodeLensCommandName = "dbos-ttdbg.start-debugging-code-lens";
+export const startDebuggingUriCommandName = "dbos-ttdbg.start-debugging-uri";
+export const updateDebugProxyCommandName = "dbos-ttdbg.update-debug-proxy";
+
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -26,10 +39,14 @@ export async function activate(context: vscode.ExtensionContext) {
   const codeLensProvider = new CodeLensProvider();
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider(
-      "dbos-ttdbg.views.resources", cloudDataProvider),
+      "dbos-ttdbg.views.resources", 
+      cloudDataProvider),
     vscode.languages.registerCodeLensProvider(
-      { scheme: 'file', language: 'typescript' },
+      { language: 'typescript' },
       codeLensProvider),
+    vscode.commands.registerCommand(
+      startDebuggingCodeLensCommandName, 
+      startDebuggingFromCodeLens),
   );
 
   // config = new Configuration(context.secrets, context.workspaceState);

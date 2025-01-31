@@ -1,26 +1,56 @@
 import * as vscode from 'vscode';
 import ts from 'typescript';
-import { startDebuggingCodeLensCommandName } from './commands';
-import { logger } from './extension';
+import { logger, startDebuggingCodeLensCommandName } from './extension';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
 
-// export type DbosMethodType = "Workflow" | "Transaction" | "Communicator";
+async function locateDbosConfigFile(uri: vscode.Uri): Promise<vscode.Uri | undefined> {
+    const folder = vscode.workspace.getWorkspaceFolder(uri);
+    if (!folder) { return; }
 
-// export type DbosMethodInfo = { name: string; type: DbosMethodType };
+    let _uri = uri.fsPath;
+    while (true) {
+        const configPath = path.join(_uri, 'dbos-config.yaml');
+        const exists = await fs.stat(configPath).then(_value => true, () => false);
+        if (exists) { return vscode.Uri.file(configPath); }
+        if (_uri === folder.uri.fsPath) { return undefined; }
+        _uri = path.dirname(_uri);
+    }
+}
 
-// export function getDbosWorkflowName(name: string, $type: DbosMethodType): string {
-//     switch ($type) {
-//         case "Workflow": return name;
-//         case "Transaction": return `temp_workflow-transaction-${name}`;
-//         case "Communicator": return `temp_workflow-external-${name}`;
-//         default: throw new Error(`Unsupported DbosMethodType: ${$type}`);
-//     }
-// }
+export async function startDebuggingFromCodeLens(
+    methodName: string,
+    uri: vscode.Uri,
+) {
+    const configUri = await locateDbosConfigFile(uri);
+    if (!configUri) { return; }
+    // const [dbosConfig, runtimeConfig] = dbos.parseConfigFile({ configfile: configUri.fsPath });
+    // logger.info("startDebuggingFromCodeLens", { 
+    //     cfg: dbosConfig, 
+    //     rtCfg: runtimeConfig,
+    //     methodName });
+
+    
+    // try {
+    //   logger.info(`startDebuggingFromCodeLens`, { folder: folder.uri.fsPath, method });
+    //   await startDebugging(folder, async (cloudConfig) => {
+    //     return await showWorkflowPick(folder, { cloudConfig, method });
+    //   });
+    // } catch (e) {
+    //   logger.error("startDebuggingFromCodeLens", e);
+    //   if (isError(e)) {
+    //     vscode.window.showErrorMessage(`Failed to debug ${method.name} method: ${e.message}`);
+    //   } else {
+    //     vscode.window.showErrorMessage(`Failed to debug ${method.name} method`);
+    //   }
+    // }
+}
 
 export class CodeLensProvider implements vscode.CodeLensProvider {
     provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
         try {
-            const folder = vscode.workspace.getWorkspaceFolder(document.uri);
-            if (!folder) { return; }
+            // const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+            // if (!folder) { return; }
 
             const text = document.getText();
             const file = ts.createSourceFile(
@@ -31,7 +61,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider {
 
             const lenses = new Array<vscode.CodeLens>();
             for (const method of getWorkflowMethods(file)) {
-                logger.info("provideCodeLenses", method);
+                logger.debug("provideCodeLenses", method);
                 const start = document.positionAt(method.start);
                 const end = document.positionAt(method.end);
                 const range = new vscode.Range(start, end);
@@ -40,7 +70,10 @@ export class CodeLensProvider implements vscode.CodeLensProvider {
                     title: 'Replay Debug',
                     tooltip: `Debug ${name} with the replay debugger`,
                     command: startDebuggingCodeLensCommandName,
-                    arguments: [folder, { name, type: "Workflow", debug: "replay" }]
+                    arguments: [
+                        method.name,
+                        document.uri,
+                    ]
                 }));
             }
             return lenses;
@@ -88,7 +121,6 @@ export function* getImports(file: ts.SourceFile): Generator<NamedImportInfo, voi
         }
     }
 }
-
 
 export function parseDecorator(node: ts.Decorator): DecoratorInfo | undefined {
     if (!ts.isCallExpression(node.expression)) { return; }

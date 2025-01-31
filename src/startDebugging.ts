@@ -3,7 +3,7 @@ import { logger } from './extension';
 import type { DbosDebugConfig } from './Configuration';
 import { validateCredentials } from './validateCredentials';
 import { getWorkflowStatus } from './provenanceDb';
-import { launchDebugProxyCommandName } from './commands';
+// import { launchDebugProxyCommandName } from './commands';
 
 export async function startDebugging(folder: vscode.WorkspaceFolder, getWorkflowID: (debugConfig: DbosDebugConfig) => Promise<string | undefined>) {
   await vscode.window.withProgress(

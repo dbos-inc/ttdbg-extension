@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { logger } from './extension';
-import { startDebuggingUriCommandName } from './commands';
+// import { startDebuggingUriCommandName } from './commands';
 
 export class UriHandler implements vscode.UriHandler {
 	async handleUri(uri: vscode.Uri): Promise<void> {
@@ -14,7 +14,7 @@ export class UriHandler implements vscode.UriHandler {
 						location: vscode.ProgressLocation.Notification,
 						title: `Starting DBOS Time Travel Debugger for workflow ID ${wfid}`,
 					}, async () => {
-						await vscode.commands.executeCommand(startDebuggingUriCommandName, wfid);
+						// await vscode.commands.executeCommand(startDebuggingUriCommandName, wfid);
 					});
 				} else {
 					vscode.window.showErrorMessage(`Invalid start-debugging uri: ${uri}`);

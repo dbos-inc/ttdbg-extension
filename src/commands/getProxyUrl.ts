@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { logger } from '../extension';
 import { getDebugConfigFolder } from '../utility';
 import { validateCredentials } from '../validateCredentials';
-import { launchDebugProxyCommandName } from '.';
+// import { launchDebugProxyCommandName } from '.';
 
 export async function getProxyUrl(cfg?: vscode.DebugConfiguration & { rootPath?: string; }) {
   // try {
