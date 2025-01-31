@@ -3,6 +3,9 @@ import ts from 'typescript';
 import { logger, startDebuggingCodeLensCommandName } from './extension';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
+import { parseConfigFile } from '@dbos-inc/dbos-sdk';
+import { workflow_status } from '@dbos-inc/dbos-sdk/dist/schemas/system_db_schema';
+import { Client } from 'pg';
 
 async function locateDbosConfigFile(uri: vscode.Uri): Promise<vscode.Uri | undefined> {
     const folder = vscode.workspace.getWorkspaceFolder(uri);
@@ -23,19 +26,29 @@ export async function startDebuggingFromCodeLens(
     uri: vscode.Uri,
 ) {
     const configUri = await locateDbosConfigFile(uri);
-    logger.info("startDebuggingFromCodeLens", { 
+
+    if (!configUri) { return; }
+    const [dbosConfig, runtimeConfig] = parseConfigFile({ appDir: path.dirname(configUri.fsPath) });
+    logger.info("startDebuggingFromCodeLens", {
         methodName,
         uri: uri.toString(),
-        configUri: configUri?.toString() 
-    }); 
-    // if (!configUri) { return; }
-    // const [dbosConfig, runtimeConfig] = dbos.parseConfigFile({ configfile: configUri.fsPath });
-    // logger.info("startDebuggingFromCodeLens", { 
-    //     cfg: dbosConfig, 
-    //     rtCfg: runtimeConfig,
-    //     methodName });
+        configUri: configUri?.toString(),
+        dbosConfig,
+        runtimeConfig
+    });
 
-    
+    const dbConfig = { ...dbosConfig.poolConfig, database: dbosConfig.system_database };
+    const client = new Client(dbConfig);
+    try {
+        type Result = Pick<workflow_status, 'workflow_uuid' | 'authenticated_user'> & { created_at: string};
+        await client.connect();
+        const result = await client.query<Result>("SELECT workflow_uuid, created_at, authenticated_user FROM dbos.workflow_status WHERE status = 'SUCCESS' AND name = $1", [methodName]);
+        logger.info("startDebuggingFromCodeLens", { rows:result.rows });
+    } finally {
+        await client.end();
+    }
+
+
     // try {
     //   logger.info(`startDebuggingFromCodeLens`, { folder: folder.uri.fsPath, method });
     //   await startDebugging(folder, async (cloudConfig) => {
