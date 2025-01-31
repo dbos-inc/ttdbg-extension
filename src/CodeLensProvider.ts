@@ -23,7 +23,12 @@ export async function startDebuggingFromCodeLens(
     uri: vscode.Uri,
 ) {
     const configUri = await locateDbosConfigFile(uri);
-    if (!configUri) { return; }
+    logger.info("startDebuggingFromCodeLens", { 
+        methodName,
+        uri: uri.toString(),
+        configUri: configUri?.toString() 
+    }); 
+    // if (!configUri) { return; }
     // const [dbosConfig, runtimeConfig] = dbos.parseConfigFile({ configfile: configUri.fsPath });
     // logger.info("startDebuggingFromCodeLens", { 
     //     cfg: dbosConfig, 
