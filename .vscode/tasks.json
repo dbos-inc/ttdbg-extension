@@ -1,53 +1,64 @@
+// See https://go.microsoft.com/fwlink/?LinkId=733558
+// for the documentation about the tasks.json format
 {
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "tsc: build",
-			"type": "typescript",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
-			"tsconfig": "tsconfig.json",
-			"problemMatcher": "$tsc",
-			"presentation": {
-				"reveal": "silent"
-			}
-		},
+            "label": "watch",
+            "dependsOn": [
+                "npm: watch:tsc",
+                "npm: watch:esbuild"
+            ],
+            "presentation": {
+                "reveal": "never"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "type": "npm",
+            "script": "watch:esbuild",
+            "group": "build",
+            "problemMatcher": "$esbuild-watch",
+            "isBackground": true,
+            "label": "npm: watch:esbuild",
+            "presentation": {
+                "group": "watch",
+                "reveal": "never"
+            }
+        },
 		{
-			"label": "tsc: watch",
-			"type": "typescript",
-			"group": "build",
-			"tsconfig": "tsconfig.json",
-			"option": "watch",
+            "type": "npm",
+            "script": "watch:tsc",
+            "group": "build",
+            "problemMatcher": "$tsc-watch",
+            "isBackground": true,
+            "label": "npm: watch:tsc",
+            "presentation": {
+                "group": "watch",
+                "reveal": "never"
+            }
+        },
+		{
+			"type": "npm",
+			"script": "watch-tests",
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true,
 			"presentation": {
-				"reveal": "silent"
-			}
+				"reveal": "never",
+				"group": "watchers"
+			},
+			"group": "build"
 		},
 		{
-			"label": "npm: watch",
-			"type": "npm",
-			"group": "build",
-			"script": "watch",
-			"problemMatcher": "$esbuild-watch",
-			"isBackground": true,
-			"presentation": {
-				"reveal": "never",
-				"revealProblems": "onProblem"
-			}
-		},
-		{
-			"label": "npm: compile",
-			"type": "npm",
-			"group": "build",
-			"script": "compile",
-			"problemMatcher": "$esbuild",
-			"presentation": {
-				"reveal": "never",
-				"revealProblems": "onProblem"
-			}
+			"label": "tasks: watch-tests",
+			"dependsOn": [
+				"npm: watch",
+				"npm: watch-tests"
+			],
+			"problemMatcher": []
 		}
 	]
 }
