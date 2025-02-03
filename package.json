@@ -158,7 +158,7 @@
     "test-compile": "rimraf out && tsc -p ./",
     "pretest": "npm run test-compile",
     "test": "vscode-test",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint src"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.741.0",
@@ -170,13 +170,13 @@
     "@types/pg": "^8.11.11",
     "@types/semver": "^7.5.8",
     "@types/vscode": "^1.86.0",
-    "@typescript-eslint/eslint-plugin": "^7.1.0",
-    "@typescript-eslint/parser": "^7.1.0",
+    "@typescript-eslint/eslint-plugin": "^8.23.0",
+    "@typescript-eslint/parser": "^8.23.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "@vscode/vsce": "^3.2.2",
     "esbuild": "^0.24.2",
-    "eslint": "^8.57.0",
+    "eslint": "^9.19.0",
     "fastify": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
     "jszip": "^3.10.1",
