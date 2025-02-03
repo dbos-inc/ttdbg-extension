@@ -17,10 +17,10 @@ import { Workflow as TestWorkflow } from "@dbos-inc/dbos-sdk";`;
 		const expected = [
 			{ name: "Workflow", alias: "Workflow", moduleName: "@dbos-inc/dbos-sdk" },
 			{ name: "Workflow", alias: "TestWorkflow", moduleName: "@dbos-inc/dbos-sdk" }
-		]
+		];
 		const actual = [...getImports(file)];
 		assert.deepStrictEqual(actual, expected);
-	})
+	});
 
 	test('getStaticMethods', () => {
 		const code = `
@@ -92,7 +92,7 @@ class Test2 {
 		const actual = parseDecorator(decoratorNodes[0]);
 		const expected = { name: "Test", propertyName: undefined };
 		assert.deepEqual(actual, expected);
-	})
+	});
 
 	test("parseDecorator-property", () => {
 		const code = `class Test {
