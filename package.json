@@ -22,7 +22,7 @@
   "activationEvents": [
     "workspaceContains:**/dbos-config.yaml"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
@@ -151,14 +151,18 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run esbuild-base -- --minify",
-    "esbuild-base": "rimraf out && esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
-    "compile": "npm run esbuild-base -- --sourcemap",
-    "watch": "npm run esbuild-base -- --sourcemap --watch",
-    "test-compile": "rimraf out && tsc -p ./",
-    "pretest": "npm run test-compile",
-    "test": "vscode-test",
-    "lint": "eslint src"
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.741.0",
@@ -183,7 +187,7 @@
     "jwks-rsa": "^3.1.0",
     "pg": "^8.13.1",
     "rimraf": "^6.0.1",
-    "semver": "^7.7.0",
+    "semver": "^7.7.1",
     "typescript": "^5.7.3",
     "winston": "^3.17.0"
   }
