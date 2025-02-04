@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { S3CloudStorage } from './CloudStorage';
-import { CodeLensProvider, startDebuggingFromCodeLens } from './CodeLensProvider';
+import { CodeLensProvider, connectionMap, startDebuggingFromCodeLens } from './CodeLensProvider';
 import { Configuration } from './Configuration';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { UriHandler } from './UriHandler';
@@ -39,13 +39,14 @@ export async function activate(context: vscode.ExtensionContext) {
   const codeLensProvider = new CodeLensProvider();
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider(
-      "dbos-ttdbg.views.resources", 
+      "dbos-ttdbg.views.resources",
       cloudDataProvider),
     vscode.languages.registerCodeLensProvider(
       { language: 'typescript' },
       codeLensProvider),
+    connectionMap,
     vscode.commands.registerCommand(
-      startDebuggingCodeLensCommandName, 
+      startDebuggingCodeLensCommandName,
       startDebuggingFromCodeLens),
   );
 
@@ -74,5 +75,3 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() { }
-
-
