@@ -65,15 +65,6 @@ interface ConfigFile {
     };
 }
 
-async function loadPackageName(configUri: vscode.Uri): Promise<string> {
-    const packageJsonPath = path.join(path.dirname(configUri.fsPath), 'package.json');
-    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8')) as { name?: string };
-    if (!packageJson.name) {
-        throw new Error(`name is not set in package.json`);
-    }
-    return packageJson.name;
-}
-
 export interface DbosConfig {
     name: string;
     language?: string;
@@ -96,10 +87,20 @@ export async function loadConfigFile(configUri: vscode.Uri): Promise<DbosConfig>
         const configFile = YAML.parse(interpolatedContent) as ConfigFile;
 
         const appName = configFile.name ?? await loadPackageName(configUri);
+        if (!appName) {
+            throw new Error(
+                'application name not defined in dbos-config.yaml or package.json',
+                {
+                    cause: {
+                        configUri: configUri.fsPath,
+                        packageJson: path.join(path.dirname(configUri.fsPath), 'package.json')
+                    }
+                });
+        }
         const language = configFile.language;
         const runtimeConfig = configFile.runtimeConfig;
 
-        const databaseConnection = await loadDatabaseConnection(configUri);
+        const databaseConnection = await loadDbConnection(configUri);
         const hostName = configFile.database.hostname ?? databaseConnection?.hostname ?? "localhost";
         const port = configFile.database.port ?? databaseConnection?.port ?? 5432;
         const userName = configFile.database.username ?? databaseConnection?.username ?? "postgres";
@@ -126,13 +127,22 @@ export async function loadConfigFile(configUri: vscode.Uri): Promise<DbosConfig>
             appDatabase,
             sysDatabase,
             poolConfig,
-        }
+        };
     } catch (e) {
         if (e instanceof Error) {
             throw new Error(`Failed to load config from ${configUri.fsPath}: ${e.message}`);
         } else {
             throw e;
         }
+    }
+
+    async function loadPackageName(configUri: vscode.Uri): Promise<string | undefined> {
+        const packageJsonPath = path.join(
+            path.dirname(configUri.fsPath),
+            'package.json');
+        const contents = await fs.readFile(packageJsonPath, 'utf-8');
+        const packageJson = JSON.parse(contents) as { name?: string };
+        return packageJson.name;
     }
 
     function substituteEnvVars(content: string): string {
@@ -147,16 +157,16 @@ export async function loadConfigFile(configUri: vscode.Uri): Promise<DbosConfig>
             dbName = appName.toLowerCase().replaceAll("-", "_");
             if (dbName.match(/^\d/)) {
                 dbName = `_${dbName}`;
-            } 
+            }
         }
         return local_suffix ? `${dbName}_local` : dbName;
     }
 
     async function getSsl(ssl: boolean | undefined, ssl_ca: string | undefined, host: string) {
-        if (ssl === false) { 
-            return false; 
+        if (ssl === false) {
+            return false;
         }
-        if (ssl_ca) { 
+        if (ssl_ca) {
             const ca = await fs.readFile(ssl_ca);
             return { ca: [ca], rejectUnauthorized: true };
         }
@@ -175,13 +185,42 @@ interface DatabaseConnection {
     local_suffix?: boolean;
 }
 
-async function loadDatabaseConnection(configUri: vscode.Uri): Promise<DatabaseConnection | undefined> {
+async function loadDbConnection(configUri: vscode.Uri): Promise<DatabaseConnection | undefined> {
+    type Nullable<T> = { [P in keyof T]: T[P] | null; };
+
     try {
-        const dirName = path.dirname(configUri.fsPath);
-        const filePath = path.join(dirName, '.dbos', 'db_connection');
+        const filePath = path.join(path.
+            dirname(configUri.fsPath),
+            '.dbos', 'db_connection');
         const contents = await fs.readFile(filePath, 'utf8');
-        return JSON.parse(contents) as DatabaseConnection;
+        const data = JSON.parse(contents) as Nullable<Required<DatabaseConnection>>;
+        return {
+            hostname: data.hostname === null ? undefined : data.hostname,
+            port: data.port === null ? undefined : data.port,
+            username: data.username === null ? undefined : data.username,
+            password: data.password === null ? undefined : data.password,
+            local_suffix: data.local_suffix === null ? undefined : data.local_suffix,
+        };
     } catch (e) {
-        return {};
+        return undefined;
+    }
+}
+
+interface LocalCredentials {
+    token: string;
+    // refreshToken?: string;
+    userName: string;
+    organization: string;
+}
+
+export async function loadLocalCredentials(configUri: vscode.Uri): Promise<LocalCredentials | undefined> {
+    try {
+        const filePath = path.join(
+            path.dirname(configUri.fsPath),
+            '.dbos', 'credentials');
+        const contents = await fs.readFile(filePath, 'utf8');
+        return JSON.parse(contents) as LocalCredentials;
+    } catch (e) {
+        return undefined;
     }
 }

@@ -142,7 +142,7 @@ export async function startDebuggingFromCodeLens(
             rows: result.rows
         });
 
-        const workflowID = await pickWorkflow(result.rows)
+        const workflowID = await pickWorkflow(result.rows);
         logger.info("startDebuggingFromCodeLens", {
             methodName,
             configUri: configUri.toString(),
@@ -189,7 +189,7 @@ async function getDebugConfig(configUri: vscode.Uri, workflowID: string): Promis
         env: {
             DBOS_DEBUG_WORKFLOW_ID: workflowID,
         }
-    }
+    };
 
     const start = config.runtime?.start ?? [];
     if (start.length === 0) {
