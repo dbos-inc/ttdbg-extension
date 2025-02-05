@@ -32,43 +32,16 @@
         "icon": "$(log-in)"
       },
       {
-        "command": "dbos-ttdbg.refresh-domain",
-        "title": "Refresh DBOS Cloud Resources",
-        "category": "DBOS",
-        "icon": "$(refresh)"
-      },
-      {
         "command": "dbos-ttdbg.delete-domain-credentials",
         "title": "Delete Stored DBOS Cloud Credentials",
         "category": "DBOS",
         "icon": "$(log-out)"
       },
       {
-        "command": "dbos-ttdbg.shutdown-debug-proxy",
-        "title": "Shutdown Debug Proxy",
-        "category": "DBOS"
-      },
-      {
-        "command": "dbos-ttdbg.update-debug-proxy",
-        "title": "Update Debug Proxy",
-        "category": "DBOS"
-      },
-      {
-        "command": "dbos-ttdbg.launch-debug-proxy",
-        "title": "Launch Debug Proxy",
+        "command": "dbos-ttdbg.browse-cloud-app",
+        "title": "Browse DBOS Cloud App",
         "category": "DBOS",
-        "icon": "$(debug)"
-      },
-      {
-        "command": "dbos-ttdbg.launch-dashboard",
-        "title": "Launch DBOS Dashboard",
-        "category": "DBOS",
-        "icon": "$(server)"
-      },
-      {
-        "command": "dbos-ttdbg.set-app-name",
-        "title": "Set Application Name",
-        "category": "DBOS"
+        "icon": "$(globe)"
       }
     ],
     "configuration": {
@@ -104,20 +77,10 @@
         }
       }
     },
-    "//menus": {
+    "menus": {
       "view/item/context": [
         {
           "command": "dbos-ttdbg.cloud-login",
-          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain",
-          "group": "inline"
-        },
-        {
-          "command": "dbos-ttdbg.launch-dashboard",
-          "when": "view == dbos-ttdbg.views.resources && (viewItem == cloudDomain || viewItem == cloudApp)",
-          "group": "inline"
-        },
-        {
-          "command": "dbos-ttdbg.refresh-domain",
           "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain",
           "group": "inline"
         },
@@ -126,7 +89,7 @@
           "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain"
         },
         {
-          "command": "dbos-ttdbg.launch-debug-proxy",
+          "command": "dbos-ttdbg.browse-cloud-app",
           "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp",
           "group": "inline"
         }

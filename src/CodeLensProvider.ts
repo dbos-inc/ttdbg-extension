@@ -4,6 +4,7 @@ import { logger, startDebuggingCodeLensCommandName } from './extension';
 import { Pool, PoolClient } from 'pg';
 import { DbosConfig, loadConfigFile, locateDbosConfigFile } from './dbosConfig';
 import path from 'path';
+import { CloudCredentialManager } from './CloudCredentialManager';
 
 interface workflow_status {
     workflow_uuid: string;
@@ -38,7 +39,7 @@ class ConnectionMap {
         const key = configUri.toString();
         let config = this.#configMap.get(key);
         if (!config) {
-            config = await loadConfigFile(configUri); 
+            config = await loadConfigFile(configUri);
             logger.info("ConnectionMap.getConfig", {
                 configUri: configUri.toString(),
                 config
@@ -127,6 +128,7 @@ async function pickWorkflow(workflows: readonly WFStatus[]) {
 export async function startDebuggingFromCodeLens(
     methodName: string,
     uri: vscode.Uri,
+    kind: "local" | "cloud" | "time-travel"
 ) {
     const configUri = await locateDbosConfigFile(uri);
     if (!configUri) { return; }
@@ -173,7 +175,7 @@ export async function startDebuggingFromCodeLens(
     }
 }
 
-const nodeExes: ReadonlyArray<string> =['node', 'npm', 'npx'];
+const nodeExes: ReadonlyArray<string> = ['node', 'npm', 'npx'];
 
 async function getDebugConfig(configUri: vscode.Uri, workflowID: string): Promise<vscode.DebugConfiguration> {
     const config = await connectionMap.getConfig(configUri);
@@ -211,8 +213,13 @@ async function getDebugConfig(configUri: vscode.Uri, workflowID: string): Promis
 }
 
 export class CodeLensProvider implements vscode.CodeLensProvider {
-    provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
+    constructor(private readonly credManager: CloudCredentialManager) { }
+    
+    async provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): Promise<vscode.CodeLens[]> {
         try {
+            const configUri = await locateDbosConfigFile(document.uri);
+            const dbosConfig = configUri ? await loadConfigFile(configUri) : undefined;
+
             const file = ts.createSourceFile(
                 document.fileName,
                 document.getText(),
@@ -226,19 +233,43 @@ export class CodeLensProvider implements vscode.CodeLensProvider {
                 const end = document.positionAt(method.end);
                 const range = new vscode.Range(start, end);
                 const name = method.name;
-                lenses.push(new vscode.CodeLens(range, {
-                    title: 'Replay Debug',
-                    tooltip: `Debug ${name} with the replay debugger`,
-                    command: startDebuggingCodeLensCommandName,
-                    arguments: [
-                        method.name,
-                        document.uri,
-                    ]
-                }));
+                lenses.push(
+                    new vscode.CodeLens(range, {
+                        title: '♻️ Replay Debug',
+                        tooltip: `Debug ${name} with the replay debugger`,
+                        command: startDebuggingCodeLensCommandName,
+                        arguments: [
+                            method.name,
+                            document.uri,
+                            "local"
+                        ]
+                    }),
+                    new vscode.CodeLens(range, {
+                        title: '☁️ Cloud Replay Debug',
+                        tooltip: `Debug ${name} with the replay debugger`,
+                        command: startDebuggingCodeLensCommandName,
+                        arguments: [
+                            method.name,
+                            document.uri,
+                            "cloud"
+                        ]
+                    }),
+                    new vscode.CodeLens(range, {
+                        title: '⏳ Time Travel Debug',
+                        tooltip: `Debug ${name} with the replay debugger`,
+                        command: startDebuggingCodeLensCommandName,
+                        arguments: [
+                            method.name,
+                            document.uri,
+                            "time-travel"
+                        ]
+                    }),
+                );
             }
             return lenses;
         } catch (e) {
             logger.error("provideCodeLenses", e);
+            return [];
         }
     }
 }
