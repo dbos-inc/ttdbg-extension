@@ -1,7 +1,7 @@
-import { logger } from '../extension';
-import * as DebugProxy from '../debugProxy';
+// import { logger } from '../extension';
+// import * as DebugProxy from '../debugProxy';
 
-export function shutdownDebugProxy() {
-  logger.debug("shutdownDebugProxy");
-  DebugProxy.shutdownDebugProxy();
-}
+// export function shutdownDebugProxy() {
+//   logger.debug("shutdownDebugProxy");
+//   DebugProxy.shutdownDebugProxy();
+// }
