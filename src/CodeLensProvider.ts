@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import ts from 'typescript';
 import { logger, startDebuggingCodeLensCommandName } from './extension';
 import { Pool, PoolClient } from 'pg';
-import { DbosConfig, loadConfigFile, locateDbosConfigFile } from './config';
+import { DbosConfig, loadConfigFile, locateDbosConfigFile } from './dbosConfig';
 import path from 'path';
 
 interface workflow_status {

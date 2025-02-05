@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { DbosCloudApp, getCloudDomain, DbosCloudDbInstance, listApps, listDbInstances, isUnauthorized, CloudCredentialManager } from './dbosCloudApi';
+import { DbosCloudApp, getCloudDomain, DbosCloudDbInstance, listApps, listDbInstances, isUnauthorized } from './dbosCloudApi';
+import { CloudCredentialManager } from './CloudCredentialManager';
 // import { config } from './extension';
 import { validateCredentials } from './validateCredentials';
 

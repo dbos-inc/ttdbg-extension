@@ -7,7 +7,7 @@ import { UriHandler } from './UriHandler';
 import { CloudDataProvider } from './CloudDataProvider';
 import { shutdownProvenanceDbConnectionPool } from './provenanceDb';
 import { shutdownDebugProxy } from './debugProxy';
-import { CloudCredentialManager } from './dbosCloudApi';
+import { CloudCredentialManager } from './CloudCredentialManager';
 
 export let logger: Logger;
 // export let config: Configuration;
