@@ -5,6 +5,9 @@ import { Pool, PoolClient } from 'pg';
 import { DbosConfig, loadConfigFile, locateDbosConfigFile } from './dbosConfig';
 import path from 'path';
 import { CloudCredentialManager } from './CloudCredentialManager';
+import { DbosCloudApp, DbosCloudCredential, DbosCloudDbInstance, getApp, getDbCredentials, getDbInstance, isUnauthorized } from './dbosCloudApi';
+import { appendFile } from 'fs';
+import { syncBuiltinESMExports } from 'module';
 
 interface workflow_status {
     workflow_uuid: string;
@@ -125,14 +128,34 @@ async function pickWorkflow(workflows: readonly WFStatus[]) {
 
 }
 
+async function getConnectionString(options?: StartDebuggingOptions) {
+    if (!options) { return; }
+
+    const { cred, app, dbInstance: dbi } = options;
+
+    const dbCred = await getDbCredentials(dbi.PostgresInstanceName, cred);
+    if (isUnauthorized(dbCred)) { return; }
+
+    return `postgresql://${dbi.DatabaseUsername}:${dbCred.Password}@${dbi.HostName}:${dbi.Port}/${app.ApplicationDatabaseName}`;
+}
+
+
+interface StartDebuggingOptions {
+    cred: DbosCloudCredential;
+    app: DbosCloudApp;
+    dbInstance: DbosCloudDbInstance;
+}
+
 export async function startDebuggingFromCodeLens(
     methodName: string,
     uri: vscode.Uri,
-    kind: "local" | "cloud" | "time-travel"
+    options?: StartDebuggingOptions
 ) {
     const configUri = await locateDbosConfigFile(uri);
     if (!configUri) { return; }
 
+    const cs = await getConnectionString(options);
+    
     const client = await connectionMap.getConnection(configUri);
     try {
         const result = await client.query<WFStatus>(
@@ -214,11 +237,33 @@ async function getDebugConfig(configUri: vscode.Uri, workflowID: string): Promis
 
 export class CodeLensProvider implements vscode.CodeLensProvider {
     constructor(private readonly credManager: CloudCredentialManager) { }
-    
+
+    async #getCloudOptions(uri: vscode.Uri) {
+        const cred = await this.credManager.getStoredCredential();
+        if (!cred) { return; }
+
+        const configUri = await locateDbosConfigFile(uri);
+        if (!configUri) { return; }
+
+        const config = await connectionMap.getConfig(configUri);
+
+        try {
+            const app = await getApp(config.name, cred);
+            if (isUnauthorized(app)) { return; }
+
+            const dbInstance = await getDbInstance(app.PostgresInstanceName, cred);
+            if (isUnauthorized(dbInstance)) { return; }
+
+            return { cred, app, dbInstance};
+        } catch (error) {
+            logger.debug("#getCloudDbInstance", error);
+            return;
+        }
+    }
+
     async provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): Promise<vscode.CodeLens[]> {
         try {
-            const configUri = await locateDbosConfigFile(document.uri);
-            const dbosConfig = configUri ? await loadConfigFile(configUri) : undefined;
+            const options = await this.#getCloudOptions(document.uri);
 
             const file = ts.createSourceFile(
                 document.fileName,
@@ -233,38 +278,21 @@ export class CodeLensProvider implements vscode.CodeLensProvider {
                 const end = document.positionAt(method.end);
                 const range = new vscode.Range(start, end);
                 const name = method.name;
-                lenses.push(
-                    new vscode.CodeLens(range, {
-                        title: '♻️ Replay Debug',
-                        tooltip: `Debug ${name} with the replay debugger`,
-                        command: startDebuggingCodeLensCommandName,
-                        arguments: [
-                            method.name,
-                            document.uri,
-                            "local"
-                        ]
-                    }),
-                    new vscode.CodeLens(range, {
+                lenses.push(new vscode.CodeLens(range, {
+                    title: '♻️ Replay Debug',
+                    tooltip: `Debug ${name} with the replay debugger`,
+                    command: startDebuggingCodeLensCommandName,
+                    arguments: [method.name, document.uri]
+                }));
+
+                if (options) {
+                    lenses.push(new vscode.CodeLens(range, {
                         title: '☁️ Cloud Replay Debug',
                         tooltip: `Debug ${name} with the replay debugger`,
                         command: startDebuggingCodeLensCommandName,
-                        arguments: [
-                            method.name,
-                            document.uri,
-                            "cloud"
-                        ]
-                    }),
-                    new vscode.CodeLens(range, {
-                        title: '⏳ Time Travel Debug',
-                        tooltip: `Debug ${name} with the replay debugger`,
-                        command: startDebuggingCodeLensCommandName,
-                        arguments: [
-                            method.name,
-                            document.uri,
-                            "time-travel"
-                        ]
-                    }),
-                );
+                        arguments: [method.name, document.uri, options]
+                    }));
+                }
             }
             return lenses;
         } catch (e) {

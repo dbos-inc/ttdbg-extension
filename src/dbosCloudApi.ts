@@ -39,6 +39,11 @@ export interface DbosCloudDbProxyRole {
   Secret: string;
 }
 
+export interface DbosCloudDbCredentials {
+  RoleName: string;
+	Password: string;
+}
+
 export interface DbosCloudDomain {
   cloudDomain: string;
   loginDomain: string;
@@ -283,6 +288,17 @@ export async function getDbProxyRole(dbName: string, { domain, token: accessToke
   };
 
   return fetchHelper('getDbProxyRole', url, request, async (response) => await response.json() as DbosCloudDbProxyRole, token);
+}
+
+
+export async function getDbCredentials(dbName: string, { domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbCredentials> {
+  const url = `https://${domain}/v1alpha1/${userName}/databases/userdb/${dbName}/credentials`;
+  const request = <RequestInit>{
+    method: 'GET',
+    headers: { 'authorization': `Bearer ${accessToken}` }
+  };
+
+  return fetchHelper('getDbCredentials', url, request, async (response) => await response.json() as DbosCloudDbCredentials, token);
 }
 
 export async function createDashboard({ domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<string | Unauthorized> {
