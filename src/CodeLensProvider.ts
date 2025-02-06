@@ -5,9 +5,7 @@ import { Pool, PoolClient } from 'pg';
 import { DbosConfig, loadConfigFile, locateDbosConfigFile } from './dbosConfig';
 import path from 'path';
 import { CloudCredentialManager } from './CloudCredentialManager';
-import { DbosCloudApp, DbosCloudCredential, DbosCloudDbInstance, getApp, getDbCredentials, getDbInstance, isUnauthorized } from './dbosCloudApi';
-import { appendFile } from 'fs';
-import { syncBuiltinESMExports } from 'module';
+import { getApp, getDbCredentials, getDbInstance, isUnauthorized } from './dbosCloudApi';
 
 interface workflow_status {
     workflow_uuid: string;
@@ -43,7 +41,7 @@ class ConnectionMap {
         let config = this.#configMap.get(key);
         if (!config) {
             config = await loadConfigFile(configUri);
-            logger.info("ConnectionMap.getConfig", {
+            logger.debug("ConnectionMap.getConfig", {
                 configUri: configUri.toString(),
                 config
             });
@@ -52,7 +50,16 @@ class ConnectionMap {
         return config;
     }
 
-    async getConnection(configUri: vscode.Uri): Promise<PoolClient> {
+    async getStringConnection(connString: string): Promise<PoolClient> {
+        let pool = this.#connectionMap.get(connString);
+        if (!pool) {
+            pool = new Pool({ connectionString: connString, ssl: { rejectUnauthorized: false } });
+            this.#connectionMap.set(connString, pool);
+        }
+        return await pool.connect();
+    }
+
+    async getConfigConnection(configUri: vscode.Uri): Promise<PoolClient> {
         const key = configUri.toString();
         let pool = this.#connectionMap.get(key);
         if (!pool) {
@@ -128,55 +135,40 @@ async function pickWorkflow(workflows: readonly WFStatus[]) {
 
 }
 
-async function getConnectionString(options?: StartDebuggingOptions) {
-    if (!options) { return; }
-
-    const { cred, app, dbInstance: dbi } = options;
-
-    const dbCred = await getDbCredentials(dbi.PostgresInstanceName, cred);
-    if (isUnauthorized(dbCred)) { return; }
-
-    return `postgresql://${dbi.DatabaseUsername}:${dbCred.Password}@${dbi.HostName}:${dbi.Port}/${app.ApplicationDatabaseName}`;
-}
-
-
-interface StartDebuggingOptions {
-    cred: DbosCloudCredential;
-    app: DbosCloudApp;
-    dbInstance: DbosCloudDbInstance;
-}
-
 export async function startDebuggingFromCodeLens(
     methodName: string,
     uri: vscode.Uri,
-    options?: StartDebuggingOptions
+    connString?: string,
 ) {
+    logger.info("startDebuggingFromCodeLens", {
+        methodName,
+        uri: uri.toString(),
+        connString: connString ?? null
+    });
+
     const configUri = await locateDbosConfigFile(uri);
+    logger.info("startDebuggingFromCodeLens", {
+        configUri: configUri?.toString() ?? null
+    });
     if (!configUri) { return; }
 
-    const cs = await getConnectionString(options);
-    
-    const client = await connectionMap.getConnection(configUri);
+    const client = await (connString
+        ? connectionMap.getStringConnection(connString)
+        : connectionMap.getConfigConnection(configUri));
     try {
         const result = await client.query<WFStatus>(
             "SELECT * FROM dbos.workflow_status WHERE (status = 'SUCCESS' OR status = 'ERROR') AND name = $1 ORDER BY created_at DESC",
             [methodName]);
-        logger.debug("startDebuggingFromCodeLens", {
-            methodName,
-            configUri: configUri.toString(),
-            rows: result.rows
+        logger.info("startDebuggingFromCodeLens", { 
+            rows: result.rows.map(r => ({ workflowID: r.workflow_uuid, status: r.status, created_at: r.created_at }))
         });
 
         const workflowID = await pickWorkflow(result.rows);
-        logger.info("startDebuggingFromCodeLens", {
-            methodName,
-            configUri: configUri.toString(),
-            workflowID: workflowID ?? null
-        });
+        logger.info("startDebuggingFromCodeLens", { workflowID: workflowID ?? null });
         if (!workflowID) { return; }
 
-        const debugConfig = await getDebugConfig(configUri, workflowID);
-        logger.info("launchDebugger", { debugConfig: debugConfig ?? null });
+        const debugConfig = await getDebugConfig(configUri, workflowID, connString);
+        logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
         if (!debugConfig) { return; }
 
         const folder = vscode.workspace.getWorkspaceFolder(configUri);
@@ -200,9 +192,13 @@ export async function startDebuggingFromCodeLens(
 
 const nodeExes: ReadonlyArray<string> = ['node', 'npm', 'npx'];
 
-async function getDebugConfig(configUri: vscode.Uri, workflowID: string): Promise<vscode.DebugConfiguration> {
+async function getDebugConfig(
+    configUri: vscode.Uri,
+    workflowID: string,
+    connString: string | undefined,
+): Promise<vscode.DebugConfiguration> {
     const config = await connectionMap.getConfig(configUri);
-    if (config.language !== "node") {
+    if (config.language && config.language !== "node") {
         throw new Error(`Unsupported language: ${config.language ?? null}`);
     }
 
@@ -213,13 +209,17 @@ async function getDebugConfig(configUri: vscode.Uri, workflowID: string): Promis
         cwd: path.dirname(configUri.fsPath),
         env: {
             DBOS_DEBUG_WORKFLOW_ID: workflowID,
+            DBOS_DEBUG_PROXY: connString,
         }
     };
 
     const start = config.runtime?.start ?? [];
     if (start.length === 0) {
         debugConfig.runtimeExecutable = "npx";
-        debugConfig.args = ['dbos', 'debug', '-u', workflowID];
+        debugConfig.args = ['dbos', 'debug', '--uuid', workflowID];
+        if (connString) {
+            debugConfig.args.push('--proxy', connString);
+        }
     } else if (start.length === 1) {
         const args = start[0].split(" ");
         if (!nodeExes.includes(args[0])) {
@@ -238,7 +238,7 @@ async function getDebugConfig(configUri: vscode.Uri, workflowID: string): Promis
 export class CodeLensProvider implements vscode.CodeLensProvider {
     constructor(private readonly credManager: CloudCredentialManager) { }
 
-    async #getCloudOptions(uri: vscode.Uri) {
+    async #getConnectionString(uri: vscode.Uri): Promise<string | undefined> {
         const cred = await this.credManager.getStoredCredential();
         if (!cred) { return; }
 
@@ -251,19 +251,23 @@ export class CodeLensProvider implements vscode.CodeLensProvider {
             const app = await getApp(config.name, cred);
             if (isUnauthorized(app)) { return; }
 
-            const dbInstance = await getDbInstance(app.PostgresInstanceName, cred);
-            if (isUnauthorized(dbInstance)) { return; }
+            const [dbi, dbCred] = await Promise.all([
+                getDbInstance(app.PostgresInstanceName, cred),
+                getDbCredentials(app.PostgresInstanceName, cred)
+            ]);
 
-            return { cred, app, dbInstance};
+            if (!isUnauthorized(dbi) && !isUnauthorized(dbCred)) {
+                return `postgresql://${dbi.DatabaseUsername}:${dbCred.Password}@${dbi.HostName}:${dbi.Port}/${config.sysDatabase}`;
+            }
+
         } catch (error) {
             logger.debug("#getCloudDbInstance", error);
-            return;
         }
     }
 
     async provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): Promise<vscode.CodeLens[]> {
         try {
-            const options = await this.#getCloudOptions(document.uri);
+            const connString = await this.#getConnectionString(document.uri);
 
             const file = ts.createSourceFile(
                 document.fileName,
@@ -285,12 +289,12 @@ export class CodeLensProvider implements vscode.CodeLensProvider {
                     arguments: [method.name, document.uri]
                 }));
 
-                if (options) {
+                if (connString) {
                     lenses.push(new vscode.CodeLens(range, {
                         title: '☁️ Cloud Replay Debug',
                         tooltip: `Debug ${name} with the replay debugger`,
                         command: startDebuggingCodeLensCommandName,
-                        arguments: [method.name, document.uri, options]
+                        arguments: [method.name, document.uri, connString]
                     }));
                 }
             }
