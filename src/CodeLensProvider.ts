@@ -104,6 +104,7 @@ interface DbConnectionInfo {
     port: number;
     user: string;
     password: string;
+    provDatabase?: string;
 }
 
 type AppInfo = DbosCloudApp & { timeTravel?: boolean };
@@ -223,15 +224,11 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                 db: db ?? null
             });
             if (!methodName || !config) { return; }
-            if (app?.timeTravel) {
-                vscode.window.showInformationMessage("Time-Travel Debugging not implemented yet");
-                return;
-            }
 
             const workflowID = await that.#pickWorkflow(methodName, config, db);
             logger.info("codeLensDebug", { workflowID: workflowID ?? null });
             if (!workflowID) { return; }
-
+            
             const debugConfig = that.#getDebugConfig(config, workflowID, db);
             logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
 
@@ -317,11 +314,11 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
         return app;
     }
 
-    async #getDbConnectionInfo(app: DbosCloudApp, token?: vscode.CancellationToken): Promise<DbConnectionInfo | undefined> {
+    async #getDbConnectionInfo(app: AppInfo, token?: vscode.CancellationToken): Promise<DbConnectionInfo | undefined> {
         const cred = await this.credManager.getCredential(undefined, false);
         if (!cred || token?.isCancellationRequested) { return; }
 
-        const key = `${app.Name}:${cred.domain}:${cred.userName}`;
+        const key = `${app.Name}:${cred.domain}:${cred.userName}` + (app.timeTravel ? ":prov" : "");
         let dbInfo = this.dbInfoMap.get(key);
         if (!dbInfo) {
             try {
@@ -335,9 +332,10 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                         port: dbi.Port,
                         user: dbi.DatabaseUsername,
                         password: dbCred.Password,
+                        provDatabase: app.timeTravel ? app.ProvenanceDatabaseName : undefined,
                     }
                     this.dbInfoMap.set(key, dbInfo)
-                }    
+                }
             } catch (error) {
                 logger.debug("#getCloudDatabase", error);
             }
@@ -364,9 +362,10 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
     }
 
     async #getDbClient(config: DbosConfig, db: DbConnectionInfo | undefined): Promise<PoolClient> {
+        const database = db?.provDatabase ?? config.sysDatabase;
         const key = db
-            ? `${db?.host}:${db?.port}:${db?.user}`
-            : `${config.poolConfig.host}:${config.poolConfig.port}:${config.poolConfig.user}`;
+            ? `${db?.host}:${db?.port}:${db?.user}:${database}`
+            : `${config.poolConfig.host}:${config.poolConfig.port}:${config.poolConfig.user}:${database}`;
         let pool = this.connectionMap.get(key);
         if (!pool) {
             if (db) {
@@ -375,14 +374,11 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                     port: db.port,
                     user: db.user,
                     password: db.password,
-                    database: config.sysDatabase,
+                    database,
                     ssl: { rejectUnauthorized: false }
                 });
             } else {
-                pool = new Pool({
-                    ...config.poolConfig,
-                    database: config.sysDatabase
-                });
+                pool = new Pool({ ...config.poolConfig, database });
             }
             this.connectionMap.set(key, pool);
         }

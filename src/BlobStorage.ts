@@ -27,12 +27,12 @@ const ARCHITECTURE = function () {
   }
 }();
 
-export interface CloudStorage {
+export interface BlobStorage {
   downloadVersion(version: string, token?: vscode.CancellationToken): Promise<Uint8Array | undefined>;
   getVersions(token?: vscode.CancellationToken): AsyncGenerator<string>;
 }
 
-export class S3CloudStorage implements CloudStorage {
+export class S3Storage implements BlobStorage {
   private readonly bucket: string;
   private readonly region: string;
   private readonly releaseName: string;

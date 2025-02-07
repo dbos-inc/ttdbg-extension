@@ -258,7 +258,11 @@ export async function getApp(appName: string, { domain, token: accessToken, user
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
-  return fetchHelper('getApp', url, request, async (response) => await response.json() as DbosCloudApp, token);
+  return fetchHelper('getApp', url, request, async (response) => {
+    // temporarily add ProvenanceDatabaseName to the response
+    const app = await response.json() as DbosCloudApp;
+    return { ...app, ProvenanceDatabaseName: app.ApplicationDatabaseName + "_dbos_prov" };
+  }, token);
 }
 
 export async function listDbInstances({ domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbInstance[]> {

@@ -3,7 +3,7 @@ import { CodeLensProvider } from './CodeLensProvider';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { CloudDataProvider } from './CloudDataProvider';
 import { CloudCredentialManager } from './CloudCredentialManager';
-import { S3CloudStorage } from './CloudStorage';
+import { S3Storage } from './BlobStorage';
 import { DebugProxyManager } from './DebugProxyManager';
 
 export let logger: Logger;
@@ -25,14 +25,14 @@ export async function activate(context: vscode.ExtensionContext) {
   const credManager = new CloudCredentialManager(context.secrets);
   const cloudDataProvider = new CloudDataProvider(credManager);
   const codeLensProvider = new CodeLensProvider(credManager);
-  const cloudStorage = new S3CloudStorage();
-  const debugProxyManager = new DebugProxyManager();
+  const blobStorage = new S3Storage();
+  const debugProxyManager = new DebugProxyManager(context.globalStorageUri);
 
   context.subscriptions.push(
     credManager,
     cloudDataProvider,
     codeLensProvider,
-    cloudStorage,
+    blobStorage,
     debugProxyManager,
 
     vscode.window.registerTreeDataProvider(
@@ -56,7 +56,7 @@ export async function activate(context: vscode.ExtensionContext) {
       CloudDataProvider.browseCloudApp),
     vscode.commands.registerCommand(
       updateDebugProxyCommandName,
-      debugProxyManager.getUpdateDebugProxyCommand(cloudStorage, context.globalStorageUri)),
+      debugProxyManager.getUpdateDebugProxyCommand(blobStorage)),
   );
 
   vscode.commands.executeCommand(updateDebugProxyCommandName);

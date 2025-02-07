@@ -5,7 +5,7 @@ import * as fs from 'node:fs/promises';
 import { execFile as cpExecFile } from "node:child_process";
 import { promisify } from 'node:util';
 import { logger } from './extension';
-import { CloudStorage } from './CloudStorage';
+import { BlobStorage } from './BlobStorage';
 import * as semver from 'semver';
 import { Configuration } from './Configuration';
 // import { CloudStorage } from './CloudStorage';
@@ -193,70 +193,77 @@ import { Configuration } from './Configuration';
 
 export class DebugProxyManager implements vscode.Disposable {
 
+  constructor(private readonly storageUri: vscode.Uri) { }
+
   dispose() {
   }
 
-  getUpdateDebugProxyCommand(s3: CloudStorage, storageUri: vscode.Uri) {
-    return async function () {
-      logger.debug("updateDebugProxy");
-      try {
-        const pathConfig = Configuration.proxyPathConfig;
-        if (pathConfig !== undefined) {
-          const localVersion = await getLocalVersion(pathConfig);
-          if (localVersion) {
-            logger.info(`Configured Debug Proxy version v${localVersion}.`);
-          } else {
-            logger.error("Failed to get the version of configured Debug Proxy.");
-          }
+  async updateDebugProxy(s3: BlobStorage) {
+    logger.debug("updateDebugProxy");
+    try {
+      const pathConfig = Configuration.proxyPathConfig;
+      if (pathConfig !== undefined) {
+        const localVersion = await getLocalVersion(pathConfig);
+        if (localVersion) {
+          logger.info(`Configured Debug Proxy version v${localVersion}.`);
+        } else {
+          logger.error("Failed to get the version of configured Debug Proxy.");
+        }
+        return;
+      }
+
+      const prerelease = Configuration.proxyPrereleaseConfig;
+      const remoteVersion = await getRemoteVersion(s3, prerelease);
+      if (remoteVersion === undefined) {
+        logger.error("Failed to get the latest version of Debug Proxy.");
+        return;
+      }
+      logger.info(`Debug Proxy remote version v${remoteVersion}.`);
+
+      const exeUri = exeFileName(this.storageUri);
+      const localVersion = await getLocalVersion(exeUri);
+      if (localVersion && semver.valid(localVersion) !== null) {
+        logger.info(`Debug Proxy local version v${localVersion}.`, { uri: exeUri.toString() });
+        if (semver.satisfies(localVersion, `>=${remoteVersion}`, { includePrerelease: true })) {
           return;
         }
+      }
 
-        const prerelease = Configuration.proxyPrereleaseConfig;
-        const remoteVersion = await getRemoteVersion(s3, prerelease);
-        if (remoteVersion === undefined) {
-          logger.error("Failed to get the latest version of Debug Proxy.");
-          return;
+      const message = localVersion
+        ? `Updating DBOS Debug Proxy to v${remoteVersion}.`
+        : `Installing DBOS Debug Proxy v${remoteVersion}.`;
+      logger.info(message);
+
+      await vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: message,
+        cancellable: true
+      }, async (_, token) => {
+        // create a CTS so we can cancel via withProgress token or options token
+        const cts = new vscode.CancellationTokenSource();
+        const disposables = new Array<vscode.Disposable>();
+        try {
+          token.onCancellationRequested(() => cts.cancel(), undefined, disposables);
+
+          // progress.report({ message: message });
+          await downloadRemoteVersion(s3, this.storageUri, remoteVersion, cts.token);
+          logger.info(`Debug Proxy updated to v${remoteVersion}.`);
+        } finally {
+          disposables.forEach(d => d.dispose());
+          cts.dispose();
         }
-        logger.info(`Debug Proxy remote version v${remoteVersion}.`);
-
-        const exeUri = exeFileName(storageUri);
-        const localVersion = await getLocalVersion(exeUri);
-        if (localVersion && semver.valid(localVersion) !== null) {
-          logger.info(`Debug Proxy local version v${localVersion}.`, { uri: exeUri.toString() });
-          if (semver.satisfies(localVersion, `>=${remoteVersion}`, { includePrerelease: true })) {
-            return;
-          }
-        }
-
-        const message = localVersion
-          ? `Updating DBOS Debug Proxy to v${remoteVersion}.`
-          : `Installing DBOS Debug Proxy v${remoteVersion}.`;
-        logger.info(message);
-
-        await vscode.window.withProgress({
-          location: vscode.ProgressLocation.Notification,
-          title: message,
-          cancellable: true
-        }, async (_, token) => {
-          // create a CTS so we can cancel via withProgress token or options token
-          const cts = new vscode.CancellationTokenSource();
-          const disposables = new Array<vscode.Disposable>();
-          try {
-            token.onCancellationRequested(() => cts.cancel(), undefined, disposables);
-
-            // progress.report({ message: message });
-            await downloadRemoteVersion(s3, storageUri, remoteVersion, cts.token);
-            logger.info(`Debug Proxy updated to v${remoteVersion}.`);
-          } finally {
-            disposables.forEach(d => d.dispose());
-            cts.dispose();
-          }
-        });
-      } catch (e) {
-        logger.error("updateDebugProxy", e);
-        vscode.window.showErrorMessage("Failed to update debug proxy");
-      };
+      });
+    } catch (e) {
+      logger.error("updateDebugProxy", e);
+      vscode.window.showErrorMessage("Failed to update debug proxy");
     };
+  };
+
+  getUpdateDebugProxyCommand(s3: BlobStorage) {
+    const that = this;
+    return async function () {
+      return that.updateDebugProxy(s3);
+    }
   }
 }
 
@@ -285,7 +292,7 @@ async function getLocalVersion(exeUri: vscode.Uri) {
   }
 }
 
-async function getRemoteVersion(s3: CloudStorage, includePrerelease: boolean, token?: vscode.CancellationToken) {
+async function getRemoteVersion(s3: BlobStorage, includePrerelease: boolean, token?: vscode.CancellationToken) {
   let latestVersion: string | undefined = undefined;
   for await (const version of s3.getVersions(token)) {
     if (semver.prerelease(version) && !includePrerelease) {
@@ -298,7 +305,7 @@ async function getRemoteVersion(s3: CloudStorage, includePrerelease: boolean, to
   return latestVersion;
 }
 
-async function downloadRemoteVersion(s3: CloudStorage, storageUri: vscode.Uri, version: string, token?: vscode.CancellationToken) {
+async function downloadRemoteVersion(s3: BlobStorage, storageUri: vscode.Uri, version: string, token?: vscode.CancellationToken) {
   if (!(await exists(storageUri))) {
     await vscode.workspace.fs.createDirectory(storageUri);
   }
