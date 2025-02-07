@@ -1,17 +1,19 @@
-// import * as vscode from 'vscode';
+import * as vscode from 'vscode';
 // import { exists } from './utility';
 // import { logger } from './extension';
 // import { type DbosCloudApp, type DbosCloudCredentials, type DbosCloudDomain, authenticate, getApp, getCloudDomain, getDbInstance, getDbProxyRole, isUnauthorized } from './dbosCloudApi';
 // import { validateCredentials } from './validateCredentials';
 
-// const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
+const TTDBG_CONFIG_SECTION = "dbos-ttdbg";
 // const PROV_DB_HOST = "prov_db_host";
 // const PROV_DB_PORT = "prov_db_port";
 // const PROV_DB_DATABASE = "prov_db_database";
 // const PROV_DB_USER = "prov_db_user";
 // const DEBUG_PROXY_PORT = "debug_proxy_port";
 // const DEBUG_PRE_LAUNCH_TASK = "debug_pre_launch_task";
-// const DEBUG_PROXY_PATH = "debug_proxy_path";
+const DEBUG_PROXY_PATH = "debug_proxy_path";
+const DEBUG_PROXY_PRERELEASE = "debug_proxy_prerelease";
+
 // const DEBUG_PROXY_LAUNCH = "debug_proxy_launch";
 
 // export function getLaunchProxyConfig() {
@@ -19,11 +21,20 @@
 //   return cfg.get<boolean>(DEBUG_PROXY_LAUNCH, true);
 // }
 
-// export function getProxyPathConfig() {
-//   const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION);
-//   const proxyPath = cfg.get<string>(DEBUG_PROXY_PATH);
-//   return proxyPath ? vscode.Uri.file(proxyPath) : undefined;
-// }
+export class Configuration {
+
+    static get proxyPathConfig() {
+        const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION);
+        const proxyPath = cfg.get<string>(DEBUG_PROXY_PATH);
+        return proxyPath ? vscode.Uri.file(proxyPath) : undefined;
+    }
+
+    static get proxyPrereleaseConfig() {
+        const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION);
+        return cfg.get<boolean>(DEBUG_PROXY_PRERELEASE) ?? false;
+    }
+
+}
 
 // export interface DbosDebugConfig {
 //   user: string;

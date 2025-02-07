@@ -1,136 +1,17 @@
-// import * as vscode from 'vscode';
-// import { ChildProcessWithoutNullStreams as ChildProcess, spawn } from "child_process";
-// import jszip from 'jszip';
-// import * as fs from 'node:fs/promises';
-// import { execFile as cpExecFile } from "node:child_process";
-// import { promisify } from 'node:util';
-// import * as semver from 'semver';
+import * as vscode from 'vscode';
+import { ChildProcessWithoutNullStreams as ChildProcess, spawn } from "child_process";
+import jszip from 'jszip';
+import * as fs from 'node:fs/promises';
+import { execFile as cpExecFile } from "node:child_process";
+import { promisify } from 'node:util';
+import { logger } from './extension';
+import { CloudStorage } from './CloudStorage';
+import * as semver from 'semver';
+import { Configuration } from './Configuration';
 // import { CloudStorage } from './CloudStorage';
-// import { logger } from './extension';
-// import { exists } from './utility';
 // import { DbosDebugConfig, getLaunchProxyConfig, getProxyPathConfig } from './Configuration';
 
-// const IS_WINDOWS = process.platform === "win32";
-// const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
 
-// function exeFileName(storageUri: vscode.Uri) {
-//   return vscode.Uri.joinPath(storageUri, EXE_FILE_NAME);
-// }
-
-// const execFile = promisify(cpExecFile);
-
-// async function getLocalVersion(exeUri: vscode.Uri) {
-//   // if (!(await exists(exeUri))) {
-//   //   return Promise.resolve(undefined);
-//   // }
-
-//   try {
-//     const { stdout } = await execFile(exeUri.fsPath, ["-version"]);
-//     return stdout.trim();
-//   } catch (e) {
-//     logger.error("Failed to get local debug proxy version", e);
-//     return undefined;
-//   }
-// }
-
-// async function getRemoteVersion(s3: CloudStorage, options?: UpdateDebugProxyOptions) {
-//   const includePrerelease = options?.includePrerelease ?? false;
-//   let latestVersion: string | undefined = undefined;
-//   for await (const version of s3.getVersions(options?.token)) {
-//     if (semver.prerelease(version) && !includePrerelease) {
-//       continue;
-//     }
-//     if (latestVersion === undefined || semver.gt(version, latestVersion)) {
-//       latestVersion = version;
-//     }
-//   }
-//   return latestVersion;
-// }
-
-// async function downloadRemoteVersion(s3: CloudStorage, storageUri: vscode.Uri, version: string, token?: vscode.CancellationToken) {
-//   if (!(await exists(storageUri))) {
-//     await vscode.workspace.fs.createDirectory(storageUri);
-//   }
-
-//   const response = await s3.downloadVersion(version, token);
-//   if (!response) { throw new Error(`Failed to download version ${version}`); }
-//   if (token?.isCancellationRequested) { throw new vscode.CancellationError(); }
-
-//   const zipFile = await jszip.loadAsync(response);
-//   if (token?.isCancellationRequested) { throw new vscode.CancellationError(); }
-
-//   const files = Object.keys(zipFile.files);
-//   if (files.length !== 1) { throw new Error(`Expected 1 file, got ${files.length}`); }
-
-//   const exeUri = exeFileName(storageUri);
-//   const exeBuffer = await zipFile.files[files[0]].async("uint8array");
-//   if (token?.isCancellationRequested) { throw new vscode.CancellationError(); }
-
-//   await vscode.workspace.fs.writeFile(exeUri, exeBuffer);
-//   await fs.chmod(exeUri.fsPath, 0o755);
-// }
-
-// interface UpdateDebugProxyOptions {
-//   includePrerelease?: boolean;
-//   token?: vscode.CancellationToken;
-// }
-
-// export async function updateDebugProxy(s3: CloudStorage, storageUri: vscode.Uri, options?: UpdateDebugProxyOptions) {
-//   logger.debug("updateDebugProxy", { storageUri: storageUri.fsPath, includePrerelease: options?.includePrerelease ?? false });
-  
-//   const pathConfig = getProxyPathConfig();
-//   if (pathConfig !== undefined) {
-//     const localVersion = await getLocalVersion(pathConfig);
-//     if (localVersion) {
-//       logger.info(`Configured Debug Proxy version v${localVersion}.`);
-//     } else {
-//       logger.error("Failed to get the version of configured Debug Proxy.");
-//     }
-//     return;
-//   }
-
-//   const remoteVersion = await getRemoteVersion(s3, options);
-//   if (remoteVersion === undefined) {
-//     logger.error("Failed to get the latest version of Debug Proxy.");
-//     return;
-//   }
-//   logger.info(`Debug Proxy remote version v${remoteVersion}.`);
-
-//   const exeUri = exeFileName(storageUri);
-//   const localVersion = await getLocalVersion(exeUri);
-//   if (localVersion && semver.valid(localVersion) !== null) {
-//     logger.info(`Debug Proxy local version v${localVersion}.`);
-//     if (semver.satisfies(localVersion, `>=${remoteVersion}`, { includePrerelease: true })) {
-//       return;
-//     }
-//   }
-
-//   const message = localVersion
-//     ? `Updating DBOS Debug Proxy to v${remoteVersion}.`
-//     : `Installing DBOS Debug Proxy v${remoteVersion}.`;
-//   logger.info(message);
-
-//   await vscode.window.withProgress({
-//     location: vscode.ProgressLocation.Notification,
-//     title: message,
-//     cancellable: true
-//   }, async (_, token) => {
-//     // create a CTS so we can cancel via withProgress token or options token
-//     const cts = new vscode.CancellationTokenSource();
-//     const disposables = new Array<vscode.Disposable>();
-//     try {
-//       token.onCancellationRequested(() => cts.cancel(), undefined, disposables);
-//       options?.token?.onCancellationRequested(() => cts.cancel(), undefined, disposables);
-
-//       // progress.report({ message: message });
-//       await downloadRemoteVersion(s3, storageUri, remoteVersion, cts.token);
-//       logger.info(`Debug Proxy updated to v${remoteVersion}.`);
-//     } finally {
-//       disposables.forEach(d => d.dispose());
-//       cts.dispose();
-//     }
-//   });
-// }
 
 // let terminal: DebugProxyTerminal | undefined = undefined;
 
@@ -144,19 +25,19 @@
 
 // export async function launchDebugProxy(storageUri: vscode.Uri, options: DbosDebugConfig & { proxyPort?: number }) {
 
-//   if (!getLaunchProxyConfig()) {
-//     logger.info("debug proxy launch is disabled");
-//     return;
-//   }
+//   // if (!getLaunchProxyConfig()) {
+//   //   logger.info("debug proxy launch is disabled");
+//   //   return;
+//   // }
 
-//   const exeUri = getProxyPathConfig() ?? exeFileName(storageUri);
-//   logger.debug("launchDebugProxy", { exeUri, launchOptions: options });
-//   if (!(await exists(exeUri))) {
-//     throw new Error("debug proxy doesn't exist", { cause: { path: exeUri.fsPath } });
-//   }
+//   // const exeUri = getProxyPathConfig() ?? exeFileName(storageUri);
+//   // logger.debug("launchDebugProxy", { exeUri, launchOptions: options });
+//   // if (!(await exists(exeUri))) {
+//   //   throw new Error("debug proxy doesn't exist", { cause: { path: exeUri.fsPath } });
+//   // }
 
-//   if (terminal?.matches(options)) { return; }
-//   shutdownDebugProxy();  
+//   // if (terminal?.matches(options)) { return; }
+//   // shutdownDebugProxy();  
 
 //   const password = typeof options.password === 'function' ? await options.password() : options.password;
 //   if (!password) { throw new Error("Invalid password"); }
@@ -194,13 +75,13 @@
 //     this.terminal.show();
 //   }
 
-//   matches(config: DbosDebugConfig) {
-//     if (!this.isRunning) { return false; }
-//     return this.options.host === config.host
-//       && this.options.database === config.database
-//       && this.options.user === config.user
-//       && this.options.port === config.port;
-//   }
+//   // matches(config: DbosDebugConfig) {
+//   //   if (!this.isRunning) { return false; }
+//   //   return this.options.host === config.host
+//   //     && this.options.database === config.database
+//   //     && this.options.user === config.user
+//   //     && this.options.port === config.port;
+//   // }
 // }
 
 // const ansiReset = "\x1b[0m";
@@ -309,3 +190,133 @@
 //     this.process?.kill();
 //   }
 // }
+
+export class DebugProxyManager implements vscode.Disposable {
+
+  dispose() {
+  }
+
+  getUpdateDebugProxyCommand(s3: CloudStorage, storageUri: vscode.Uri) {
+    return async function () {
+      logger.debug("updateDebugProxy");
+      try {
+        const pathConfig = Configuration.proxyPathConfig;
+        if (pathConfig !== undefined) {
+          const localVersion = await getLocalVersion(pathConfig);
+          if (localVersion) {
+            logger.info(`Configured Debug Proxy version v${localVersion}.`);
+          } else {
+            logger.error("Failed to get the version of configured Debug Proxy.");
+          }
+          return;
+        }
+
+        const prerelease = Configuration.proxyPrereleaseConfig;
+        const remoteVersion = await getRemoteVersion(s3, prerelease);
+        if (remoteVersion === undefined) {
+          logger.error("Failed to get the latest version of Debug Proxy.");
+          return;
+        }
+        logger.info(`Debug Proxy remote version v${remoteVersion}.`);
+
+        const exeUri = exeFileName(storageUri);
+        const localVersion = await getLocalVersion(exeUri);
+        if (localVersion && semver.valid(localVersion) !== null) {
+          logger.info(`Debug Proxy local version v${localVersion}.`, { uri: exeUri.toString() });
+          if (semver.satisfies(localVersion, `>=${remoteVersion}`, { includePrerelease: true })) {
+            return;
+          }
+        }
+
+        const message = localVersion
+          ? `Updating DBOS Debug Proxy to v${remoteVersion}.`
+          : `Installing DBOS Debug Proxy v${remoteVersion}.`;
+        logger.info(message);
+
+        await vscode.window.withProgress({
+          location: vscode.ProgressLocation.Notification,
+          title: message,
+          cancellable: true
+        }, async (_, token) => {
+          // create a CTS so we can cancel via withProgress token or options token
+          const cts = new vscode.CancellationTokenSource();
+          const disposables = new Array<vscode.Disposable>();
+          try {
+            token.onCancellationRequested(() => cts.cancel(), undefined, disposables);
+
+            // progress.report({ message: message });
+            await downloadRemoteVersion(s3, storageUri, remoteVersion, cts.token);
+            logger.info(`Debug Proxy updated to v${remoteVersion}.`);
+          } finally {
+            disposables.forEach(d => d.dispose());
+            cts.dispose();
+          }
+        });
+      } catch (e) {
+        logger.error("updateDebugProxy", e);
+        vscode.window.showErrorMessage("Failed to update debug proxy");
+      };
+    };
+  }
+}
+
+const IS_WINDOWS = process.platform === "win32";
+const EXE_FILE_NAME = `debug-proxy${IS_WINDOWS ? ".exe" : ""}`;
+
+function exeFileName(storageUri: vscode.Uri) {
+  return vscode.Uri.joinPath(storageUri, EXE_FILE_NAME);
+}
+
+const execFile = promisify(cpExecFile);
+
+function exists(uri: vscode.Uri): Thenable<boolean> {
+  return vscode.workspace.fs.stat(uri)
+    .then(_value => true, () => false);
+}
+
+async function getLocalVersion(exeUri: vscode.Uri) {
+  if (!await exists(exeUri)) { return undefined; }
+  try {
+    const { stdout } = await execFile(exeUri.fsPath, ["-version"]);
+    return stdout.trim();
+  } catch (e) {
+    logger.error("Failed to get local debug proxy version", e);
+    return undefined;
+  }
+}
+
+async function getRemoteVersion(s3: CloudStorage, includePrerelease: boolean, token?: vscode.CancellationToken) {
+  let latestVersion: string | undefined = undefined;
+  for await (const version of s3.getVersions(token)) {
+    if (semver.prerelease(version) && !includePrerelease) {
+      continue;
+    }
+    if (latestVersion === undefined || semver.gt(version, latestVersion)) {
+      latestVersion = version;
+    }
+  }
+  return latestVersion;
+}
+
+async function downloadRemoteVersion(s3: CloudStorage, storageUri: vscode.Uri, version: string, token?: vscode.CancellationToken) {
+  if (!(await exists(storageUri))) {
+    await vscode.workspace.fs.createDirectory(storageUri);
+  }
+
+  const response = await s3.downloadVersion(version, token);
+  if (!response) { throw new Error(`Failed to download version ${version}`); }
+  if (token?.isCancellationRequested) { throw new vscode.CancellationError(); }
+
+  const zipFile = await jszip.loadAsync(response);
+  if (token?.isCancellationRequested) { throw new vscode.CancellationError(); }
+
+  const files = Object.keys(zipFile.files);
+  if (files.length !== 1) { throw new Error(`Expected 1 file, got ${files.length}`); }
+
+  const exeUri = exeFileName(storageUri);
+  const exeBuffer = await zipFile.files[files[0]].async("uint8array");
+  if (token?.isCancellationRequested) { throw new vscode.CancellationError(); }
+
+  await vscode.workspace.fs.writeFile(exeUri, exeBuffer);
+  await fs.chmod(exeUri.fsPath, 0o755);
+}

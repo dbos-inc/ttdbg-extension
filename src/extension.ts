@@ -3,14 +3,16 @@ import { CodeLensProvider } from './CodeLensProvider';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { browseCloudApp, CloudDataProvider } from './CloudDataProvider';
 import { CloudCredentialManager } from './CloudCredentialManager';
+import { S3CloudStorage } from './CloudStorage';
+import { DebugProxyManager } from './debugProxy';
 
 export let logger: Logger;
-// export let config: Configuration;
 
 const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
 const deleteDomainCredentialsCommandName = "dbos-ttdbg.delete-domain-credentials";
 export const startDebuggingCodeLensCommandName = "dbos-ttdbg.start-debugging-code-lens";
 const browseCloudAppCommandName = "dbos-ttdbg.browse-cloud-app";
+const updateDebugProxyCommandName = "dbos-ttdbg.update-debug-proxy";
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -23,11 +25,15 @@ export async function activate(context: vscode.ExtensionContext) {
   const credManager = new CloudCredentialManager(context.secrets);
   const cloudDataProvider = new CloudDataProvider(credManager);
   const codeLensProvider = new CodeLensProvider(credManager);
+  const cloudStorage = new S3CloudStorage();
+  const debugProxyManager = new DebugProxyManager();
 
   context.subscriptions.push(
     credManager,
     cloudDataProvider,
     codeLensProvider,
+    cloudStorage,
+    debugProxyManager,
 
     vscode.window.registerTreeDataProvider(
       "dbos-ttdbg.views.resources",
@@ -48,7 +54,12 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       browseCloudAppCommandName,
       browseCloudApp),
+    vscode.commands.registerCommand(
+      updateDebugProxyCommandName,
+      debugProxyManager.getUpdateDebugProxyCommand(cloudStorage, context.globalStorageUri)),
   );
+
+  vscode.commands.executeCommand(updateDebugProxyCommandName);
 
   // config = new Configuration(context.secrets, context.workspaceState);
 
@@ -71,7 +82,6 @@ export async function activate(context: vscode.ExtensionContext) {
   //   vscode.window.registerUriHandler(new UriHandler())
   // );
 
-  // vscode.commands.executeCommand(updateDebugProxyCommandName);
 }
 
 export function deactivate() { }
