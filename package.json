@@ -42,14 +42,17 @@
         "title": "Browse DBOS Cloud App",
         "category": "DBOS",
         "icon": "$(globe)"
-      }
+      },
+      {
+        "command": "dbos-ttdbg.launch-debug-proxy",
+        "title": "Launch Debug Proxy",
+        "category": "DBOS",
+        "icon": "$(debug)"
+      } 
     ],
     "configuration": {
       "title": "DBOS Time Travel Debugger",
       "properties": {
-        "dbos-ttdbg.debug_pre_launch_task": {
-          "type": "string"
-        },
         "dbos-ttdbg.debug_proxy_port": {
           "type": "number",
           "default": 2345
@@ -62,18 +65,6 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically launch the debug proxy when debugging."
-        },
-        "dbos-ttdbg.prov_db_database": {
-          "type": "string"
-        },
-        "dbos-ttdbg.prov_db_host": {
-          "type": "string"
-        },
-        "dbos-ttdbg.prov_db_port": {
-          "type": "number"
-        },
-        "dbos-ttdbg.prov_db_user": {
-          "type": "string"
         }
       }
     },
@@ -90,6 +81,11 @@
         },
         {
           "command": "dbos-ttdbg.browse-cloud-app",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp",
+          "group": "inline"
+        },
+        {
+          "command": "dbos-ttdbg.launch-debug-proxy",
           "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp",
           "group": "inline"
         }

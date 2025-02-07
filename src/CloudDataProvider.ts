@@ -75,7 +75,7 @@ class CloudResourceTypeItem extends vscode.TreeItem {
   }
 }
 
-class CloudAppItem extends vscode.TreeItem {
+export class CloudAppItem extends vscode.TreeItem {
   constructor(readonly app: DbosCloudApp) {
     super(app.Name, vscode.TreeItemCollapsibleState.None);
     this.contextValue = "cloudApp";
