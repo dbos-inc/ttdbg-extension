@@ -114,7 +114,11 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
 
   constructor(private readonly credManager: CloudCredentialManager) {
     const { cloudDomain } = getCloudDomain();
-    this.domains = [new CloudDomainItem(cloudDomain, this.getStoredCredential.bind(this))];
+    this.domains = [
+      new CloudDomainItem(
+        cloudDomain,
+        (domain) => this.credManager.getStoredCredential(domain))
+    ];
   }
 
   async refresh(domain: string) {
