@@ -66,6 +66,7 @@ interface ConfigFile {
 }
 
 export interface DbosConfig {
+    uri: vscode.Uri;
     name: string;
     language?: string;
     poolConfig: PoolConfig;
@@ -80,13 +81,15 @@ export interface DbosConfig {
     };
 }
 
-export async function loadConfigFile(configUri: vscode.Uri): Promise<DbosConfig> {
+export async function loadConfigFile(configUri: vscode.Uri, token?: vscode.CancellationToken): Promise<DbosConfig | undefined> {
     try {
         const configContent = await fs.readFile(configUri.fsPath, 'utf-8');
+        if (token?.isCancellationRequested) { return; }
         const interpolatedContent = substituteEnvVars(configContent);
         const configFile = YAML.parse(interpolatedContent) as ConfigFile;
 
         const appName = configFile.name ?? await loadPackageName(configUri);
+        if (token?.isCancellationRequested) { return; }
         if (!appName) {
             throw new Error(
                 'application name not defined in dbos-config.yaml or package.json',
@@ -101,6 +104,7 @@ export async function loadConfigFile(configUri: vscode.Uri): Promise<DbosConfig>
         const runtimeConfig = configFile.runtimeConfig;
 
         const databaseConnection = await loadDbConnection(configUri);
+        if (token?.isCancellationRequested) { return; }
         const hostName = configFile.database.hostname ?? databaseConnection?.hostname ?? "localhost";
         const port = configFile.database.port ?? databaseConnection?.port ?? 5432;
         const userName = configFile.database.username ?? databaseConnection?.username ?? "postgres";
@@ -121,6 +125,7 @@ export async function loadConfigFile(configUri: vscode.Uri): Promise<DbosConfig>
         };
 
         return {
+            uri: configUri,
             name: appName,
             language,
             runtime: runtimeConfig,

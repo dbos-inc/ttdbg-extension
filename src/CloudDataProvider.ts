@@ -11,7 +11,6 @@ class CloudDomainLoginNeededItem extends vscode.TreeItem {
 
 const domainLoginNeeded = new CloudDomainLoginNeededItem();
 
-
 class CloudDomainItem extends vscode.TreeItem {
   readonly appItem: CloudResourceTypeItem;
   readonly dbInstanceItem: CloudResourceTypeItem;
@@ -106,22 +105,30 @@ Status: ${dbi.Status}`;
 
 type CloudProviderNode = CloudDomainItem | CloudResourceTypeItem | CloudAppItem | CloudDbInstanceItem | CloudDomainLoginNeededItem;
 
-export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderNode> {
+export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderNode>, vscode.Disposable {
   private readonly onDidChangeTreeDataEmitter = new vscode.EventEmitter<CloudProviderNode | CloudProviderNode[] | undefined | null | void>();
-  readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
-
+  private readonly credChangeSub: vscode.Disposable;
   private readonly domains: Array<CloudDomainItem>;
 
+  readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
+
   constructor(private readonly credManager: CloudCredentialManager) {
+    this.credChangeSub = credManager.onCredentialChange(this.#refresh.bind(this));
+
     const { cloudDomain } = getCloudDomain();
     this.domains = [
       new CloudDomainItem(
         cloudDomain,
-        (domain) => this.credManager.getStoredCredential(domain))
+        (domain) => this.credManager.getCredential(domain))
     ];
   }
 
-  async refresh(domain: string) {
+  dispose() {
+    this.credChangeSub.dispose();
+    this.onDidChangeTreeDataEmitter.dispose();
+  }
+
+  async #refresh(domain: string) {
     const node = this.domains.find(d => d.domain === domain);
     if (node) {
       node.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
@@ -132,6 +139,7 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
   getTreeItem(element: CloudProviderNode): vscode.TreeItem | Thenable<vscode.TreeItem> {
     return element;
   }
+
   async getChildren(element?: CloudProviderNode | undefined): Promise<CloudProviderNode[]> {
     if (element === undefined) {
       return this.domains;
@@ -149,13 +157,14 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
   }
 
   async getStoredCredential(domain: string) {
-    const credential = await this.credManager.getStoredCredential(domain);
+    const credential = await this.credManager.getCredential(domain);
     return CloudCredentialManager.isCredentialValid(credential) ? credential : undefined;
   }
 }
 
 export async function browseCloudApp(item?: CloudAppItem) {
-  if (!item) { return; }
-  const uri = vscode.Uri.parse(item.app.AppURL);
-  await vscode.env.openExternal(uri);
+  if (item) {
+    const uri = vscode.Uri.parse(item.app.AppURL);
+    await vscode.env.openExternal(uri);
+  }
 }

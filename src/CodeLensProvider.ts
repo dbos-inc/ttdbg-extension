@@ -3,9 +3,9 @@ import ts from 'typescript';
 import { logger, startDebuggingCodeLensCommandName } from './extension';
 import { Pool, PoolClient } from 'pg';
 import { DbosConfig, loadConfigFile, locateDbosConfigFile } from './dbosConfig';
-import path from 'path';
 import { CloudCredentialManager } from './CloudCredentialManager';
-import { getApp, getDbCredentials, getDbInstance, isUnauthorized } from './dbosCloudApi';
+import { DbosCloudApp, getApp, getDbCredentials, getDbInstance, isUnauthorized } from './dbosCloudApi';
+import path from 'node:path';
 
 interface workflow_status {
     workflow_uuid: string;
@@ -24,66 +24,14 @@ interface workflow_status {
     queue_name?: string;
 }
 
-class ConnectionMap {
-    readonly #connectionMap = new Map<string, Pool>();
-    readonly #configMap = new Map<string, DbosConfig>();
-
-    async dispose() {
-        const connections = [...this.#connectionMap.values()];
-        this.#connectionMap.clear();
-        for (const pool of connections) {
-            await pool.end();
-        }
-    }
-
-    async getConfig(configUri: vscode.Uri): Promise<DbosConfig> {
-        const key = configUri.toString();
-        let config = this.#configMap.get(key);
-        if (!config) {
-            config = await loadConfigFile(configUri);
-            logger.debug("ConnectionMap.getConfig", {
-                configUri: configUri.toString(),
-                config
-            });
-            this.#configMap.set(key, config);
-        }
-        return config;
-    }
-
-    async getConfigConnection(configUri: vscode.Uri, env: CloudDatabaseEnv | undefined): Promise<PoolClient> {
-        const key =  env
-            ? `${env.DBOS_DBHOST}:${env.DBOS_DBPORT}:${env.DBOS_DBUSER}`
-            : configUri.toString();
-        let pool = this.#connectionMap.get(key);
-        if (!pool) {
-            const config = await this.getConfig(configUri);
-            if (env) {
-                pool = new Pool({ 
-                    host: env.DBOS_DBHOST,
-                    port: parseInt(env.DBOS_DBPORT),
-                    user: env.DBOS_DBUSER,
-                    password: env.DBOS_DBPASSWORD,
-                    database: config.sysDatabase,
-                    ssl: { rejectUnauthorized: false } 
-                });
-            } else {
-                pool = new Pool({ 
-                    ...config.poolConfig, 
-                    database: config.sysDatabase 
-                });
-            }
-            this.#connectionMap.set(key, pool);
-        }
-        return await pool.connect();
-    }
-}
-
-export const connectionMap = new ConnectionMap();
-
 type WFStatus = workflow_status & { created_at: string, updated_at: string };
 
-async function pickWorkflow(workflows: readonly WFStatus[]) {
-    const items = workflows.map(status => <vscode.QuickPickItem>{
+async function pickWorkflow(client: PoolClient, methodName: string) {
+
+    const result = await client.query<WFStatus>(
+        "SELECT * FROM dbos.workflow_status WHERE (status = 'SUCCESS' OR status = 'ERROR') AND name = $1 ORDER BY created_at DESC",
+        [methodName]);
+    const items = result.rows.map(status => <vscode.QuickPickItem>{
         label: new Date(parseInt(status.created_at)).toLocaleString(),
         description: `${status.status}${status.authenticated_user.length !== 0 ? ` (${status.authenticated_user})` : ""}`,
         detail: status.workflow_uuid,
@@ -138,184 +86,271 @@ async function pickWorkflow(workflows: readonly WFStatus[]) {
     } finally {
         disposables.forEach(d => d.dispose());
     }
-
 }
 
-export async function startDebuggingFromCodeLens(
-    methodName: string,
-    uri: vscode.Uri,
-    env: CloudDatabaseEnv | undefined,
-) {
-    logger.info("startDebuggingFromCodeLens", {
-        methodName,
-        uri: uri.toString(),
-        env: env ?? null
-    });
+class DbosCodeLens extends vscode.CodeLens {
+    constructor(
+        range: vscode.Range,
+        public readonly uri: vscode.Uri,
+        public readonly name: string,
+        public readonly kind: "local" | "cloud" | "time-travel",
+    ) {
+        super(range);
+    }
+}
 
-    const configUri = await locateDbosConfigFile(uri);
-    logger.info("startDebuggingFromCodeLens", {
-        configUri: configUri?.toString() ?? null
-    });
-    if (!configUri) { return; }
+interface DbConnectionInfo {
+    host: string;
+    port: number;
+    user: string;
+    password: string;
+}
 
-    const client = await connectionMap.getConfigConnection(configUri, env);
-    try {
-        const result = await client.query<WFStatus>(
-            "SELECT * FROM dbos.workflow_status WHERE (status = 'SUCCESS' OR status = 'ERROR') AND name = $1 ORDER BY created_at DESC",
-            [methodName]);
-        logger.info("startDebuggingFromCodeLens", { 
-            rows: result.rows.map(r => ({ workflowID: r.workflow_uuid, status: r.status, created_at: r.created_at }))
-        });
+const nodeExecutables: ReadonlyArray<string> = ['node', 'npm', 'npx'];
 
-        const workflowID = await pickWorkflow(result.rows);
-        logger.info("startDebuggingFromCodeLens", { workflowID: workflowID ?? null });
-        if (!workflowID) { return; }
+export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, vscode.Disposable {
+    private readonly onDidChangeCodeLensesEmitter = new vscode.EventEmitter<void>();
+    private readonly credChangeSub: vscode.Disposable;
+    private readonly connectionMap = new Map<string, Pool>();
+    private readonly configMap = new Map<string, DbosConfig>();
 
-        const debugConfig = await getDebugConfig(configUri, workflowID, env);
-        logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
-        if (!debugConfig) { return; }
+    readonly onDidChangeCodeLenses = this.onDidChangeCodeLensesEmitter.event;
 
-        const folder = vscode.workspace.getWorkspaceFolder(configUri);
-        const debuggerStarted = await vscode.debug.startDebugging(folder, debugConfig);
-        if (!debuggerStarted) {
-            throw new Error("launchDebugger: Debugger failed to start", {
-                cause: {
-                    configUri,
-                    workflowID,
-                    debugConfig,
-                    folder,
-                }
+    constructor(private readonly credManager: CloudCredentialManager) {
+        this.credChangeSub = credManager.onCredentialChange(
+            () => {
+                this.onDidChangeCodeLensesEmitter.fire();
             });
+    }
+
+    dispose() {
+        this.credChangeSub.dispose();
+        this.onDidChangeCodeLensesEmitter.dispose();
+
+        const connections = [...this.connectionMap.values()];
+        this.connectionMap.clear();
+        for (const pool of connections) {
+            pool.end().catch(e => logger.error("dispose", e));
         }
-    } catch (e) {
-        logger.error("startDebuggingFromCodeLens", e);
-    } finally {
-        client.release();
-    }
-}
-
-const nodeExes: ReadonlyArray<string> = ['node', 'npm', 'npx'];
-
-async function getDebugConfig(
-    configUri: vscode.Uri,
-    workflowID: string,
-    env: CloudDatabaseEnv | undefined,
-): Promise<vscode.DebugConfiguration> {
-    const config = await connectionMap.getConfig(configUri);
-    if (config.language && config.language !== "node") {
-        throw new Error(`Unsupported language: ${config.language ?? null}`);
     }
 
-    const debugConfig: vscode.DebugConfiguration = {
-        type: 'node',
-        request: 'launch',
-        name: 'Replay Debug',
-        cwd: path.dirname(configUri.fsPath),
-        env: { 
-            ...env, 
-            DBOS_DEBUG_WORKFLOW_ID: workflowID,
-        }
-    };
-
-    const start = config.runtime?.start ?? [];
-    if (start.length === 0) {
-        debugConfig.runtimeExecutable = "npx";
-        debugConfig.args = ['dbos', 'debug', '--uuid', workflowID];
-    } else if (start.length === 1) {
-        const args = start[0].split(" ");
-        if (!nodeExes.includes(args[0])) {
-            throw new Error("Unsupported runtimeExecutable: " + args[0]);
-        }
-        debugConfig.runtimeExecutable = args[0];
-        debugConfig.args = args.slice(1);
-    }
-    else {
-        throw new Error("multiple runtimeConfig.start commands not implemented");
-    }
-
-    return debugConfig;
-}
-
-interface CloudDatabaseEnv {
-    DBOS_DBHOST: string;
-    DBOS_DBPORT: string;
-    DBOS_DBUSER: string;
-    DBOS_DBPASSWORD: string;
-    DBOS_DBLOCALSUFFIX: string;
-}
-
-export class CodeLensProvider implements vscode.CodeLensProvider {
-    constructor(private readonly credManager: CloudCredentialManager) { }
-
-    async #getCloudEnv(config: DbosConfig): Promise<CloudDatabaseEnv | undefined> {
-        const cred = await this.credManager.getStoredCredential();
-        if (!cred) { return; }
+    provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): DbosCodeLens[] | undefined {
+        logger.debug("provideCodeLenses", { uri: document.uri.toString() });
 
         try {
-            const app = await getApp(config.name, cred);
-            if (isUnauthorized(app)) { return; }
-
-            const [dbi, dbCred] = await Promise.all([
-                getDbInstance(app.PostgresInstanceName, cred),
-                getDbCredentials(app.PostgresInstanceName, cred)
-            ]);
-
-            if (!isUnauthorized(dbi) && !isUnauthorized(dbCred)) {
-                return {
-                    DBOS_DBHOST: dbi.HostName,
-                    DBOS_DBPORT: `${dbi.Port}`,
-                    DBOS_DBUSER: dbi.DatabaseUsername,
-                    DBOS_DBPASSWORD: dbCred.Password,
-                    DBOS_DBLOCALSUFFIX: "false",
-                }
-            }
-
-        } catch (error) {
-            logger.debug("#getCloudDbInstance", error);
-        }
-    }
-
-    async provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): Promise<vscode.CodeLens[]> {
-        try {
-            const configUri = await locateDbosConfigFile(document.uri);
-            if (!configUri) { return []; }
-
-            const config = await connectionMap.getConfig(configUri);
-            const env = await this.#getCloudEnv(config);
-
             const file = ts.createSourceFile(
                 document.fileName,
                 document.getText(),
                 ts.ScriptTarget.Latest
             );
 
-            const lenses = new Array<vscode.CodeLens>();
+            const lenses = new Array<DbosCodeLens>();
             for (const method of getWorkflowMethods(file)) {
-                logger.debug("provideCodeLenses", method);
+                if (token.isCancellationRequested) break;
                 const start = document.positionAt(method.start);
                 const end = document.positionAt(method.end);
                 const range = new vscode.Range(start, end);
-                const name = method.name;
-                lenses.push(new vscode.CodeLens(range, {
-                    title: '♻️ Replay Debug',
-                    tooltip: `Debug ${name} with the replay debugger`,
-                    command: startDebuggingCodeLensCommandName,
-                    arguments: [method.name, configUri]
-                }));
-
-                if (env) {
-                    lenses.push(new vscode.CodeLens(range, {
-                        title: '☁️ Cloud Replay Debug',
-                        tooltip: `Debug ${name} with the replay debugger`,
-                        command: startDebuggingCodeLensCommandName,
-                        arguments: [method.name, configUri, env]
-                    }));
-                }
+                lenses.push(
+                    new DbosCodeLens(range, document.uri, method.name, "local"),
+                    new DbosCodeLens(range, document.uri, method.name, "cloud"),
+                    new DbosCodeLens(range, document.uri, method.name, "time-travel"),
+                );
             }
             return lenses;
         } catch (e) {
             logger.error("provideCodeLenses", e);
-            return [];
+        }
+    }
+
+    async resolveCodeLens(codeLens: DbosCodeLens, token: vscode.CancellationToken): Promise<DbosCodeLens> {
+        logger.debug("resolveCodeLens", { name: codeLens.name, uri: codeLens.uri.toString(), kind: codeLens.kind });
+
+        const config = await this.#getConfig(codeLens.uri, token);
+        if (config) {
+            const name = codeLens.name;
+            if (codeLens.kind === "local") {
+                codeLens.command = {
+                    title: '♻️ Replay Debug',
+                    tooltip: `Debug ${name} with the replay debugger`,
+                    command: startDebuggingCodeLensCommandName,
+                    arguments: [name, config]
+                }
+            }
+            if (codeLens.kind === "cloud") {
+                const app = await this.#getCloudApp(config, token);
+                if (app) {
+                    codeLens.command = {
+                        title: '☁️ Cloud Replay Debug',
+                        tooltip: `Debug ${name} with the cloud replay debugger`,
+                        command: startDebuggingCodeLensCommandName,
+                        arguments: [name, config, app]
+                    }
+                }
+            }
+        }
+        return codeLens;
+    }
+
+    getCodeLensDebugCommand() {
+        const that = this;
+        return async function (
+            methodName?: string,
+            config?: DbosConfig,
+            app?: DbosCloudApp,
+        ) {
+            const db = app ? await that.#getDbConnectionInfo(app) : undefined;
+            logger.info("codeLensDebug", {
+                methodName: methodName ?? null,
+                config: config?.toString() ?? null,
+                app: app ?? null,
+                db: db ?? null
+            });
+            if (!methodName || !config) { return; }
+
+            const workflowID = await that.#pickWorkflow(methodName, config, db);
+            logger.info("codeLensDebug", { workflowID: workflowID ?? null });
+            if (!workflowID) { return; }
+
+            const debugConfig = that.#getDebugConfig(config, workflowID, db);
+            logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
+
+            const folder = vscode.workspace.getWorkspaceFolder(config.uri);
+            const debuggerStarted = await vscode.debug.startDebugging(folder, debugConfig);
+            if (!debuggerStarted) {
+                throw new Error("launchDebugger: Debugger failed to start", {
+                    cause: {
+                        configUri: config.uri.toString(),
+                        workflowID,
+                        debugConfig,
+                        folder,
+                    }
+                });
+            }
+        }
+    }
+
+    #getDebugConfig(config: DbosConfig, workflowID: string, db?: DbConnectionInfo): vscode.DebugConfiguration {
+        if (config.language && config.language !== "node") {
+            throw new Error(`Unsupported language: ${config.language ?? null}`);
+        }
+
+        const debugConfig: vscode.DebugConfiguration = {
+            type: 'node',
+            request: 'launch',
+            name: 'Replay Debug',
+            cwd: path.dirname(config.uri.fsPath),
+            env: {
+                DBOS_DEBUG_WORKFLOW_ID: workflowID,
+                DBOS_DBHOST: db?.host,
+                DBOS_DBPORT: db?.port.toString(),
+                DBOS_DBUSER: db?.user,
+                DBOS_DBPASSWORD: db?.password,
+                DBOS_DBLOCALSUFFIX: db ? "false" : undefined,
+            }
+        };
+
+        const start = config.runtime?.start ?? [];
+        if (start.length === 0) {
+            debugConfig.runtimeExecutable = "npx";
+            debugConfig.args = ['dbos', 'debug', '--uuid', workflowID];
+        } else if (start.length === 1) {
+            const args = start[0].split(" ");
+            if (!nodeExecutables.includes(args[0])) {
+                throw new Error("Unsupported runtimeExecutable: " + args[0]);
+            }
+            debugConfig.runtimeExecutable = args[0];
+            debugConfig.args = args.slice(1);
+        }
+        else {
+            throw new Error("multiple runtimeConfig.start commands not implemented");
+        }
+
+        return debugConfig;
+    }
+
+    async #pickWorkflow(methodName: string, config: DbosConfig, db: DbConnectionInfo | undefined) {
+        const client = await this.#getDbClient(config, db);
+        try {
+            return await pickWorkflow(client, methodName);
+        } finally {
+            client.release();
+        }
+    }
+
+    async #getCloudApp(config: DbosConfig, token?: vscode.CancellationToken) {
+        try {
+            const cred = await this.credManager.getCredential(undefined, false);
+            if (!cred || token?.isCancellationRequested) { return; }
+            const app = await getApp(config.name, cred, token);
+            return isUnauthorized(app) ? undefined : app;
+        } catch (error) {
+            logger.debug("#getCloudApp", error);
+        }
+    }
+
+    async #getConfig(uri: vscode.Uri, token?: vscode.CancellationToken): Promise<DbosConfig | undefined> {
+        const configUri = await locateDbosConfigFile(uri);
+        if (!configUri) { return; }
+        const key = configUri.toString();
+        let config = this.configMap.get(key);
+        if (!config) {
+            config = await loadConfigFile(configUri, token);
+            logger.debug("ConnectionMap.getConfig", {
+                configUri: configUri.toString(),
+                config: config ?? null
+            });
+            if (config) {
+                this.configMap.set(key, config);
+            }
+        }
+        return config;
+    }
+
+    async #getDbClient(config: DbosConfig, db: DbConnectionInfo | undefined): Promise<PoolClient> {
+        const key = db
+            ? `${db?.host}:${db?.port}:${db?.user}`
+            : `${config.poolConfig.host}:${config.poolConfig.port}:${config.poolConfig.user}`;
+        let pool = this.connectionMap.get(key);
+        if (!pool) {
+            if (db) {
+                pool = new Pool({
+                    host: db.host,
+                    port: db.port,
+                    user: db.user,
+                    password: db.password,
+                    database: config.sysDatabase,
+                    ssl: { rejectUnauthorized: false }
+                });
+            } else {
+                pool = new Pool({
+                    ...config.poolConfig,
+                    database: config.sysDatabase
+                });
+            }
+            this.connectionMap.set(key, pool);
+        }
+        return await pool.connect();
+    }
+
+    async #getDbConnectionInfo(app: DbosCloudApp, token?: vscode.CancellationToken): Promise<DbConnectionInfo | undefined> {
+        try {
+            const cred = await this.credManager.getCredential(undefined, false);
+            if (!cred || token?.isCancellationRequested) { return; }
+            const [dbi, dbCred] = await Promise.all([
+                getDbInstance(app.PostgresInstanceName, cred, token),
+                getDbCredentials(app.PostgresInstanceName, cred, token)
+            ]);
+
+            if (!isUnauthorized(dbi) && !isUnauthorized(dbCred)) {
+                return {
+                    host: dbi.HostName,
+                    port: dbi.Port,
+                    user: dbi.DatabaseUsername,
+                    password: dbCred.Password,
+                }
+            }
+        } catch (error) {
+            logger.debug("#getCloudDatabase", error);
         }
     }
 }
@@ -339,6 +374,27 @@ export interface StaticMethodInfo {
     decorators: DecoratorInfo[];
 }
 
+export function* getWorkflowMethods(file: ts.SourceFile) {
+    const importMap = new Map<string, NamedImportInfo>();
+    for (const imp of getImports(file)) {
+        importMap.set(imp.alias, imp);
+    }
+
+    for (const method of getStaticMethods(file)) {
+        for (const d of method.decorators) {
+            const imp = importMap.get(d.name);
+            if (!imp) { continue; }
+            if (imp.moduleName !== '@dbos-inc/dbos-sdk') { continue; }
+            if (imp.name === 'Workflow' && d.propertyName === undefined) {
+                yield method;
+            }
+            else if (imp.name === 'DBOS' && d.propertyName === 'workflow') {
+                yield method;
+            }
+        }
+    }
+}
+
 export function* getImports(file: ts.SourceFile): Generator<NamedImportInfo, void, unknown> {
     for (const node of file.statements) {
         if (ts.isImportDeclaration(node)) {
@@ -358,19 +414,6 @@ export function* getImports(file: ts.SourceFile): Generator<NamedImportInfo, voi
         }
     }
 }
-
-export function parseDecorator(node: ts.Decorator): DecoratorInfo | undefined {
-    if (!ts.isCallExpression(node.expression)) { return; }
-    const expr = node.expression.expression;
-    if (ts.isIdentifier(expr)) {
-        return { name: expr.text, propertyName: undefined };
-    }
-    if (ts.isPropertyAccessExpression(expr)) {
-        return { name: getName(expr.expression), propertyName: expr.name.text };
-    }
-}
-
-function isValid<T>(value: T | null | undefined): value is T { return !!value; }
 
 export function* getStaticMethods(file: ts.SourceFile): Generator<StaticMethodInfo, void, unknown> {
     for (const node of file.statements) {
@@ -397,26 +440,18 @@ export function* getStaticMethods(file: ts.SourceFile): Generator<StaticMethodIn
     }
 }
 
-export function* getWorkflowMethods(file: ts.SourceFile) {
-    const importMap = new Map<string, NamedImportInfo>();
-    for (const imp of getImports(file)) {
-        importMap.set(imp.alias, imp);
+export function parseDecorator(node: ts.Decorator): DecoratorInfo | undefined {
+    if (!ts.isCallExpression(node.expression)) { return; }
+    const expr = node.expression.expression;
+    if (ts.isIdentifier(expr)) {
+        return { name: expr.text, propertyName: undefined };
     }
-
-    for (const method of getStaticMethods(file)) {
-        for (const d of method.decorators) {
-            const imp = importMap.get(d.name);
-            if (!imp) { continue; }
-            if (imp.moduleName !== '@dbos-inc/dbos-sdk') { continue; }
-            if (imp.name === 'Workflow' && d.propertyName === undefined) {
-                yield method;
-            }
-            else if (imp.name === 'DBOS' && d.propertyName === 'workflow') {
-                yield method;
-            }
-        }
+    if (ts.isPropertyAccessExpression(expr)) {
+        return { name: getName(expr.expression), propertyName: expr.name.text };
     }
 }
+
+function isValid<T>(value: T | null | undefined): value is T { return !!value; }
 
 function getName(node: ts.PropertyName | ts.Expression | ts.LeftHandSideExpression) {
     switch (true) {

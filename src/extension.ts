@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { CodeLensProvider, connectionMap, startDebuggingFromCodeLens } from './CodeLensProvider';
+import { CodeLensProvider } from './CodeLensProvider';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { browseCloudApp, CloudDataProvider } from './CloudDataProvider';
 import { CloudCredentialManager } from './CloudCredentialManager';
@@ -22,25 +22,29 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const credManager = new CloudCredentialManager(context.secrets);
   const cloudDataProvider = new CloudDataProvider(credManager);
-  const refreshDomain = (domain: string) => cloudDataProvider.refresh(domain);
   const codeLensProvider = new CodeLensProvider(credManager);
+
   context.subscriptions.push(
+    credManager,
+    cloudDataProvider,
+    codeLensProvider,
+
     vscode.window.registerTreeDataProvider(
       "dbos-ttdbg.views.resources",
       cloudDataProvider),
     vscode.languages.registerCodeLensProvider(
       { language: 'typescript' },
       codeLensProvider),
-    connectionMap,
-    vscode.commands.registerCommand(
-      startDebuggingCodeLensCommandName,
-      startDebuggingFromCodeLens),
+
     vscode.commands.registerCommand(
       cloudLoginCommandName,
-      credManager.getCloudLoginCommand(refreshDomain)),
+      credManager.getCloudLoginCommand()),
     vscode.commands.registerCommand(
       deleteDomainCredentialsCommandName,
-      credManager.getDeleteStoredCredentialsCommand(refreshDomain)),
+      credManager.getDeleteCloudCredentialsCommand()),
+    vscode.commands.registerCommand(
+      startDebuggingCodeLensCommandName,
+      codeLensProvider.getCodeLensDebugCommand()),
     vscode.commands.registerCommand(
       browseCloudAppCommandName,
       browseCloudApp),
