@@ -113,13 +113,14 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
   readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
 
   constructor(private readonly credManager: CloudCredentialManager) {
-    this.credChangeSub = credManager.onCredentialChange(this.#refresh.bind(this));
+    this.credChangeSub = credManager.onCredentialChange(
+      (domain) => this.#refresh(domain));
 
     const { cloudDomain } = getCloudDomain();
     this.domains = [
       new CloudDomainItem(
         cloudDomain,
-        (domain) => this.credManager.getCredential(domain))
+        (domain) => this.credManager.getCredential(domain, false))
     ];
   }
 
@@ -136,7 +137,7 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
     }
   }
 
-  getTreeItem(element: CloudProviderNode): vscode.TreeItem | Thenable<vscode.TreeItem> {
+  getTreeItem(element: CloudProviderNode): vscode.TreeItem {
     return element;
   }
 
@@ -154,11 +155,6 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
     }
 
     return [];
-  }
-
-  async getStoredCredential(domain: string) {
-    const credential = await this.credManager.getCredential(domain);
-    return CloudCredentialManager.isCredentialValid(credential) ? credential : undefined;
   }
 }
 

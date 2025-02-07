@@ -5,6 +5,7 @@ import { logger } from './extension';
 
 export class CloudCredentialManager implements vscode.Disposable {
     private readonly onCredentialChangeEmitter = new vscode.EventEmitter<string>();
+
     readonly onCredentialChange = this.onCredentialChangeEmitter.event;
 
     constructor(private readonly secrets: vscode.SecretStorage) { }
