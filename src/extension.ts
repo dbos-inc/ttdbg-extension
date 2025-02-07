@@ -4,7 +4,7 @@ import { LogOutputChannelTransport, Logger, createLogger } from './logger';
 import { browseCloudApp, CloudDataProvider } from './CloudDataProvider';
 import { CloudCredentialManager } from './CloudCredentialManager';
 import { S3CloudStorage } from './CloudStorage';
-import { DebugProxyManager } from './debugProxy';
+import { DebugProxyManager } from './DebugProxyManager';
 
 export let logger: Logger;
 
