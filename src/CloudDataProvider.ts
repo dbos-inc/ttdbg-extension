@@ -156,11 +156,12 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
 
     return [];
   }
-}
 
-export async function browseCloudApp(item?: CloudAppItem) {
-  if (item) {
-    const uri = vscode.Uri.parse(item.app.AppURL);
-    await vscode.env.openExternal(uri);
+  static async browseCloudApp(item?: CloudAppItem) {
+    if (item) {
+      const uri = vscode.Uri.parse(item.app.AppURL);
+      await vscode.env.openExternal(uri);
+    }
   }
 }
+

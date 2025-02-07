@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { CodeLensProvider } from './CodeLensProvider';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
-import { browseCloudApp, CloudDataProvider } from './CloudDataProvider';
+import { CloudDataProvider } from './CloudDataProvider';
 import { CloudCredentialManager } from './CloudCredentialManager';
 import { S3CloudStorage } from './CloudStorage';
 import { DebugProxyManager } from './DebugProxyManager';
@@ -53,7 +53,7 @@ export async function activate(context: vscode.ExtensionContext) {
       codeLensProvider.getCodeLensDebugCommand()),
     vscode.commands.registerCommand(
       browseCloudAppCommandName,
-      browseCloudApp),
+      CloudDataProvider.browseCloudApp),
     vscode.commands.registerCommand(
       updateDebugProxyCommandName,
       debugProxyManager.getUpdateDebugProxyCommand(cloudStorage, context.globalStorageUri)),
