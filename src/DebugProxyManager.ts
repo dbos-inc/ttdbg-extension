@@ -141,7 +141,7 @@ export class DebugProxyManager implements vscode.Disposable {
   }
 
   shutdownDebugProxy() {
-    const $terminal = this.terminal
+    const $terminal = this.terminal;
     this.terminal = undefined;
     $terminal?.dispose();
   }
@@ -178,7 +178,7 @@ export class DebugProxyManager implements vscode.Disposable {
       name: "DBOS Debug Proxy",
       pty: pty,
       iconPath: new vscode.ThemeIcon('debug'),
-    })
+    });
 
     this.terminal = new DebugProxyTerminal(terminal, pty, options);
     this.terminal.show();
@@ -249,7 +249,7 @@ export class DebugProxyManager implements vscode.Disposable {
     const that = this;
     return async function () {
       return that.updateDebugProxy(s3);
-    }
+    };
   }
 
   getLaunchDebugProxyCommand() {
@@ -266,7 +266,7 @@ export class DebugProxyManager implements vscode.Disposable {
       const [dbi, role] = await Promise.all([
         getDbInstance(item.app.PostgresInstanceName, cred),
         getDbProxyRole(item.app.PostgresInstanceName, cred)
-      ])
+      ]);
       if (isUnauthorized(dbi) || isUnauthorized(role)) { return; }
       const options: DebugProxyOptions = {
         host: dbi.HostName,
@@ -277,7 +277,7 @@ export class DebugProxyManager implements vscode.Disposable {
       };
 
       await that.launchDebugProxy(options);
-    }
+    };
   }
 }
 

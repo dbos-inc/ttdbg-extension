@@ -158,7 +158,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
 
             const lenses = new Array<DbosCodeLens>();
             for (const method of getWorkflowMethods(file)) {
-                if (token.isCancellationRequested) break;
+                if (token.isCancellationRequested) { break; }
                 const start = document.positionAt(method.start);
                 const end = document.positionAt(method.end);
                 const range = new vscode.Range(start, end);
@@ -186,7 +186,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                     tooltip: `Debug ${name} with the replay debugger`,
                     command: startDebuggingCodeLensCommandName,
                     arguments: [name, config]
-                }
+                };
             }
             if (codeLens.kind === "cloud") {
                 const app = await this.#getCloudApp(config, token);
@@ -196,7 +196,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                         tooltip: `Debug ${name} with the cloud replay debugger`,
                         command: startDebuggingCodeLensCommandName,
                         arguments: [name, config, app]
-                    }
+                    };
                 }
             }
             if (codeLens.kind === "time-travel") {
@@ -207,7 +207,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                         tooltip: `Debug ${name} with the time travel debugger`,
                         command: startDebuggingCodeLensCommandName,
                         arguments: [name, config, { ...app, timeTravel: true }]
-                    }
+                    };
                 }
             }
         }
@@ -233,7 +233,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
             const workflowID = await that.#pickWorkflow(methodName, config, db);
             logger.info("codeLensDebug", { workflowID: workflowID ?? null });
             if (!workflowID) { return; }
-            
+
             const debugConfig = that.#getDebugConfig(config, workflowID, db, app?.timeTravel);
             logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
 
@@ -267,7 +267,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                     }
                 });
             }
-        }
+        };
     }
 
     #getDebugConfig(config: DbosConfig, workflowID: string, db?: DbConnectionInfo, timeTravel?: boolean): vscode.DebugConfiguration {
@@ -357,8 +357,8 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                         user: dbi.DatabaseUsername,
                         password: dbCred.Password,
                         provDatabase: app.timeTravel ? app.ProvenanceDatabaseName : undefined,
-                    }
-                    this.dbInfoMap.set(key, dbInfo)
+                    };
+                    this.dbInfoMap.set(key, dbInfo);
                 }
             } catch (error) {
                 logger.debug("#getCloudDatabase", error);
