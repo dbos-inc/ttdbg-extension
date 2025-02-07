@@ -4,8 +4,10 @@ import { logger, startDebuggingCodeLensCommandName } from './extension';
 import { Pool, PoolClient } from 'pg';
 import { DbosConfig, loadConfigFile, locateDbosConfigFile } from './dbosConfig';
 import { CloudCredentialManager } from './CloudCredentialManager';
-import { DbosCloudApp, DbosCloudCredential, getApp, getDbCredentials, getDbInstance, isUnauthorized } from './dbosCloudApi';
+import { DbosCloudApp, getApp, getDbCredentials, getDbInstance, isUnauthorized } from './dbosCloudApi';
 import path from 'node:path';
+import { DebugProxyManager } from './DebugProxyManager';
+import { Configuration } from './Configuration';
 
 interface workflow_status {
     workflow_uuid: string;
@@ -121,7 +123,10 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
 
     readonly onDidChangeCodeLenses = this.onDidChangeCodeLensesEmitter.event;
 
-    constructor(private readonly credManager: CloudCredentialManager) {
+    constructor(
+        private readonly credManager: CloudCredentialManager,
+        private readonly debugProxyManager: DebugProxyManager,
+    ) {
         this.credChangeSub = credManager.onCredentialChange(
             () => {
                 this.appMap.clear();
@@ -229,8 +234,26 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
             logger.info("codeLensDebug", { workflowID: workflowID ?? null });
             if (!workflowID) { return; }
             
-            const debugConfig = that.#getDebugConfig(config, workflowID, db);
+            const debugConfig = that.#getDebugConfig(config, workflowID, db, app?.timeTravel);
             logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
+
+            if (app?.timeTravel) {
+                if (!app.ProvenanceDatabaseName) { throw new Error("ProvenanceDatabaseName not set "); }
+                if (!db) { throw new Error("DB Instance Info not set"); }
+
+                const proxyPort = Configuration.getProxyPort();
+                debugConfig.env["DBOS_DBPORT"] = proxyPort.toString();
+
+                that.debugProxyManager.launchDebugProxy({
+                    host: db.host,
+                    port: db.port,
+                    user: db.user,
+                    password: db.password,
+                    database: app.ProvenanceDatabaseName,
+                    proxyPort
+                });
+
+            }
 
             const folder = vscode.workspace.getWorkspaceFolder(config.uri);
             const debuggerStarted = await vscode.debug.startDebugging(folder, debugConfig);
@@ -247,11 +270,12 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
         }
     }
 
-    #getDebugConfig(config: DbosConfig, workflowID: string, db?: DbConnectionInfo): vscode.DebugConfiguration {
+    #getDebugConfig(config: DbosConfig, workflowID: string, db?: DbConnectionInfo, timeTravel?: boolean): vscode.DebugConfiguration {
         if (config.language && config.language !== "node") {
             throw new Error(`Unsupported language: ${config.language ?? null}`);
         }
 
+        timeTravel = timeTravel ?? false;
         const debugConfig: vscode.DebugConfiguration = {
             type: 'node',
             request: 'launch',
@@ -259,11 +283,11 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
             cwd: path.dirname(config.uri.fsPath),
             env: {
                 DBOS_DEBUG_WORKFLOW_ID: workflowID,
-                DBOS_DBHOST: db?.host,
-                DBOS_DBPORT: db?.port.toString(),
-                DBOS_DBUSER: db?.user,
-                DBOS_DBPASSWORD: db?.password,
-                DBOS_DBLOCALSUFFIX: db ? "false" : undefined,
+                DBOS_DBHOST: timeTravel ? "localhost" : db?.host,
+                DBOS_DBPORT: timeTravel ? undefined : db?.port.toString(),
+                DBOS_DBUSER: timeTravel ? undefined : db?.user,
+                DBOS_DBPASSWORD: timeTravel ? undefined : db?.password,
+                DBOS_DBLOCALSUFFIX: timeTravel ? undefined : (db ? "false" : undefined),
             }
         };
 

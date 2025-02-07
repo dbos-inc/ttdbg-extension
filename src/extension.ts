@@ -24,12 +24,12 @@ export async function activate(context: vscode.ExtensionContext) {
   logger.info("DBOS extension activated");
 
   const credManager = new CloudCredentialManager(context.secrets);
-  const cloudDataProvider = new CloudDataProvider(credManager);
-  const codeLensProvider = new CodeLensProvider(credManager);
-  const blobStorage = new S3Storage();
   const debugProxyManager = new DebugProxyManager(
     credManager,
     context.globalStorageUri);
+  const cloudDataProvider = new CloudDataProvider(credManager);
+  const codeLensProvider = new CodeLensProvider(credManager, debugProxyManager);
+  const blobStorage = new S3Storage();
 
   context.subscriptions.push(
     credManager,
