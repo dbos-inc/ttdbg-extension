@@ -23,6 +23,7 @@ export interface DbosCloudApp {
   Status: string;
   Version: string;
   AppURL: string;
+  ProvenanceDatabaseName?: string;
 }
 
 export interface DbosCloudDbInstance {

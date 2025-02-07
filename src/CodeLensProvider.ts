@@ -4,7 +4,7 @@ import { logger, startDebuggingCodeLensCommandName } from './extension';
 import { Pool, PoolClient } from 'pg';
 import { DbosConfig, loadConfigFile, locateDbosConfigFile } from './dbosConfig';
 import { CloudCredentialManager } from './CloudCredentialManager';
-import { DbosCloudApp, getApp, getDbCredentials, getDbInstance, isUnauthorized } from './dbosCloudApi';
+import { DbosCloudApp, DbosCloudCredential, getApp, getDbCredentials, getDbInstance, isUnauthorized } from './dbosCloudApi';
 import path from 'node:path';
 
 interface workflow_status {
@@ -106,6 +106,8 @@ interface DbConnectionInfo {
     password: string;
 }
 
+type AppInfo = DbosCloudApp & { timeTravel?: boolean };
+
 const nodeExecutables: ReadonlyArray<string> = ['node', 'npm', 'npx'];
 
 export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, vscode.Disposable {
@@ -113,12 +115,16 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
     private readonly credChangeSub: vscode.Disposable;
     private readonly connectionMap = new Map<string, Pool>();
     private readonly configMap = new Map<string, DbosConfig>();
+    private readonly appMap = new Map<string, DbosCloudApp>();
+    private readonly dbInfoMap = new Map<string, DbConnectionInfo>();
 
     readonly onDidChangeCodeLenses = this.onDidChangeCodeLensesEmitter.event;
 
     constructor(private readonly credManager: CloudCredentialManager) {
         this.credChangeSub = credManager.onCredentialChange(
             () => {
+                this.appMap.clear();
+                this.dbInfoMap.clear();
                 this.onDidChangeCodeLensesEmitter.fire();
             });
     }
@@ -187,6 +193,17 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                     }
                 }
             }
+            if (codeLens.kind === "time-travel") {
+                const app = await this.#getCloudApp(config, token);
+                if (app?.ProvenanceDatabaseName) {
+                    codeLens.command = {
+                        title: '⏳ Time-Travel Debug',
+                        tooltip: `Debug ${name} with the time travel debugger`,
+                        command: startDebuggingCodeLensCommandName,
+                        arguments: [name, config, { ...app, timeTravel: true }]
+                    }
+                }
+            }
         }
         return codeLens;
     }
@@ -196,7 +213,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
         return async function (
             methodName?: string,
             config?: DbosConfig,
-            app?: DbosCloudApp,
+            app?: AppInfo,
         ) {
             const db = app ? await that.#getDbConnectionInfo(app) : undefined;
             logger.info("codeLensDebug", {
@@ -206,6 +223,10 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                 db: db ?? null
             });
             if (!methodName || !config) { return; }
+            if (app?.timeTravel) {
+                vscode.window.showInformationMessage("Time-Travel Debugging not implemented yet");
+                return;
+            }
 
             const workflowID = await that.#pickWorkflow(methodName, config, db);
             logger.info("codeLensDebug", { workflowID: workflowID ?? null });
@@ -277,15 +298,51 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
         }
     }
 
-    async #getCloudApp(config: DbosConfig, token?: vscode.CancellationToken) {
-        try {
-            const cred = await this.credManager.getCredential(undefined, false);
-            if (!cred || token?.isCancellationRequested) { return; }
-            const app = await getApp(config.name, cred, token);
-            return isUnauthorized(app) ? undefined : app;
-        } catch (error) {
-            logger.debug("#getCloudApp", error);
+    async #getCloudApp(config: DbosConfig, token?: vscode.CancellationToken): Promise<DbosCloudApp | undefined> {
+        const cred = await this.credManager.getCredential(undefined, false);
+        if (!cred || token?.isCancellationRequested) { return; }
+        const key = `${config.name}:${cred.domain}:${cred.userName}`;
+        let app = this.appMap.get(key);
+        if (!app) {
+            try {
+                const $app = await getApp(config.name, cred, token);
+                if (!isUnauthorized($app)) {
+                    app = $app;
+                    this.appMap.set(key, app);
+                }
+            } catch (error) {
+                logger.debug("#getCloudApp", error);
+            }
         }
+        return app;
+    }
+
+    async #getDbConnectionInfo(app: DbosCloudApp, token?: vscode.CancellationToken): Promise<DbConnectionInfo | undefined> {
+        const cred = await this.credManager.getCredential(undefined, false);
+        if (!cred || token?.isCancellationRequested) { return; }
+
+        const key = `${app.Name}:${cred.domain}:${cred.userName}`;
+        let dbInfo = this.dbInfoMap.get(key);
+        if (!dbInfo) {
+            try {
+                const [dbi, dbCred] = await Promise.all([
+                    getDbInstance(app.PostgresInstanceName, cred, token),
+                    getDbCredentials(app.PostgresInstanceName, cred, token)
+                ]);
+                if (!isUnauthorized(dbi) && !isUnauthorized(dbCred)) {
+                    dbInfo = {
+                        host: dbi.HostName,
+                        port: dbi.Port,
+                        user: dbi.DatabaseUsername,
+                        password: dbCred.Password,
+                    }
+                    this.dbInfoMap.set(key, dbInfo)
+                }    
+            } catch (error) {
+                logger.debug("#getCloudDatabase", error);
+            }
+        }
+        return dbInfo;
     }
 
     async #getConfig(uri: vscode.Uri, token?: vscode.CancellationToken): Promise<DbosConfig | undefined> {
@@ -330,28 +387,6 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
             this.connectionMap.set(key, pool);
         }
         return await pool.connect();
-    }
-
-    async #getDbConnectionInfo(app: DbosCloudApp, token?: vscode.CancellationToken): Promise<DbConnectionInfo | undefined> {
-        try {
-            const cred = await this.credManager.getCredential(undefined, false);
-            if (!cred || token?.isCancellationRequested) { return; }
-            const [dbi, dbCred] = await Promise.all([
-                getDbInstance(app.PostgresInstanceName, cred, token),
-                getDbCredentials(app.PostgresInstanceName, cred, token)
-            ]);
-
-            if (!isUnauthorized(dbi) && !isUnauthorized(dbCred)) {
-                return {
-                    host: dbi.HostName,
-                    port: dbi.Port,
-                    user: dbi.DatabaseUsername,
-                    password: dbCred.Password,
-                }
-            }
-        } catch (error) {
-            logger.debug("#getCloudDatabase", error);
-        }
     }
 }
 
