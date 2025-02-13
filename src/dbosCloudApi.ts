@@ -248,11 +248,8 @@ export async function listApps({ domain, token: accessToken, userName }: DbosClo
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
-  return fetchHelper('listApps', url, request, async (response) => {
-    // temporarily add ProvenanceDatabaseName to the response
-    const apps = await response.json() as DbosCloudApp[];
-    return apps.map(app => ({ ...app, ProvenanceDatabaseName: app.ApplicationDatabaseName + "_dbos_prov" }));
-  }, token);
+  // TODO: remove provDBHack. This is a temporary hack to work around the incorrect provenance database name returned by the API
+  return fetchHelper('listApps', url, request, async (response) => (await response.json() as DbosCloudApp[]).map(provDbHack), token);
 }
 
 export async function getApp(appName: string, { domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudApp> {
@@ -262,11 +259,15 @@ export async function getApp(appName: string, { domain, token: accessToken, user
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
-  return fetchHelper('getApp', url, request, async (response) => {
-    // temporarily add ProvenanceDatabaseName to the response
-    const app = await response.json() as DbosCloudApp;
-    return { ...app, ProvenanceDatabaseName: app.ApplicationDatabaseName + "_dbos_prov" };
-  }, token);
+  // TODO: remove provDBHack. This is a temporary hack to work around the incorrect provenance database name returned by the API
+  return fetchHelper('getApp', url, request, async (response) => provDbHack(await response.json() as DbosCloudApp), token);
+}
+
+// TODO: remove provDBHack. This is a temporary hack to work around the incorrect provenance database name returned by the API
+function provDbHack(app: DbosCloudApp) {
+  return app.ProvenanceDatabaseName
+    ? { ...app, ProvenanceDatabaseName: app.ApplicationDatabaseName + "_dbos_prov" }
+    : app;
 }
 
 export async function listDbInstances({ domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbInstance[]> {
