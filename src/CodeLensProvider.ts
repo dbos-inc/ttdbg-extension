@@ -146,9 +146,9 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
         }
     }
 
-    provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): DbosCodeLens[] | undefined {
+    async provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<DbosCodeLens[] | undefined> {
         logger.debug("provideCodeLenses", { uri: document.uri.toString() });
-
+        const cred = await this.credManager.getCredential(undefined);
         try {
             const file = ts.createSourceFile(
                 document.fileName,
@@ -162,11 +162,13 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                 const start = document.positionAt(method.start);
                 const end = document.positionAt(method.end);
                 const range = new vscode.Range(start, end);
-                lenses.push(
-                    new DbosCodeLens(range, document.uri, method.name, "local"),
-                    new DbosCodeLens(range, document.uri, method.name, "cloud"),
-                    new DbosCodeLens(range, document.uri, method.name, "time-travel"),
-                );
+                lenses.push(new DbosCodeLens(range, document.uri, method.name, "local"));
+                if (cred) {
+                    lenses.push(
+                        new DbosCodeLens(range, document.uri, method.name, "cloud"),
+                        new DbosCodeLens(range, document.uri, method.name, "time-travel"),
+                    );
+                }
             }
             return lenses;
         } catch (e) {
@@ -320,7 +322,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
     }
 
     async #getCloudApp(config: DbosConfig, token?: vscode.CancellationToken): Promise<DbosCloudApp | undefined> {
-        const cred = await this.credManager.getCredential(undefined, false);
+        const cred = await this.credManager.getCredential(undefined);
         if (!cred || token?.isCancellationRequested) { return; }
         const key = `${config.name}:${cred.domain}:${cred.userName}`;
         let app = this.appMap.get(key);
@@ -339,7 +341,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
     }
 
     async #getDbConnectionInfo(app: AppInfo, token?: vscode.CancellationToken): Promise<DbConnectionInfo | undefined> {
-        const cred = await this.credManager.getCredential(undefined, false);
+        const cred = await this.credManager.getCredential(undefined);
         if (!cred || token?.isCancellationRequested) { return; }
 
         const key = `${app.Name}:${cred.domain}:${cred.userName}` + (app.timeTravel ? ":prov" : "");

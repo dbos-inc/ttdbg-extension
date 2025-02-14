@@ -2,14 +2,6 @@ import * as vscode from 'vscode';
 import { DbosCloudApp, getCloudDomain, DbosCloudDbInstance, listApps, listDbInstances, isUnauthorized, DbosCloudCredential } from './dbosCloudApi';
 import { CloudCredentialManager } from './CloudCredentialManager';
 
-class CloudDomainLoginNeededItem extends vscode.TreeItem {
-  constructor() {
-    super("You need to login to DBOS Cloud.");
-    this.contextValue = "cloudDomainLoginNeeded";
-  }
-}
-
-const domainLoginNeeded = new CloudDomainLoginNeededItem();
 
 class CloudDomainItem extends vscode.TreeItem {
   readonly appItem: CloudResourceTypeItem;
@@ -18,9 +10,11 @@ class CloudDomainItem extends vscode.TreeItem {
   private apps: Array<CloudAppItem> | undefined;
   private dbInstances: Array<CloudDbInstanceItem> | undefined;
 
+  static domainLoginNeeded: CloudDomainLoginNeededItem | undefined;
+
   constructor(
     public readonly domain: string,
-    readonly getCredential: (domain: string) => Promise<DbosCloudCredential | undefined>,
+    private readonly credManager: CloudCredentialManager,
   ) {
     super(domain, vscode.TreeItemCollapsibleState.Collapsed);
     this.contextValue = "cloudDomain";
@@ -32,7 +26,7 @@ class CloudDomainItem extends vscode.TreeItem {
     this.apps = undefined;
     this.dbInstances = undefined;
 
-    const credential = await this.getCredential(this.domain);
+    const credential = await this.credManager.getCredential(this.domain);
     if (credential) {
       const [apps, dbInstances] = await Promise.all([
         listApps(credential),
@@ -43,11 +37,13 @@ class CloudDomainItem extends vscode.TreeItem {
       if (!isUnauthorized(dbInstances)) {
         this.dbInstances = dbInstances.map(dbi => new CloudDbInstanceItem(dbi));
       }
+      return [this.appItem, this.dbInstanceItem];
+    } else {
+      if (!CloudDomainItem.domainLoginNeeded) {
+        CloudDomainItem.domainLoginNeeded = new CloudDomainLoginNeededItem();
+      }
+      return [CloudDomainItem.domainLoginNeeded];
     }
-
-    return credential
-      ? [this.appItem, this.dbInstanceItem]
-      : [domainLoginNeeded];
   }
 
   getApps() {
@@ -56,6 +52,13 @@ class CloudDomainItem extends vscode.TreeItem {
 
   getDbInstances() {
     return this.dbInstances ?? [];
+  }
+}
+
+class CloudDomainLoginNeededItem extends vscode.TreeItem {
+  constructor() {
+    super("You need to login to DBOS Cloud.");
+    this.contextValue = "cloudDomainLoginNeeded";
   }
 }
 
@@ -113,15 +116,10 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
   readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
 
   constructor(private readonly credManager: CloudCredentialManager) {
-    this.credChangeSub = credManager.onCredentialChange(
-      (domain) => this.#refresh(domain));
+    this.credChangeSub = this.credManager.onCredentialChange((domain) => this.#refresh(domain));
 
     const { cloudDomain } = getCloudDomain();
-    this.domains = [
-      new CloudDomainItem(
-        cloudDomain,
-        (domain) => this.credManager.getCredential(domain, false))
-    ];
+    this.domains = [new CloudDomainItem(cloudDomain, this.credManager) ];
   }
 
   dispose() {

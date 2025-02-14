@@ -258,7 +258,7 @@ export class DebugProxyManager implements vscode.Disposable {
       if (!item) { return; }
       logger.debug("launchDebugProxyCommand", item.app);
       if (!item.app.ProvenanceDatabaseName) {
-        await vscode.window.showErrorMessage(`No provenance database found for ${item.app.Name}`);
+        await vscode.window.showErrorMessage(`Time Travel not enabled for ${item.app.Name} application`);
         return;
       }
       const cred = await that.credManager.getCredential(undefined, true);

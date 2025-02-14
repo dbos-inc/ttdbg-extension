@@ -8,7 +8,7 @@ export class CloudCredentialManager implements vscode.Disposable {
 
     readonly onCredentialChange = this.onCredentialChangeEmitter.event;
 
-    constructor(private readonly secrets: vscode.SecretStorage) { }
+    constructor(private readonly secrets: vscode.SecretStorage, private readonly memento: vscode.Memento) { }
 
     dispose() {
         this.onCredentialChangeEmitter.dispose();
@@ -99,7 +99,7 @@ export class CloudCredentialManager implements vscode.Disposable {
             logger.debug("cloudLogin", { domain: node?.domain ?? null });
 
             const domain = getCloudDomain(node?.domain);
-            const credentials = await that.getCredential(domain, false);
+            const credentials = await that.getCredential(domain);
             if (CloudCredentialManager.isCredentialValid(credentials)) {
                 const message = "You are already logged in. Do you want to refresh your credential?";
                 const items = ["Yes", "No"];
