@@ -408,7 +408,15 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
             }
             this.connectionMap.set(key, pool);
         }
-        return await pool.connect();
+        try {
+            return await pool.connect();
+        } catch (error) {
+            const message = db 
+                ? "Failed to connect to DBOS Cloud database"
+                : `Failed to connect to database ${config.poolConfig.host}:${config.poolConfig.port}/${database}`
+            logger.error("#getDbClient", { message, error });
+            throw new Error(message, { cause: error });
+        }
     }
 }
 
