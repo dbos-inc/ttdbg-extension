@@ -217,13 +217,13 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
     }
 
     getCodeLensDebugCommand() {
-        const that = this;
+        const $this = this;
         return async function (
             methodName?: string,
             config?: DbosConfig,
             app?: AppInfo,
         ) {
-            const db = app ? await that.#getDbConnectionInfo(app) : undefined;
+            const db = app ? await $this.#getDbConnectionInfo(app) : undefined;
             logger.info("codeLensDebug", {
                 methodName: methodName ?? null,
                 config: config?.toString() ?? null,
@@ -232,11 +232,11 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
             });
             if (!methodName || !config) { return; }
 
-            const workflowID = await that.#pickWorkflow(methodName, config, db);
+            const workflowID = await $this.#pickWorkflow(methodName, config, db);
             logger.info("codeLensDebug", { workflowID: workflowID ?? null });
             if (!workflowID) { return; }
 
-            const debugConfig = that.#getDebugConfig(config, workflowID, db, app?.timeTravel);
+            const debugConfig = $this.#getDebugConfig(config, workflowID, db, app?.timeTravel);
             logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
 
             if (app?.timeTravel) {
@@ -246,7 +246,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                 const proxyPort = Configuration.getProxyPort();
                 debugConfig.env["DBOS_DBPORT"] = proxyPort.toString();
 
-                that.debugProxyManager.launchDebugProxy({
+                $this.debugProxyManager.launchDebugProxy({
                     host: db.host,
                     port: db.port,
                     user: db.user,

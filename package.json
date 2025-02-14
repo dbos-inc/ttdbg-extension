@@ -45,7 +45,7 @@
       },
       {
         "command": "dbos-ttdbg.launch-debug-proxy",
-        "title": "Launch Debug Proxy",
+        "title": "Launch Time Travel Debugging Proxy",
         "category": "DBOS",
         "icon": "$(debug)"
       } 

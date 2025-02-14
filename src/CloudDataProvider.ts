@@ -40,6 +40,7 @@ class CloudDomainItem extends vscode.TreeItem {
       return [this.appItem, this.dbInstanceItem];
     }
 
+    this.credManager.updateCredential(this.domain, cred);
     return [CloudDomainItem.domainLoginNeeded];
   }
 

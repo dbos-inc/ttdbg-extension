@@ -245,28 +245,28 @@ export class DebugProxyManager implements vscode.Disposable {
   };
 
   getUpdateDebugProxyCommand(s3: BlobStorage) {
-    const that = this;
+    const $this = this;
     return async function () {
-      return that.updateDebugProxy(s3);
+      return $this.updateDebugProxy(s3);
     };
   }
 
-  static async #getCredential(credManager: CloudCredentialManager, item: CloudAppItem) {
-    const cred = await credManager.getCachedCredential(item.domain);
+  async #getCredential(item: CloudAppItem) {
+    const cred = await this.credManager.getCachedCredential(item.domain);
     if (CloudCredentialManager.isCredentialValid(cred)) { return cred; }
-    return await credManager.updateCredential(item.domain, cred);
+    return await this.credManager.updateCredential(item.domain, cred);
   }
 
   getLaunchDebugProxyCommand() {
-    const that = this;
+    const $this = this;
     return async function (item?: CloudAppItem) {
       if (!item) { return; }
       logger.debug("launchDebugProxyCommand", item.app);
       if (!item.app.ProvenanceDatabaseName) {
-        await vscode.window.showErrorMessage(`Time Travel not enabled for ${item.app.Name} application`);
+        await vscode.window.showErrorMessage(`Time Travel Debugging not enabled for ${item.app.Name} application`);
         return;
       }
-      const cred = await DebugProxyManager.#getCredential(that.credManager, item);
+      const cred = await $this.#getCredential(item);
       if (!cred) { return; }
       const instanceName = item.app.PostgresInstanceName;
 
@@ -283,7 +283,7 @@ export class DebugProxyManager implements vscode.Disposable {
         database: item.app.ProvenanceDatabaseName,
       };
 
-      await that.launchDebugProxy(options);
+      await $this.launchDebugProxy(options);
     };
   }
 }

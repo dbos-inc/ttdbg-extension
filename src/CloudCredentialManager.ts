@@ -93,12 +93,12 @@ export class CloudCredentialManager implements vscode.Disposable {
     }
 
     getCloudLoginCommand() {
-        const that = this;
+        const $this = this;
         return async function (node?: { domain: string }) {
             logger.debug("cloudLogin", { domain: node?.domain ?? null });
 
             const domain = getCloudDomain(node?.domain);
-            const cred = await that.getValidCredential(domain);
+            const cred = await $this.getValidCredential(domain);
             if (cred) {
                 const message = "You are already logged in. Do you want to refresh your credential?";
                 const items = ["Yes", "No"];
@@ -108,15 +108,15 @@ export class CloudCredentialManager implements vscode.Disposable {
                 }
             }
 
-            await that.#cloudLogin(domain);
+            await $this.#cloudLogin(domain);
         };
     }
 
     getDeleteCloudCredentialsCommand() {
-        const that = this;
+        const $this = this;
         return async function (node?: { domain: string }) {
             logger.debug("deleteCloudCredentials", { domain: node?.domain ?? null });
-            await that.#deleteCloudCredential(node?.domain);
+            await $this.#deleteCloudCredential(node?.domain);
         };
     }
 }
