@@ -9,7 +9,6 @@ import { BlobStorage } from './BlobStorage';
 import * as semver from 'semver';
 import { Configuration } from './Configuration';
 import { CloudAppItem } from './CloudDataProvider';
-import { appendFile } from 'node:fs';
 import { CloudCredentialManager } from './CloudCredentialManager';
 import { getDbInstance, getDbProxyRole, isUnauthorized } from './dbosCloudApi';
 
@@ -252,6 +251,12 @@ export class DebugProxyManager implements vscode.Disposable {
     };
   }
 
+  static async #getCredential(credManager: CloudCredentialManager, item: CloudAppItem) {
+    const cred = await credManager.getCachedCredential(item.domain);
+    if (CloudCredentialManager.isCredentialValid(cred)) { return cred; }
+    return await credManager.updateCredential(item.domain, cred);
+  }
+
   getLaunchDebugProxyCommand() {
     const that = this;
     return async function (item?: CloudAppItem) {
@@ -261,11 +266,13 @@ export class DebugProxyManager implements vscode.Disposable {
         await vscode.window.showErrorMessage(`Time Travel not enabled for ${item.app.Name} application`);
         return;
       }
-      const cred = await that.credManager.getCredential(undefined, true);
+      const cred = await DebugProxyManager.#getCredential(that.credManager, item);
       if (!cred) { return; }
+      const instanceName = item.app.PostgresInstanceName;
+
       const [dbi, role] = await Promise.all([
-        getDbInstance(item.app.PostgresInstanceName, cred),
-        getDbProxyRole(item.app.PostgresInstanceName, cred)
+        getDbInstance(instanceName, cred),
+        getDbProxyRole(instanceName, cred)
       ]);
       if (isUnauthorized(dbi) || isUnauthorized(role)) { return; }
       const options: DebugProxyOptions = {

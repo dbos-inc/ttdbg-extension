@@ -50,37 +50,36 @@ export class CloudCredentialManager implements vscode.Disposable {
         }
     }
 
-    async getCredential(
-        domain?: string | DbosCloudDomain,
-        refreshInvalid: boolean = false,
-    ): Promise<DbosCloudCredential | undefined> {
-        logger.debug("getCredential", { domain: domain ?? null, refreshInvalid });
+    async getCachedCredential(domain?: string | DbosCloudDomain): Promise<DbosCloudCredential | undefined> {
+        logger.debug("getCredential", { domain: domain ?? null });
+        return await this.#getCloudCredential(domain);
+    }
+
+    async getValidCredential(domain?: string | DbosCloudDomain): Promise<DbosCloudCredential | undefined> {
+        logger.debug("getCredential", { domain: domain ?? null });
 
         const cred = await this.#getCloudCredential(domain);
-        if (CloudCredentialManager.isCredentialValid(cred)) { 
-            return cred; 
-        }
-        if (refreshInvalid) {
-            this.#startInvalidCredentialFlow(domain, cred);
+        if (cred && CloudCredentialManager.isCredentialValid(cred)) {
+            return cred;
         }
     }
 
-    async #startInvalidCredentialFlow(
-        domain: string | DbosCloudDomain | undefined, 
-        credential: DbosCloudCredential| undefined
-    ): Promise<void> {
+    async updateCredential(domain?: string | DbosCloudDomain, credential?: DbosCloudCredential): Promise<DbosCloudCredential | undefined> {
+        logger.debug("updateCredential", { domain: domain ?? null, credential: credential ?? null });
+        if (credential && CloudCredentialManager.isCredentialValid(credential)) {
+            return credential;
+        }
+
         try {
             const message = credential
-                ? "DBOS Cloud credentials have expired. Please login again."
-                : "You need to login to DBOS Cloud.";
-
-            const items = ["Login", "Cancel"];
-            const result = await vscode.window.showWarningMessage(message, ...items);
+                ? "Your DBOS Cloud credentials have expired. Please login again."
+                : "Please login to DBOS Cloud.";
+            const result = await vscode.window.showInformationMessage(message, "Login", "Cancel");
             if (result === "Login") {
-                await this.#cloudLogin(domain);
+                return await this.#cloudLogin(domain);
             }
         } catch (error) {
-            logger.error("startInvalidCredentialsFlow", error);
+            logger.error("updateCredential", error);
         }
     }
 
@@ -99,8 +98,8 @@ export class CloudCredentialManager implements vscode.Disposable {
             logger.debug("cloudLogin", { domain: node?.domain ?? null });
 
             const domain = getCloudDomain(node?.domain);
-            const credentials = await that.getCredential(domain);
-            if (CloudCredentialManager.isCredentialValid(credentials)) {
+            const cred = await that.getValidCredential(domain);
+            if (cred) {
                 const message = "You are already logged in. Do you want to refresh your credential?";
                 const items = ["Yes", "No"];
                 const result = await vscode.window.showWarningMessage(message, ...items);
