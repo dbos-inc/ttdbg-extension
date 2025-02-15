@@ -150,23 +150,20 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
         logger.debug("provideCodeLenses", { uri: document.uri.toString() });
         const cred = await this.credManager.getValidCredential(undefined);
         try {
-            const file = ts.createSourceFile(
-                document.fileName,
-                document.getText(),
-                ts.ScriptTarget.Latest
-            );
-
             const lenses = new Array<DbosCodeLens>();
-            for (const method of getWorkflowMethods(file)) {
+            const parser = (function* () {
+                if (document.languageId === 'typescript') { 
+                    yield* parseTypeScript(document, token); 
+                }
+            })();
+            for (const { start, end, name } of parser) {
                 if (token.isCancellationRequested) { break; }
-                const start = document.positionAt(method.start);
-                const end = document.positionAt(method.end);
                 const range = new vscode.Range(start, end);
-                lenses.push(new DbosCodeLens(range, document.uri, method.name, "local"));
+                lenses.push(new DbosCodeLens(range, document.uri, name, "local"));
                 if (cred) {
                     lenses.push(
-                        new DbosCodeLens(range, document.uri, method.name, "cloud"),
-                        new DbosCodeLens(range, document.uri, method.name, "time-travel"),
+                        new DbosCodeLens(range, document.uri, name, "cloud"),
+                        new DbosCodeLens(range, document.uri, name, "time-travel"),
                     );
                 }
             }
@@ -437,6 +434,31 @@ export interface StaticMethodInfo {
     start: number;
     end: number;
     decorators: DecoratorInfo[];
+}
+
+interface DbosWorkflowMethod {
+    name: string;
+    start: vscode.Position;
+    end: vscode.Position;
+}
+
+function* parseTypeScript(document: vscode.TextDocument, token: vscode.CancellationToken): Generator<DbosWorkflowMethod, void, unknown> {
+    const file = ts.createSourceFile(
+        document.fileName,
+        document.getText(),
+        ts.ScriptTarget.Latest
+    );
+
+    for (const method of getWorkflowMethods(file)) {
+        if (token.isCancellationRequested) { break; }
+        const start = document.positionAt(method.start);
+        const end = document.positionAt(method.end);
+        yield { 
+            start: document.positionAt(method.start),
+            end: document.positionAt(method.end),
+            name: method.name,
+        }
+    }
 }
 
 export function* getWorkflowMethods(file: ts.SourceFile) {
