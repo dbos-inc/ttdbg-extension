@@ -410,7 +410,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
         } catch (error) {
             const message = db 
                 ? "Failed to connect to DBOS Cloud database"
-                : `Failed to connect to database ${config.poolConfig.host}:${config.poolConfig.port}/${database}`
+                : `Failed to connect to database ${config.poolConfig.host}:${config.poolConfig.port}/${database}`;
             logger.error("#getDbClient", { message, error });
             throw new Error(message, { cause: error });
         }
@@ -455,7 +455,7 @@ function* parseTypeScript(document: vscode.TextDocument, token: vscode.Cancellat
             start: document.positionAt(method.start),
             end: document.positionAt(method.end),
             name: method.name,
-        }
+        };
     }
 }
 
