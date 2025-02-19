@@ -7,7 +7,7 @@ import { DbosCloudApp, getApp, getDbCredentials, getDbInstance, isUnauthorized }
 import path from 'node:path';
 import { DebugProxyManager } from './DebugProxyManager';
 import { Configuration } from './Configuration';
-import { parseTypeScript } from './parsers/typeScript';
+import { parseTypeScript } from './parsers/tsParser';
 
 interface workflow_status {
     workflow_uuid: string;

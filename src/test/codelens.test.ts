@@ -4,7 +4,7 @@ import ts from 'typescript';
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
 import * as vscode from 'vscode';
-import { getImports, getStaticMethods, getWorkflowMethods, parseDecorator, StaticMethodInfo } from '../parsers/typeScript';
+import { getImports, getStaticMethods, getWorkflowMethods, parseDecorator, StaticMethodInfo } from '../parsers/tsParser';
 // import * as myExtension from '../../extension';
 
 suite('Extension Test Suite', () => {
