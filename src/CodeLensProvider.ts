@@ -451,8 +451,6 @@ function* parseTypeScript(document: vscode.TextDocument, token: vscode.Cancellat
 
     for (const method of getWorkflowMethods(file)) {
         if (token.isCancellationRequested) { break; }
-        const start = document.positionAt(method.start);
-        const end = document.positionAt(method.end);
         yield { 
             start: document.positionAt(method.start),
             end: document.positionAt(method.end),
