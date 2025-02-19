@@ -183,7 +183,7 @@ class Test2 {
 
 	});
 
-	test("getWorkflowMethods-v2", () => {
+	test("getWorkflowMethods-v2-alias", () => {
 		const code = `
 		import { DBOS as TestDBOS } from "@dbos-inc/dbos-sdk";
 
