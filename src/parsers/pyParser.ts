@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import type { DbosWorkflowMethod } from '../CodeLensProvider';
 import { CharStream, CommonTokenStream, ParseTreeWalker } from 'antlr4';
-import Python3Lexer from './Python3Lexer';
-import Python3Parser, { DecoratedContext, Import_fromContext, Import_nameContext } from './Python3Parser';
-import Python3ParserListener from './Python3ParserListener';
+import Python3Lexer from './python/Python3Lexer';
+import Python3Parser, { DecoratedContext, Import_fromContext, Import_nameContext } from './python/Python3Parser';
+import Python3ParserListener from './python/Python3ParserListener';
 
 type AliasedName = {
     name: readonly string[];
