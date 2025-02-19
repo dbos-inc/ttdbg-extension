@@ -152,7 +152,6 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
         try {
             const parser = getParser(document.languageId);
             if (!parser) { return; }
-    
             const cred = await this.credManager.getValidCredential(undefined);
             const lenses = new Array<DbosCodeLens>();
             for (const { start, end, name } of parser(document, token)) {
@@ -176,7 +175,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
             switch (languageId) {
                 case 'typescript': return parseTypeScript;
                 case 'python': return parsePython;
-                default: return undefined
+                default: return undefined;
             }
         }
     }
