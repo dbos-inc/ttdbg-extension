@@ -171,6 +171,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
         } catch (e) {
             logger.error("provideCodeLenses", e);
         }
+        return undefined;
     }
 
     async resolveCodeLens(codeLens: DbosCodeLens, token: vscode.CancellationToken): Promise<DbosCodeLens> {

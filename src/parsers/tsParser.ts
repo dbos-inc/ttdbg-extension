@@ -114,6 +114,7 @@ export function parseDecorator(node: ts.Decorator): DecoratorInfo | undefined {
     if (ts.isPropertyAccessExpression(expr)) {
         return { name: getName(expr.expression), propertyName: expr.name.text };
     }
+    return undefined;
 }
 
 function isValid<T>(value: T | null | undefined): value is T { return !!value; }

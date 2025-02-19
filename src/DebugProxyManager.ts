@@ -36,7 +36,7 @@ class DebugProxyPseudoterminal implements vscode.Pseudoterminal {
 
   get isRunning() { return !!this.process && !this.process.exitCode; }
 
-  open(initialDimensions: vscode.TerminalDimensions | undefined): void {
+  open(_initialDimensions: vscode.TerminalDimensions | undefined): void {
     const { host, database, password, user, port, proxyPort } = this.options;
     logger.info("Launching Debug Proxy", {
       path: this.exeUri.toString(),

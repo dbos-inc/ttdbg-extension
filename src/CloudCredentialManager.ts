@@ -62,6 +62,7 @@ export class CloudCredentialManager implements vscode.Disposable {
         if (cred && CloudCredentialManager.isCredentialValid(cred)) {
             return cred;
         }
+        return undefined;
     }
 
     async updateCredential(domain?: string | DbosCloudDomain, credential?: DbosCloudCredential): Promise<DbosCloudCredential | undefined> {
@@ -81,6 +82,7 @@ export class CloudCredentialManager implements vscode.Disposable {
         } catch (error) {
             logger.error("updateCredential", error);
         }
+        return undefined;
     }
 
     async #cloudLogin(domain: string | DbosCloudDomain | undefined) {
