@@ -3,6 +3,8 @@ const esbuild = require("esbuild");
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
 
+const path = require('path');
+
 /**
  * @type {import('esbuild').Plugin}
  */
@@ -23,6 +25,22 @@ const esbuildProblemMatcherPlugin = {
 	},
 };
 
+/**
+ * @type {import('esbuild').Plugin}
+ */
+const anltr4OnResolvePlugin = {
+	name: 'anltr4OnResolvePlugin',
+	
+	setup(build) {
+		// force load of CJS version of ANTRL4
+		build.onResolve({filter: /^antlr4$/}, args => {
+			// Note, this logic assumes the esbuild script is in the root of the project
+			const cjsPath = path.join(__dirname, 'node_modules/antlr4/dist/antlr4.node.cjs');
+			return { path:  cjsPath };
+		});
+	},
+};
+
 async function main() {
 	const ctx = await esbuild.context({
 		entryPoints: [
@@ -39,15 +57,18 @@ async function main() {
 		plugins: [
 			/* add to the end of plugins array */
 			esbuildProblemMatcherPlugin,
+			anltr4OnResolvePlugin,
 		],
 		external: [
 			'better-sqlite3',
 			'drizzle-orm/node-postgres',
-			'mysql', 
-			'mysql2', 
+			'mysql',
+			'mysql2',
 			'oracledb',
+			'pg-native',
 			'pg-query-stream',
-			'sqlite3', 
+			'source-map-support',
+			'sqlite3',
 			'tedious',
 			'typeorm',
 			'vscode',
