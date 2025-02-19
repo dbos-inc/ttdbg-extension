@@ -8,6 +8,7 @@ import path from 'node:path';
 import { DebugProxyManager } from './DebugProxyManager';
 import { Configuration } from './Configuration';
 import { parseTypeScript } from './parsers/tsParser';
+import { parsePython } from './parsers/pyParser';
 
 interface workflow_status {
     workflow_uuid: string;
@@ -148,15 +149,13 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
 
     async provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<DbosCodeLens[] | undefined> {
         logger.debug("provideCodeLenses", { uri: document.uri.toString() });
-        const cred = await this.credManager.getValidCredential(undefined);
         try {
+            const parser = getParser(document.languageId);
+            if (!parser) { return; }
+    
+            const cred = await this.credManager.getValidCredential(undefined);
             const lenses = new Array<DbosCodeLens>();
-            const parser = (function* () {
-                if (document.languageId === 'typescript') { 
-                    yield* parseTypeScript(document, token); 
-                }
-            })();
-            for (const { start, end, name } of parser) {
+            for (const { start, end, name } of parser(document, token)) {
                 if (token.isCancellationRequested) { break; }
                 const range = new vscode.Range(start, end);
                 lenses.push(new DbosCodeLens(range, document.uri, name, "local"));
@@ -172,6 +171,14 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
             logger.error("provideCodeLenses", e);
         }
         return undefined;
+
+        function getParser(languageId: string) {
+            switch (languageId) {
+                case 'typescript': return parseTypeScript;
+                case 'python': return parsePython;
+                default: return undefined
+            }
+        }
     }
 
     async resolveCodeLens(codeLens: DbosCodeLens, token: vscode.CancellationToken): Promise<DbosCodeLens> {
