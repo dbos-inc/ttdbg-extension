@@ -48,7 +48,7 @@
         "title": "Launch Time Travel Debugging Proxy",
         "category": "DBOS",
         "icon": "$(debug)"
-      } 
+      }
     ],
     "configuration": {
       "title": "DBOS Time Travel Debugger",
@@ -136,6 +136,7 @@
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "@vscode/vsce": "^3.2.2",
+    "antlr4": "^4.13.2",
     "esbuild": "^0.25.0",
     "eslint": "^9.20.1",
     "fastify": "^5.2.1",
