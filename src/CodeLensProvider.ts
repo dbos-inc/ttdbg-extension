@@ -206,7 +206,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
             }
             if (codeLens.kind === "time-travel") {
                 const app = await this.#getCloudApp(config, token);
-                if (app?.ProvenanceDatabaseName) {
+                if (app?.ProvenanceDatabase) {
                     codeLens.command = {
                         title: '⏳ Time-Travel Debug',
                         tooltip: `Debug ${name} with the time travel debugger`,
@@ -243,7 +243,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
             logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
 
             if (app?.timeTravel) {
-                if (!app.ProvenanceDatabaseName) { throw new Error("ProvenanceDatabaseName not set "); }
+                if (!app.ProvenanceDatabase) { throw new Error("ProvenanceDatabaseName not set "); }
                 if (!db) { throw new Error("DB Instance Info not set"); }
 
                 const proxyPort = Configuration.getProxyPort();
@@ -254,7 +254,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                     port: db.port,
                     user: db.user,
                     password: db.password,
-                    database: app.ProvenanceDatabaseName,
+                    database: app.ProvenanceDatabase.Name,
                     proxyPort
                 });
 
@@ -361,7 +361,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                         port: dbi.Port,
                         user: dbi.DatabaseUsername,
                         password: dbCred.Password,
-                        provDatabase: app.timeTravel ? app.ProvenanceDatabaseName : undefined,
+                        provDatabase: app.timeTravel ? app.ProvenanceDatabase?.Name : undefined,
                     };
                     this.dbInfoMap.set(key, dbInfo);
                 }

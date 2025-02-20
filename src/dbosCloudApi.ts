@@ -23,7 +23,11 @@ export interface DbosCloudApp {
   Status: string;
   Version: string;
   AppURL: string;
-  ProvenanceDatabaseName?: string;
+  ProvenanceDatabase?: {
+    HostName: string;
+    Name: string;
+    Port: number;
+  };
 }
 
 export interface DbosCloudDbInstance {
@@ -248,8 +252,7 @@ export async function listApps({ domain, token: accessToken, userName }: DbosClo
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
-  // TODO: remove provDBHack. This is a temporary hack to work around the incorrect provenance database name returned by the API
-  return fetchHelper('listApps', url, request, async (response) => (await response.json() as DbosCloudApp[]).map(provDbHack), token);
+  return fetchHelper('listApps', url, request, async (response) => await response.json() as DbosCloudApp[], token);
 }
 
 export async function getApp(appName: string, { domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudApp> {
@@ -259,15 +262,7 @@ export async function getApp(appName: string, { domain, token: accessToken, user
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
 
-  // TODO: remove provDBHack. This is a temporary hack to work around the incorrect provenance database name returned by the API
-  return fetchHelper('getApp', url, request, async (response) => provDbHack(await response.json() as DbosCloudApp), token);
-}
-
-// TODO: remove provDBHack. This is a temporary hack to work around the incorrect provenance database name returned by the API
-function provDbHack(app: DbosCloudApp) {
-  return app.ProvenanceDatabaseName
-    ? { ...app, ProvenanceDatabaseName: app.ApplicationDatabaseName + "_dbos_prov" }
-    : app;
+  return fetchHelper('getApp', url, request, async (response) => await response.json() as DbosCloudApp, token);
 }
 
 export async function listDbInstances({ domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbInstance[]> {

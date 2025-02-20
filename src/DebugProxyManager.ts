@@ -262,25 +262,20 @@ export class DebugProxyManager implements vscode.Disposable {
     return async function (item?: CloudAppItem) {
       if (!item) { return; }
       logger.debug("launchDebugProxyCommand", item.app);
-      if (!item.app.ProvenanceDatabaseName) {
+      if (!item.app.ProvenanceDatabase) {
         await vscode.window.showErrorMessage(`Time Travel Debugging not enabled for ${item.app.Name} application`);
         return;
       }
       const cred = await $this.#getCredential(item);
       if (!cred) { return; }
-      const instanceName = item.app.PostgresInstanceName;
-
-      const [dbi, role] = await Promise.all([
-        getDbInstance(instanceName, cred),
-        getDbProxyRole(instanceName, cred)
-      ]);
-      if (isUnauthorized(dbi) || isUnauthorized(role)) { return; }
+      const role = await getDbProxyRole(item.app.PostgresInstanceName, cred);
+      if (isUnauthorized(role)) { return; }
       const options: DebugProxyOptions = {
-        host: dbi.HostName,
-        port: dbi.Port,
+        host: item.app.ProvenanceDatabase.HostName,
+        port: item.app.ProvenanceDatabase.Port,
+        database: item.app.ProvenanceDatabase.Name,
         user: role.RoleName,
         password: role.Secret,
-        database: item.app.ProvenanceDatabaseName,
       };
 
       await $this.launchDebugProxy(options);
