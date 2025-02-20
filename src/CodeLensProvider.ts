@@ -338,7 +338,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                     this.appMap.set(key, app);
                 }
             } catch (error) {
-                logger.debug("#getCloudApp", error);
+                logger.error("#getCloudApp", error);
             }
         }
         return app;
@@ -367,7 +367,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                     this.dbInfoMap.set(key, dbInfo);
                 }
             } catch (error) {
-                logger.debug("#getCloudDatabase", error);
+                logger.error("#getCloudDatabase", error);
             }
         }
         return dbInfo;
