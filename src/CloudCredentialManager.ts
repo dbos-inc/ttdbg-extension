@@ -63,6 +63,7 @@ export class CloudCredentialManager implements vscode.Disposable {
         }
 
         if (credential) {
+            // if credential is expired, prompt user to refresh
             this.#refreshCredential(domain, credential);
         }
 
