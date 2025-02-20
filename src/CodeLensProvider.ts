@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { logger, startDebuggingCodeLensCommandName } from './extension';
-import { Pool, PoolClient } from 'pg';
+import { ClientBase, Pool, PoolClient } from 'pg';
 import { DbosConfig, loadConfigFile, locateDbosConfigFile } from './dbosConfig';
 import { CloudCredentialManager } from './CloudCredentialManager';
 import { DbosCloudApp, getApp, getDbCredentials, getDbInstance, isUnauthorized } from './dbosCloudApi';
@@ -28,7 +28,7 @@ interface workflow_status {
 
 type WFStatus = workflow_status & { created_at: string, updated_at: string };
 
-async function pickWorkflow(client: PoolClient, methodName: string) {
+async function pickWorkflow(client: ClientBase, methodName: string) {
 
     const result = await client.query<WFStatus>(
         "SELECT * FROM dbos.workflow_status WHERE (status = 'SUCCESS' OR status = 'ERROR') AND name = $1 ORDER BY created_at DESC",
@@ -115,7 +115,9 @@ const nodeExecutables: ReadonlyArray<string> = ['node', 'npm', 'npx'];
 
 export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, vscode.Disposable {
     private readonly onDidChangeCodeLensesEmitter = new vscode.EventEmitter<void>();
-    private readonly credChangeSub: vscode.Disposable;
+    private readonly fileSystemWatcher = vscode.workspace.createFileSystemWatcher("**/dbos-config.yaml");
+    private readonly subscriptions = new Array<vscode.Disposable>();
+
     private readonly connectionMap = new Map<string, Pool>();
     private readonly configMap = new Map<string, DbosConfig>();
     private readonly appMap = new Map<string, DbosCloudApp>();
@@ -127,16 +129,27 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
         private readonly credManager: CloudCredentialManager,
         private readonly debugProxyManager: DebugProxyManager,
     ) {
-        this.credChangeSub = credManager.onCredentialChange(
-            () => {
-                this.appMap.clear();
-                this.dbInfoMap.clear();
-                this.onDidChangeCodeLensesEmitter.fire();
-            });
+        this.subscriptions.push(
+            credManager.onCredentialChange(() => this.#credentialChange()),
+            this.fileSystemWatcher.onDidCreate((uri) => this.#configChanged(uri)),
+            this.fileSystemWatcher.onDidChange((uri) => this.#configChanged(uri)),
+            this.fileSystemWatcher.onDidDelete((uri) => this.#configChanged(uri)),
+        );
+    }
+
+    #credentialChange() {
+        this.appMap.clear();
+        this.dbInfoMap.clear();
+        this.onDidChangeCodeLensesEmitter.fire();
+    }
+
+    #configChanged(uri: vscode.Uri) {
+        this.appMap.delete(uri.toString());
+        this.onDidChangeCodeLensesEmitter.fire();
     }
 
     dispose() {
-        this.credChangeSub.dispose();
+        this.subscriptions.forEach(d => d.dispose());
         this.onDidChangeCodeLensesEmitter.dispose();
 
         const connections = [...this.connectionMap.values()];
