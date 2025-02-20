@@ -188,7 +188,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
             const name = codeLens.name;
             if (codeLens.kind === "local") {
                 codeLens.command = {
-                    title: '♻️ Replay Debug',
+                    title: '🔁 Replay Debug',
                     tooltip: `Debug ${name} with the replay debugger`,
                     command: startDebuggingCodeLensCommandName,
                     arguments: [name, config]
