@@ -90,17 +90,6 @@ async function pickWorkflow(client: ClientBase, methodName: string) {
     }
 }
 
-class DbosCodeLens extends vscode.CodeLens {
-    constructor(
-        range: vscode.Range,
-        public readonly uri: vscode.Uri,
-        public readonly name: string,
-        public readonly kind: "local" | "cloud" | "time-travel",
-    ) {
-        super(range);
-    }
-}
-
 interface DbConnectionInfo {
     host: string;
     port: number;
@@ -109,11 +98,9 @@ interface DbConnectionInfo {
     provDatabase?: string;
 }
 
-type AppInfo = DbosCloudApp & { timeTravel?: boolean };
-
 const nodeExecutables: ReadonlyArray<string> = ['node', 'npm', 'npx'];
 
-export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, vscode.Disposable {
+export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposable {
     private readonly onDidChangeCodeLensesEmitter = new vscode.EventEmitter<void>();
     private readonly fileSystemWatcher = vscode.workspace.createFileSystemWatcher("**/dbos-config.yaml");
     private readonly subscriptions = new Array<vscode.Disposable>();
@@ -159,30 +146,51 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
         }
     }
 
-    async provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<DbosCodeLens[] | undefined> {
+    async provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.CodeLens[]> {
         logger.debug("provideCodeLenses", { uri: document.uri.toString() });
         try {
             const parser = getParser(document.languageId);
-            if (!parser) { return; }
+            if (!parser) { return []; }
 
-            const cred = await this.credManager.getValidCredential(undefined);
-            const lenses = new Array<DbosCodeLens>();
+            const config = await this.#getConfig(document.uri, token);
+            if (!config) { return []; }
+
+            const app = await this.#getCloudApp(config, token);
+
+            const lenses = new Array<vscode.CodeLens>();
             for (const { start, end, name } of parser(document, token)) {
                 if (token.isCancellationRequested) { break; }
                 const range = new vscode.Range(start, end);
-                lenses.push(new DbosCodeLens(range, document.uri, name, "local"));
-                if (cred) {
-                    lenses.push(
-                        new DbosCodeLens(range, document.uri, name, "cloud"),
-                        new DbosCodeLens(range, document.uri, name, "time-travel"),
-                    );
+                lenses.push(new vscode.CodeLens(range, {
+                    title: '🔁 Replay Debug',
+                    tooltip: `Debug ${name} with the replay debugger`,
+                    command: startDebuggingCodeLensCommandName,
+                    arguments: [name, config]
+                }));
+
+                if (app) {
+                    lenses.push(new vscode.CodeLens(range, {
+                        title: '☁️ Cloud Replay Debug',
+                        tooltip: `Debug ${name} with the cloud replay debugger`,
+                        command: startDebuggingCodeLensCommandName,
+                        arguments: [name, config, app]
+                    }));
+
+                    if (app.ProvenanceDatabase) {
+                        lenses.push(new vscode.CodeLens(range, {
+                            title: '⏳ Time-Travel Debug',
+                            tooltip: `Debug ${name} with the time travel debugger`,
+                            command: startDebuggingCodeLensCommandName,
+                            arguments: [name, config, app, true]
+                        }));
+                    }
                 }
             }
             return lenses;
         } catch (e) {
             logger.error("provideCodeLenses", e);
         }
-        return undefined;
+        return [];
 
         function getParser(languageId: string) {
             switch (languageId) {
@@ -192,57 +200,18 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
         }
     }
 
-    async resolveCodeLens(codeLens: DbosCodeLens, token: vscode.CancellationToken): Promise<DbosCodeLens> {
-        logger.debug("resolveCodeLens", { name: codeLens.name, uri: codeLens.uri.toString(), kind: codeLens.kind });
-
-        const config = await this.#getConfig(codeLens.uri, token);
-        if (config) {
-            const name = codeLens.name;
-            if (codeLens.kind === "local") {
-                codeLens.command = {
-                    title: '🔁 Replay Debug',
-                    tooltip: `Debug ${name} with the replay debugger`,
-                    command: startDebuggingCodeLensCommandName,
-                    arguments: [name, config]
-                };
-            }
-            if (codeLens.kind === "cloud") {
-                const app = await this.#getCloudApp(config, token);
-                if (app) {
-                    codeLens.command = {
-                        title: '☁️ Cloud Replay Debug',
-                        tooltip: `Debug ${name} with the cloud replay debugger`,
-                        command: startDebuggingCodeLensCommandName,
-                        arguments: [name, config, app]
-                    };
-                }
-            }
-            if (codeLens.kind === "time-travel") {
-                const app = await this.#getCloudApp(config, token);
-                if (app?.ProvenanceDatabase) {
-                    codeLens.command = {
-                        title: '⏳ Time-Travel Debug',
-                        tooltip: `Debug ${name} with the time travel debugger`,
-                        command: startDebuggingCodeLensCommandName,
-                        arguments: [name, config, { ...app, timeTravel: true }]
-                    };
-                }
-            }
-        }
-        return codeLens;
-    }
-
     getCodeLensDebugCommand() {
         const $this = this;
         return async function (
             methodName?: string,
             config?: DbosConfig,
-            app?: AppInfo,
+            app?: DbosCloudApp,
+            timeTravel?: boolean,
         ) {
-            const db = app ? await $this.#getDbConnectionInfo(app) : undefined;
+            const db = app ? await $this.#getDbConnectionInfo(app, timeTravel ?? false) : undefined;
             logger.info("codeLensDebug", {
                 methodName: methodName ?? null,
-                config: config?.toString() ?? null,
+                config: config ?? null,
                 app: app ?? null,
                 db: db ?? null
             });
@@ -252,11 +221,11 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
             logger.info("codeLensDebug", { workflowID: workflowID ?? null });
             if (!workflowID) { return; }
 
-            const debugConfig = $this.#getDebugConfig(config, workflowID, db, app?.timeTravel);
+            const debugConfig = $this.#getDebugConfig(config, workflowID, db, timeTravel);
             logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
 
-            if (app?.timeTravel) {
-                if (!app.ProvenanceDatabase) { throw new Error("ProvenanceDatabaseName not set "); }
+            if (timeTravel) {
+                if (!app?.ProvenanceDatabase) { throw new Error("ProvenanceDatabaseName not set "); }
                 if (!db) { throw new Error("DB Instance Info not set"); }
 
                 const proxyPort = Configuration.getProxyPort();
@@ -356,11 +325,11 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
         return app;
     }
 
-    async #getDbConnectionInfo(app: AppInfo, token?: vscode.CancellationToken): Promise<DbConnectionInfo | undefined> {
+    async #getDbConnectionInfo(app: DbosCloudApp, timeTravel: boolean, token?: vscode.CancellationToken): Promise<DbConnectionInfo | undefined> {
         const cred = await this.credManager.getValidCredential(undefined);
         if (!cred || token?.isCancellationRequested) { return; }
 
-        const key = `${app.Name}:${cred.domain}:${cred.userName}` + (app.timeTravel ? ":prov" : "");
+        const key = `${app.Name}:${cred.domain}:${cred.userName}` + (timeTravel ? ":prov" : "");
         let dbInfo = this.dbInfoMap.get(key);
         if (!dbInfo) {
             try {
@@ -374,7 +343,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider<DbosCodeLens>, 
                         port: dbi.Port,
                         user: dbi.DatabaseUsername,
                         password: dbCred.Password,
-                        provDatabase: app.timeTravel ? app.ProvenanceDatabase?.Name : undefined,
+                        provDatabase: timeTravel ? app.ProvenanceDatabase?.Name : undefined,
                     };
                     this.dbInfoMap.set(key, dbInfo);
                 }
