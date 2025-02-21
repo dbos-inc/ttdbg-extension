@@ -242,7 +242,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             }
             : undefined;
 
-        return { cloudRelay, timeTravel }
+        return { cloudRelay, timeTravel };
     }
 
     getCodeLensDebugCommand() {
