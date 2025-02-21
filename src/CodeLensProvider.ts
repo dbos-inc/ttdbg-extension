@@ -222,7 +222,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             ? {
                 host: dbi.HostName,
                 port: dbi.Port,
-                database: config.sysDatabase,
+                database: `${app.ApplicationDatabaseName}_dbos_sys`,
                 user: dbCred.RoleName,
                 password: dbCred.Password,
                 timeTravel: false,
