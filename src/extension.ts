@@ -1,16 +1,19 @@
 import * as vscode from 'vscode';
-import { S3CloudStorage } from './CloudStorage';
 import { CodeLensProvider } from './CodeLensProvider';
-import { registerCommands, updateDebugProxyCommandName, } from './commands';
-import { Configuration } from './Configuration';
 import { LogOutputChannelTransport, Logger, createLogger } from './logger';
-import { UriHandler } from './UriHandler';
 import { CloudDataProvider } from './CloudDataProvider';
-import { shutdownProvenanceDbConnectionPool } from './provenanceDb';
-import { shutdownDebugProxy } from './debugProxy';
+import { CloudCredentialManager } from './CloudCredentialManager';
+import { S3Storage } from './BlobStorage';
+import { DebugProxyManager } from './DebugProxyManager';
 
 export let logger: Logger;
-export let config: Configuration;
+
+const cloudLoginCommandName = "dbos-ttdbg.cloud-login";
+const deleteDomainCredentialsCommandName = "dbos-ttdbg.delete-domain-credentials";
+export const startDebuggingCodeLensCommandName = "dbos-ttdbg.start-debugging-code-lens";
+const browseCloudAppCommandName = "dbos-ttdbg.browse-cloud-app";
+const updateDebugProxyCommandName = "dbos-ttdbg.update-debug-proxy";
+const launchDebugProxyCommandName = "dbos-ttdbg.launch-debug-proxy";
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -18,30 +21,51 @@ export async function activate(context: vscode.ExtensionContext) {
   logger = createLogger(transport);
   context.subscriptions.push({ dispose() { logger.close(); transport.close(); } });
 
-  config = new Configuration(context.secrets, context.workspaceState);
+  logger.info("DBOS extension activated");
 
-  const cloudStorage = new S3CloudStorage();
-  context.subscriptions.push(cloudStorage);
-
-  const cloudDataProvider = new CloudDataProvider();
+  const credManager = new CloudCredentialManager(context.secrets, context.globalState);
+  const debugProxyManager = new DebugProxyManager(
+    credManager,
+    context.globalStorageUri);
+  const cloudDataProvider = new CloudDataProvider(credManager);
+  const codeLensProvider = new CodeLensProvider(credManager, debugProxyManager);
+  const blobStorage = new S3Storage();
 
   context.subscriptions.push(
-    ...registerCommands(cloudStorage, context.globalStorageUri, (domain: string) => cloudDataProvider.refresh(domain)),
-    { dispose() { shutdownProvenanceDbConnectionPool(); } },
-    { dispose() { shutdownDebugProxy(); } },
+    credManager,
+    cloudDataProvider,
+    codeLensProvider,
+    blobStorage,
+    debugProxyManager,
 
-    vscode.window.registerTreeDataProvider("dbos-ttdbg.views.resources", cloudDataProvider),
-
+    vscode.window.registerTreeDataProvider(
+      "dbos-ttdbg.views.resources",
+      cloudDataProvider),
     vscode.languages.registerCodeLensProvider(
-      { scheme: 'file', language: 'typescript' },
-      new CodeLensProvider()),
+      { language: 'typescript' },
+      codeLensProvider),
 
-    vscode.window.registerUriHandler(new UriHandler())
+    vscode.commands.registerCommand(
+      cloudLoginCommandName,
+      credManager.getCloudLoginCommand()),
+    vscode.commands.registerCommand(
+      deleteDomainCredentialsCommandName,
+      credManager.getDeleteCloudCredentialsCommand()),
+    vscode.commands.registerCommand(
+      startDebuggingCodeLensCommandName,
+      codeLensProvider.getCodeLensDebugCommand()),
+    vscode.commands.registerCommand(
+      browseCloudAppCommandName,
+      CloudDataProvider.browseCloudApp),
+    vscode.commands.registerCommand(
+      updateDebugProxyCommandName,
+      debugProxyManager.getUpdateDebugProxyCommand(blobStorage)),
+    vscode.commands.registerCommand(
+      launchDebugProxyCommandName,
+      debugProxyManager.getLaunchDebugProxyCommand()),
   );
 
   vscode.commands.executeCommand(updateDebugProxyCommandName);
 }
 
 export function deactivate() { }
-
-

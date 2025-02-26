@@ -1,54 +1,135 @@
 import * as vscode from 'vscode';
-import { DbosCloudApp, getCloudDomain, DbosCloudDbInstance, listApps, listDbInstances, isUnauthorized } from './dbosCloudApi';
-import { config } from './extension';
-import { validateCredentials } from './validateCredentials';
+import { DbosCloudApp, getCloudDomain, DbosCloudDbInstance, listApps, listDbInstances, isUnauthorized, DbosCloudCredential } from './dbosCloudApi';
+import { CloudCredentialManager } from './CloudCredentialManager';
 
-export interface CloudDomainNode {
-  kind: "cloudDomain";
-  domain: string;
-}
-
-interface CloudResourceTypeNode {
-  kind: "cloudResourceType";
-  type: "apps" | "dbInstances";
-  domain: string;
-};
-
-export interface CloudAppNode {
-  kind: "cloudApp";
-  domain: string;
-  app: DbosCloudApp;
-};
-
-export interface CloudDbInstanceNode {
-  kind: "cloudDbInstance";
-  domain: string;
-  dbInstance: DbosCloudDbInstance;
-}
-
-type CloudProviderNode = CloudDomainNode | CloudResourceTypeNode | CloudAppNode | CloudDbInstanceNode;
-
-export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderNode> {
-  private readonly onDidChangeTreeDataEmitter = new vscode.EventEmitter<CloudProviderNode | CloudProviderNode[] | undefined | null | void>();
-  readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
-
-  private readonly domains: Array<CloudDomainNode>;
-  private readonly apps = new Map<string, CloudAppNode[]>();
-  private readonly dbInstances = new Map<string, CloudDbInstanceNode[]>();
-
+class CloudDomainLoginNeededItem extends vscode.TreeItem {
   constructor() {
-    const { cloudDomain } = getCloudDomain();
-    this.domains = [{ kind: "cloudDomain", domain: cloudDomain }];
+    super("You need to login to DBOS Cloud.");
+    this.contextValue = "cloudDomainLoginNeeded";
+  }
+}
+
+class CloudDomainItem extends vscode.TreeItem {
+  readonly appItem: CloudResourceTypeItem;
+  readonly dbInstanceItem: CloudResourceTypeItem;
+
+  private apps: Array<CloudAppItem> | undefined;
+  private dbInstances: Array<CloudDbInstanceItem> | undefined;
+
+  static readonly domainLoginNeeded = new CloudDomainLoginNeededItem();
+
+  constructor(
+    public readonly domain: string,
+    private readonly credManager: CloudCredentialManager,
+  ) {
+    super(domain, vscode.TreeItemCollapsibleState.Collapsed);
+    this.contextValue = "cloudDomain";
+    this.appItem = new CloudResourceTypeItem("apps", this);
+    this.dbInstanceItem = new CloudResourceTypeItem("dbInstances", this);
   }
 
-  async refresh(domain: string) {
-    this.apps.delete(domain);
-    this.dbInstances.delete(domain);
+  async getChildren() {
+    this.apps = undefined;
+    this.dbInstances = undefined;
 
+    const cred = await this.credManager.getCachedCredential(this.domain);
+    if (cred && CloudCredentialManager.isCredentialValid(cred)) {
+      const [apps, dbInstances] = await Promise.all([listApps(cred), listDbInstances(cred)]);
+      this.apps = isUnauthorized(apps) ? undefined : apps.map(app => new CloudAppItem(app, this));
+      this.dbInstances = isUnauthorized(dbInstances) ? undefined : dbInstances.map(dbi => new CloudDbInstanceItem(dbi, this));
+      return [this.appItem, this.dbInstanceItem];
+    }
+
+    this.credManager.updateCredential(this.domain, cred);
+    return [CloudDomainItem.domainLoginNeeded];
+  }
+
+  getApps() {
+    return this.apps ?? [];
+  }
+
+  getDbInstances() {
+    return this.dbInstances ?? [];
+  }
+}
+
+class CloudResourceTypeItem extends vscode.TreeItem {
+  constructor(
+    public readonly type: "apps" | "dbInstances",
+    readonly parent: CloudDomainItem,
+  ) {
+    super(type === "apps" ? "Applications" : "Database Instances", vscode.TreeItemCollapsibleState.Collapsed);
+    this.contextValue = "cloudResourceType";
+  }
+
+  getChildren() {
+    return this.type === "apps"
+      ? this.parent.getApps()
+      : this.parent.getDbInstances();
+  }
+}
+
+export class CloudAppItem extends vscode.TreeItem {
+  constructor(readonly app: DbosCloudApp, readonly parent: CloudDomainItem) {
+    super(app.Name, vscode.TreeItemCollapsibleState.None);
+    this.contextValue = "cloudApp";
+    const tooltip = `
+Database Instance: ${app.PostgresInstanceName}\n
+Database Name: ${app.ApplicationDatabaseName}\n
+Status: ${app.Status}\n
+Version: ${app.Version}\n
+Application URL: ${app.AppURL}`;
+
+    this.tooltip = new vscode.MarkdownString(tooltip);
+  }
+
+  get domain() { return this.parent.domain;}
+}
+
+class CloudDbInstanceItem extends vscode.TreeItem {
+  constructor(readonly dbi: DbosCloudDbInstance, readonly parent: CloudDomainItem) {
+    super(dbi.PostgresInstanceName, vscode.TreeItemCollapsibleState.None);
+    this.contextValue = "cloudDbInstance";
+    const tooltip = `
+Host Name: ${dbi.HostName}\n
+Port: ${dbi.Port}\n
+Username: ${dbi.DatabaseUsername}\n
+Status: ${dbi.Status}`;
+    this.tooltip = new vscode.MarkdownString(tooltip);
+  }
+}
+
+type CloudProviderNode = CloudDomainItem | CloudResourceTypeItem | CloudAppItem | CloudDbInstanceItem | CloudDomainLoginNeededItem;
+
+export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderNode>, vscode.Disposable {
+  private readonly onDidChangeTreeDataEmitter = new vscode.EventEmitter<CloudProviderNode | CloudProviderNode[] | undefined | null | void>();
+  private readonly credChangeSub: vscode.Disposable;
+  private readonly domains: Array<CloudDomainItem>;
+
+  readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
+
+  constructor(private readonly credManager: CloudCredentialManager) {
+    this.credChangeSub = this.credManager.onCredentialChange((domain) => this.#refresh(domain));
+
+    const { cloudDomain } = getCloudDomain();
+    this.domains = [new CloudDomainItem(cloudDomain, this.credManager) ];
+  }
+
+  dispose() {
+    this.credChangeSub.dispose();
+    this.onDidChangeTreeDataEmitter.dispose();
+  }
+
+  async #refresh(domain: string) {
     const node = this.domains.find(d => d.domain === domain);
     if (node) {
+      node.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
       this.onDidChangeTreeDataEmitter.fire(node);
     }
+  }
+
+  getTreeItem(element: CloudProviderNode): vscode.TreeItem {
+    return element;
   }
 
   async getChildren(element?: CloudProviderNode | undefined): Promise<CloudProviderNode[]> {
@@ -56,105 +137,22 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
       return this.domains;
     }
 
-    if (element.kind === "cloudDomain") {
-      if (!this.apps.has(element.domain) || !this.dbInstances.has(element.domain)) {
-        const credentials = await config.getCredentials(element.domain);
-        if (!validateCredentials(credentials)) { return []; }
-
-        const [apps, dbInstances] = await Promise.all([listApps(credentials), listDbInstances(credentials)]);
-        if (isUnauthorized(apps)) {
-          this.apps.delete(element.domain);
-        } else {
-          this.apps.set(element.domain, apps.map(a => ({ kind: "cloudApp", domain: element.domain, app: a })));
-        }
-        if (isUnauthorized(dbInstances)) {
-          this.dbInstances.delete(element.domain);
-        } else {
-          this.dbInstances.set(element.domain, dbInstances.map(dbi => ({ kind: "cloudDbInstance", domain: element.domain, dbInstance: dbi })));
-        }
-        return [
-          { kind: "cloudResourceType", type: "apps", domain: element.domain },
-          { kind: "cloudResourceType", type: "dbInstances", domain: element.domain },
-        ];
-      }
+    if (element instanceof CloudDomainItem) {
+      return await element.getChildren();
     }
 
-    if (element.kind === "cloudResourceType") {
-      switch (element.type) {
-        case "apps": {
-          return this.apps.get(element.domain) ?? [];
-        }
-        case "dbInstances": {
-          return this.dbInstances.get(element.domain) ?? [];
-        }
-        default:
-          const _: never = element.type;
-          throw new Error(`Unknown service type: ${element.type}`);
-      }
+    if (element instanceof CloudResourceTypeItem) {
+      return element.getChildren();
     }
 
     return [];
   }
 
-  getTreeItem(element: CloudProviderNode): vscode.TreeItem | Thenable<vscode.TreeItem> {
-    const { kind } = element;
-    switch (kind) {
-      case "cloudDomain": {
-        return {
-          label: element.domain,
-          collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-          contextValue: element.kind,
-        };
-      }
-      case 'cloudResourceType': {
-        let label: string;
-        switch (element.type) {
-          case "apps": label = "Applications"; break;
-          case "dbInstances": label = "Database Instances"; break;
-          default:
-            const _: never = element.type;
-            throw new Error(`Unknown service type: ${element.type}`);
-        }
-        return {
-          label,
-          collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-          contextValue: element.kind,
-        };
-      }
-      case 'cloudApp': {
-        const { app } = element;
-        const tooltip = `
-Database Instance: ${app.PostgresInstanceName}\n
-Database Name: ${app.ApplicationDatabaseName}\n
-Status: ${app.Status}\n
-Version: ${app.Version}\n
-Application URL: ${app.AppURL}`;
-
-        return {
-          label: app.Name,
-          collapsibleState: vscode.TreeItemCollapsibleState.None,
-          contextValue: element.kind,
-          tooltip: new vscode.MarkdownString(tooltip)
-        };
-      }
-      case 'cloudDbInstance': {
-        const { dbInstance: dbi } = element;
-        const tooltip = `
-Host Name: ${dbi.HostName}\n
-Port: ${dbi.Port}\n
-Username: ${dbi.DatabaseUsername}\n
-Status: ${dbi.Status}`;
-
-        return {
-          label: element.dbInstance.PostgresInstanceName,
-          collapsibleState: vscode.TreeItemCollapsibleState.None,
-          contextValue: element.kind,
-          tooltip: new vscode.MarkdownString(tooltip)
-        };
-      }
-      default:
-        const _: never = kind;
-        throw new Error(`Unknown service type: ${kind}`);
+  static async browseCloudApp(item?: CloudAppItem) {
+    if (item) {
+      const uri = vscode.Uri.parse(item.app.AppURL);
+      await vscode.env.openExternal(uri);
     }
   }
 }
+

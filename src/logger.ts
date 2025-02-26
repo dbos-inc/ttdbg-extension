@@ -20,11 +20,11 @@ export class LogOutputChannelTransport extends Transport {
 
         const { level, message, [LEVEL]: $level, [MESSAGE]: $message, [SPLAT]: $splat, ...properties } = info;
         switch ($level ?? level) {
-            case "error": this._outChannel.error(message, properties); break;
-            case "warn": this._outChannel.warn(message, properties); break;
-            case "info": this._outChannel.info(message, properties); break;
-            case "debug": this._outChannel.debug(message, properties); break;
-            case "trace": this._outChannel.trace(message, properties); break;
+            case "error": this._outChannel.error(`${message}`, properties); break;
+            case "warn": this._outChannel.warn(`${message}`, properties); break;
+            case "info": this._outChannel.info(`${message}`, properties); break;
+            case "debug": this._outChannel.debug(`${message}`, properties); break;
+            case "trace": this._outChannel.trace(`${message}`, properties); break;
             default:
                 vscode.window.showErrorMessage(`Unknown log level: ${info[LEVEL]}`);
         }

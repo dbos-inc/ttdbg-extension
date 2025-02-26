@@ -22,7 +22,7 @@
   "activationEvents": [
     "workspaceContains:**/dbos-config.yaml"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
@@ -32,51 +32,27 @@
         "icon": "$(log-in)"
       },
       {
-        "command": "dbos-ttdbg.refresh-domain",
-        "title": "Refresh DBOS Cloud Resources",
-        "category": "DBOS",
-        "icon": "$(refresh)"
-      },
-      {
         "command": "dbos-ttdbg.delete-domain-credentials",
         "title": "Delete Stored DBOS Cloud Credentials",
         "category": "DBOS",
         "icon": "$(log-out)"
       },
       {
-        "command": "dbos-ttdbg.shutdown-debug-proxy",
-        "title": "Shutdown Debug Proxy",
-        "category": "DBOS"
-      },
-      {
-        "command": "dbos-ttdbg.update-debug-proxy",
-        "title": "Update Debug Proxy",
-        "category": "DBOS"
+        "command": "dbos-ttdbg.browse-cloud-app",
+        "title": "Browse DBOS Cloud App",
+        "category": "DBOS",
+        "icon": "$(globe)"
       },
       {
         "command": "dbos-ttdbg.launch-debug-proxy",
-        "title": "Launch Debug Proxy",
+        "title": "Launch Time Travel Debugging Proxy",
         "category": "DBOS",
         "icon": "$(debug)"
-      },
-      {
-        "command": "dbos-ttdbg.launch-dashboard",
-        "title": "Launch DBOS Dashboard",
-        "category": "DBOS",
-        "icon": "$(server)"
-      },
-      {
-        "command": "dbos-ttdbg.set-app-name",
-        "title": "Set Application Name",
-        "category": "DBOS"
-      }
+      } 
     ],
     "configuration": {
       "title": "DBOS Time Travel Debugger",
       "properties": {
-        "dbos-ttdbg.debug_pre_launch_task": {
-          "type": "string"
-        },
         "dbos-ttdbg.debug_proxy_port": {
           "type": "number",
           "default": 2345
@@ -89,18 +65,6 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically launch the debug proxy when debugging."
-        },
-        "dbos-ttdbg.prov_db_database": {
-          "type": "string"
-        },
-        "dbos-ttdbg.prov_db_host": {
-          "type": "string"
-        },
-        "dbos-ttdbg.prov_db_port": {
-          "type": "number"
-        },
-        "dbos-ttdbg.prov_db_user": {
-          "type": "string"
         }
       }
     },
@@ -112,18 +76,13 @@
           "group": "inline"
         },
         {
-          "command": "dbos-ttdbg.launch-dashboard",
-          "when": "view == dbos-ttdbg.views.resources && (viewItem == cloudDomain || viewItem == cloudApp)",
-          "group": "inline"
-        },
-        {
-          "command": "dbos-ttdbg.refresh-domain",
-          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain",
-          "group": "inline"
-        },
-        {
           "command": "dbos-ttdbg.delete-domain-credentials",
           "when": "view == dbos-ttdbg.views.resources && viewItem == cloudDomain"
+        },
+        {
+          "command": "dbos-ttdbg.browse-cloud-app",
+          "when": "view == dbos-ttdbg.views.resources && viewItem == cloudApp",
+          "group": "inline"
         },
         {
           "command": "dbos-ttdbg.launch-debug-proxy",
@@ -151,41 +110,43 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run esbuild-base -- --minify",
-    "esbuild-base": "rimraf out && esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
-    "compile": "npm run esbuild-base -- --sourcemap",
-    "watch": "npm run esbuild-base -- --sourcemap --watch",
-    "test-compile": "tsc -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.525.0",
-    "@types/fnv-plus": "^1.3.2",
-    "@types/mocha": "^10.0.6",
-    "@types/node": "^20.11.24",
-    "@types/pg": "^8.11.2",
+    "@aws-sdk/client-s3": "3.525.0",
+    "@types/koa__router": "^12.0.4",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.17.18",
+    "@types/pg": "^8.11.11",
     "@types/semver": "^7.5.8",
-    "@types/stream-json": "^1.7.7",
     "@types/vscode": "^1.86.0",
-    "@typescript-eslint/eslint-plugin": "^7.1.0",
-    "@typescript-eslint/parser": "^7.1.0",
-    "@vscode/test-cli": "^0.0.6",
-    "@vscode/test-electron": "^2.3.9",
-    "@vscode/vsce": "^2.24.0",
-    "esbuild": "^0.20.1",
-    "eslint": "^8.57.0",
-    "fnv-plus": "^1.3.1",
+    "@typescript-eslint/eslint-plugin": "^8.24.1",
+    "@typescript-eslint/parser": "^8.24.1",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.2",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.20.1",
+    "fastify": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
     "jszip": "^3.10.1",
     "jwks-rsa": "^3.1.0",
-    "pg": "^8.11.3",
-    "rimraf": "^5.0.5",
-    "semver": "^7.6.0",
-    "stream-json": "^1.8.0",
-    "typescript": "^5.3.3",
-    "winston": "^3.11.0",
-    "yaml": "^2.4.0"
+    "pg": "^8.13.3",
+    "rimraf": "^6.0.1",
+    "semver": "^7.7.1",
+    "typescript": "^5.7.3",
+    "winston": "^3.17.0",
+    "yaml": "^2.7.0"
   }
 }
