@@ -41,15 +41,6 @@ async function main() {
 			esbuildProblemMatcherPlugin,
 		],
 		external: [
-			'better-sqlite3',
-			'drizzle-orm/node-postgres',
-			'mysql', 
-			'mysql2', 
-			'oracledb',
-			'pg-query-stream',
-			'sqlite3', 
-			'tedious',
-			'typeorm',
 			'vscode',
 		],
 	});
