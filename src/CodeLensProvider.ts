@@ -12,22 +12,24 @@ import path from 'path';
 
 interface workflow_status {
     workflow_uuid: string;
-    status: string;
-    name: string;
-    class_name?: string;
-    config_name?: string;
-    authenticated_user: string;
-    output: string;
-    error: string;
-    assumed_role: string;
-    authenticated_roles: string;  // Serialized list of roles.
-    request: string;  // Serialized HTTPRequest
-    executor_id: string;  // Set to "local" for local deployment, set to microVM ID for cloud deployment.
-    application_version: string;
-    queue_name?: string;
+    status: string | null;
+    name: string | null;
+    authenticated_user: string | null;
+    assumed_role: string | null;
+    authenticated_roles: string | null;
+    request: string | null;
+    output: string | null;
+    error: string | null;
+    executor_id: string | null;
+    created_at: string;                 // actually a bigint
+    updated_at: string;                 // actually a bigint
+    application_version: string | null;
+    application_id: string | null;
+    class_name: string | null;
+    config_name: string | null;
+    recovery_attempts: string | null;   // actually a nullable bigint
+    queue_name: string | null;
 }
-
-type WFStatus = workflow_status & { created_at: string, updated_at: string };
 
 export interface DbosWorkflowMethod {
     name: string;
@@ -46,13 +48,17 @@ interface CloudLensInfo {
 
 async function pickWorkflow(client: ClientBase, methodName: string) {
 
-    const result = await client.query<WFStatus>(
+    const result = await client.query<workflow_status>(
         "SELECT * FROM dbos.workflow_status WHERE (status = 'SUCCESS' OR status = 'ERROR') AND name = $1 ORDER BY created_at DESC",
         [methodName]);
-    const items = result.rows.map(status => <vscode.QuickPickItem>{
-        label: new Date(parseInt(status.created_at)).toLocaleString(),
-        description: `${status.status}${status.authenticated_user.length !== 0 ? ` (${status.authenticated_user})` : ""}`,
-        detail: status.workflow_uuid,
+    const items = result.rows.map(status => {
+        const $createdAt = BigInt(status.created_at);
+        const createdAt = $createdAt <= BigInt(Number.MAX_SAFE_INTEGER) ? new Date(Number($createdAt)) : undefined;
+        return <vscode.QuickPickItem>{
+            label: createdAt?.toLocaleString() ?? "unknown",
+            description: `${status.status}${status.authenticated_user && status.authenticated_user.length !== 0 ? ` (${status.authenticated_user})` : ""}`,
+            detail: status.workflow_uuid,
+        };
     });
 
     const editButton: vscode.QuickInputButton = {
@@ -298,8 +304,41 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
     }
 
     #getDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration {
-        if (config.language && config.language !== "node") {
-            throw new Error(`Unsupported language: ${config.language ?? null}`);
+        const language = config.language ?? "node";
+        switch (config.language) {
+            case "node": return this.#getNodeDebugConfig(workflowID, config, cloudLensInfo);
+            case "python": return this.#getPythonDebugConfig(workflowID, config, cloudLensInfo);
+            default: throw new Error(`Unsupported language: ${language}`);
+        }
+    }
+
+    #getPythonDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration {
+        if (config.language !== "python") {
+            throw new Error(`Expected python language, received ${config.language ?? null}`);
+        }
+
+        const timeTravel = cloudLensInfo?.timeTravel ?? false;
+        return {
+            type: 'debugpy',
+            request: 'launch',
+            name: cloudLensInfo?.timeTravel ? "Time-Travel Debug" : "Replay Debug",
+            module: 'dbos',
+            args: ['debug', workflowID],
+            cwd: path.dirname(config.uri.fsPath),
+            env: {
+                DBOS_DBHOST: timeTravel ? "localhost" : cloudLensInfo?.host,
+                DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
+                DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
+                DBOS_DBPASSWORD: timeTravel ? undefined : cloudLensInfo?.password,
+                DBOS_DBLOCALSUFFIX: timeTravel ? undefined : (cloudLensInfo ? "false" : undefined),
+            }
+        };
+    }
+
+
+    #getNodeDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration {
+        if ((config.language ?? "node") !== "node") {
+            throw new Error(`Expected node language, received ${config.language ?? null}`);
         }
 
         const timeTravel = cloudLensInfo?.timeTravel ?? false;
