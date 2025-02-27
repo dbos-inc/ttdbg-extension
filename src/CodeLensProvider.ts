@@ -339,6 +339,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
 
     async #pickWorkflow(methodName: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined) {
         const client = await this.#getDbClient(config, cloudLensInfo);
+        if (!client) { return undefined; }
         try {
             return await pickWorkflow(client, methodName);
         } finally {
@@ -346,7 +347,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         }
     }
 
-    async #getDbClient({ poolConfig, sysDatabase }: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): Promise<PoolClient> {
+    async #getDbClient({ poolConfig, sysDatabase }: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): Promise<PoolClient | undefined> {
         const key = cloudLensInfo
             ? `${cloudLensInfo.host}:${cloudLensInfo.port}:${cloudLensInfo.user}:${cloudLensInfo.database}`
             : `${poolConfig.host}:${poolConfig.port}:${poolConfig.user}:${sysDatabase}`;
@@ -368,9 +369,10 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         try {
             return await pool.connect();
         } catch (error) {
-            const message = `Failed to connect to database ${poolConfig.host}:${poolConfig.port}/${sysDatabase}`;
+            const message = `Failed to connect to database ${poolConfig.host}:${poolConfig.port}/${sysDatabase}. Error message: ${(error as any).toString()}`;
             logger.error("#getDbClient", { message, error });
-            throw new Error(message, { cause: error });
+            vscode.window.showErrorMessage(message);
+            return undefined;
         }
     }
 }

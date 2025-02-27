@@ -7,6 +7,8 @@ export class CloudCredentialManager implements vscode.Disposable {
     private readonly onCredentialChangeEmitter = new vscode.EventEmitter<string>();
     readonly onCredentialChange = this.onCredentialChangeEmitter.event;
 
+    private refreshInProgress = false;
+
     constructor(private readonly secrets: vscode.SecretStorage, private readonly memento: vscode.Memento) { }
 
     dispose() {
@@ -71,15 +73,28 @@ export class CloudCredentialManager implements vscode.Disposable {
     }
 
     async #refreshCredential(domain: string | DbosCloudDomain | undefined, credential: DbosCloudCredential | undefined): Promise<DbosCloudCredential | undefined> {
+        if (this.refreshInProgress) { return undefined; }
+
         try {
+            this.refreshInProgress = true;
             const message = credential
                 ? "Your DBOS Cloud credentials have expired. Please login again."
                 : "Please login to DBOS Cloud.";
             const result = await vscode.window.showInformationMessage(message, "Login", "Cancel");
-            return result === "Login" ? await this.#cloudLogin(domain) : undefined;
+            switch (result) {
+                case "Login":
+                    return await this.#cloudLogin(domain);
+                case "Cancel":
+                    // if user cancels, delete the expired credential
+                    if (credential) { await this.#deleteCloudCredential(domain); }
+                    break;
+            }
+            return undefined;
         } catch (error) {
             logger.error("updateCredential", error);
             return undefined;
+        } finally {
+            this.refreshInProgress = false;
         }
     }
 

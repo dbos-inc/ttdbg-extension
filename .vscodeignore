@@ -8,7 +8,7 @@ src/**
 scripts/**
 .gitignore
 .yarnrc
-esbuild.cjs
+esbuild.js
 version.json
 vsc-extension-quickstart.md
 **/tsconfig.json
