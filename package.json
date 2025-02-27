@@ -111,6 +111,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
+    "generate": "antlr4 -Dlanguage=TypeScript src/parsers/python/Python3Lexer.g4 src/parsers/python/Python3Parser.g4",
     "compile": "npm run check-types && npm run lint && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
