@@ -65,6 +65,11 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically launch the debug proxy when debugging."
+        },
+        "dbos-ttdbg.just_my_code": {
+          "type": "boolean",
+          "default": true,
+          "description": "Only show frames from the user's code in the call stack."
         }
       }
     },

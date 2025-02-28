@@ -325,16 +325,16 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             module: 'dbos',
             args: ['debug', workflowID],
             cwd: path.dirname(config.uri.fsPath),
+            justMyCode: Configuration.getJustMyCode(),
             env: {
                 DBOS_DBHOST: timeTravel ? "localhost" : cloudLensInfo?.host,
                 DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
                 DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
                 DBOS_DBPASSWORD: timeTravel ? undefined : cloudLensInfo?.password,
-                DBOS_DBLOCALSUFFIX: timeTravel ? undefined : (cloudLensInfo ? "false" : undefined),
+                DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" :  undefined,
             }
         };
     }
-
 
     #getNodeDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration {
         if ((config.language ?? "node") !== "node") {
@@ -347,13 +347,14 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             request: 'launch',
             name: cloudLensInfo?.timeTravel ? "Time-Travel Debug" : "Replay Debug",
             cwd: path.dirname(config.uri.fsPath),
+            justMyCode: Configuration.getJustMyCode(),
             env: {
                 DBOS_DEBUG_WORKFLOW_ID: workflowID,
                 DBOS_DBHOST: timeTravel ? "localhost" : cloudLensInfo?.host,
                 DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
                 DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
                 DBOS_DBPASSWORD: timeTravel ? undefined : cloudLensInfo?.password,
-                DBOS_DBLOCALSUFFIX: timeTravel ? undefined : (cloudLensInfo ? "false" : undefined),
+                DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" :  undefined,
             }
         };
 
