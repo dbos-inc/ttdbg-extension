@@ -42,7 +42,7 @@ export async function activate(context: vscode.ExtensionContext) {
       "dbos-ttdbg.views.resources",
       cloudDataProvider),
     vscode.languages.registerCodeLensProvider(
-      { language: 'typescript' },
+      [{ language: 'python' }, { language: 'typescript' }],
       codeLensProvider),
 
     vscode.commands.registerCommand(
