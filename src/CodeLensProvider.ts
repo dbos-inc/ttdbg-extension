@@ -272,6 +272,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
 
             const debugConfig = $this.#getDebugConfig(workflowID, config, cloudLensInfo);
             logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
+            if (!debugConfig) { return; }
 
             if (cloudLensInfo && (cloudLensInfo.timeTravel ?? false)) {
                 const proxyPort = Configuration.getProxyPort();
@@ -303,19 +304,33 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         };
     }
 
-    #getDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration {
+    #getDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration | undefined {
         const language = config.language ?? "node";
         switch (config.language) {
             case "node": return this.#getNodeDebugConfig(workflowID, config, cloudLensInfo);
-            case "python": return this.#getPythonDebugConfig(workflowID, config, cloudLensInfo);
+            case "python": {
+                const debugConfig = this.#getPythonDebugConfig(workflowID, config, cloudLensInfo);
+                if (!debugConfig) {
+                    vscode.window.showErrorMessage("Python debugger not found. Please install the Python extension for VSCode.", "Install", "Cancel")
+                        .then(value => {
+                            if (value === "Install") {
+                                vscode.env.openExternal(vscode.Uri.parse("https://marketplace.visualstudio.com/items?itemName=ms-python.python"));
+                            }
+                        })
+                }
+                return debugConfig;
+            }
             default: throw new Error(`Unsupported language: ${language}`);
         }
     }
 
-    #getPythonDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration {
+    #getPythonDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration | undefined {
         if (config.language !== "python") {
             throw new Error(`Expected python language, received ${config.language ?? null}`);
         }
+
+        const ext = vscode.extensions.getExtension("ms-python.debugpy");
+        if (!ext) { return undefined; }
 
         const timeTravel = cloudLensInfo?.timeTravel ?? false;
         return {
