@@ -1,6 +1,6 @@
 {
   "name": "dbos-ttdbg",
-  "displayName": "DBOS Time Travel Debugger",
+  "displayName": "DBOS Debugger",
   "publisher": "dbos-inc",
   "version": "0.0.0-placeholder",
   "icon": "dbos-logo-128.png",
@@ -59,12 +59,12 @@
         },
         "dbos-ttdbg.debug_proxy_path": {
           "type": "string",
-          "description": "Path to the debug proxy executable. Overrides downloading the latest version of the debug proxy."
+          "description": "Path to the Time Travel Debugging Proxy executable. Overrides the downloaded version of the Time Travel Debugging Proxy."
         },
-        "dbos-ttdbg.debug_proxy_launch": {
+        "dbos-ttdbg.debug_proxy_prerelease": {
           "type": "boolean",
-          "default": true,
-          "description": "Automatically launch the debug proxy when debugging."
+          "default": false,
+          "description": "Install prerelease versions of Time Travel Debugging Proxy."
         }
       }
     },
