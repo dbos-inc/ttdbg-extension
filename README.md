@@ -34,9 +34,9 @@ DBOS Cloud applications can optionally be deployed with time travel debugging en
 When enabled, DBOS Cloud automatically records every change made to your production database to a separate provenance database.
 
 For applications that are time travel enabled, the DBOS Debugger extension attaches a "⏳ Time Travel Debug" to your DBOS Workflow methods.
-When time travel debugging, you can step into DBOS Transaction and Stored Procedure functions as usual. 
-Only DBOS step functions are skipped when time travel debugging. 
+When time travel debugging, you can step into DBOS Transaction and Stored Procedure functions. 
 Queries in DBOS Transaction and Stored Procedure are executed against the provenance database, so they reflect the state of the database as it existed at the time the selected workflow originally ran.
+DBOS step functions are skipped when time travel debugging. 
 
 ![DBOS Time Travel CodeLens Screenshot](images/tt-debug-code-lens.png)
 
