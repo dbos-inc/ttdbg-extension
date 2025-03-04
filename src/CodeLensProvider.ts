@@ -234,7 +234,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 user: dbCred.RoleName,
                 password: dbCred.Password,
                 timeTravel: false,
-            } 
+            }
             : undefined;
 
         let timeTravel: CloudLensInfo | undefined = app.ProvenanceDatabase && proxyCred && !isUnauthorized(proxyCred)
@@ -308,18 +308,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         const language = config.language ?? "node";
         switch (config.language) {
             case "node": return this.#getNodeDebugConfig(workflowID, config, cloudLensInfo);
-            case "python": {
-                const debugConfig = this.#getPythonDebugConfig(workflowID, config, cloudLensInfo);
-                if (!debugConfig) {
-                    vscode.window.showErrorMessage("Python debugger not found. Please install the Python extension for VSCode.", "Install", "Cancel")
-                        .then(value => {
-                            if (value === "Install") {
-                                vscode.env.openExternal(vscode.Uri.parse("https://marketplace.visualstudio.com/items?itemName=ms-python.python"));
-                            }
-                        })
-                }
-                return debugConfig;
-            }
+            case "python": return this.#getPythonDebugConfig(workflowID, config, cloudLensInfo);
             default: throw new Error(`Unsupported language: ${language}`);
         }
     }
@@ -330,7 +319,15 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         }
 
         const ext = vscode.extensions.getExtension("ms-python.debugpy");
-        if (!ext) { return undefined; }
+        if (!ext) {
+            vscode.window.showErrorMessage("Python debugger not found. Please install the Python extension for VSCode.", "Install", "Cancel")
+                .then(value => {
+                    if (value === "Install") {
+                        vscode.env.openExternal(vscode.Uri.parse("https://marketplace.visualstudio.com/items?itemName=ms-python.python"));
+                    }
+                })
+            return undefined;
+        }
 
         const timeTravel = cloudLensInfo?.timeTravel ?? false;
         return {
@@ -346,7 +343,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
                 DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
                 DBOS_DBPASSWORD: timeTravel ? undefined : cloudLensInfo?.password,
-                DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" :  undefined,
+                DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" : undefined,
             }
         };
     }
@@ -369,7 +366,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
                 DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
                 DBOS_DBPASSWORD: timeTravel ? undefined : cloudLensInfo?.password,
-                DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" :  undefined,
+                DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" : undefined,
             }
         };
 
