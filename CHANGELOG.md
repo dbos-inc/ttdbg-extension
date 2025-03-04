@@ -9,6 +9,28 @@ This project adheres to [Semantic Versioning](https://semver.org) and uses
 As per [VSCode recommendation](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#prerelease-extensions),
 this project uses *EVEN* minor version numbers for release versions and *ODD* minor version numbers for pre-release versions,
 
+## Unreleased
+
+### Added
+
+* Added Replay debugging (local and cloud)
+* Added support for Typescript "V2" API
+* Added `Browse DBOS Cloud App` command to navigate to a selected DBOS cloud application
+* Added `debug_proxy_prerelease` configuration setting, to support automatically installing prerelease versions of the Time Travel Debug Proxy
+
+### Changed
+
+* Time Travel Debug Code Lens now only attached to DBOS Workflow methods
+
+### Removed
+
+* Removed Dashboard URI Handler
+* Removed `Refresh DBOS Cloud Resources`, `Shutdown Debug Proxy`, `Launch DBOS Dashboard`, and `Set Application Name` commands
+* Removed `dbos-ttdbg.get-proxy-url` and `dbos-ttdbg.pick-workflow-id` command variables
+* Removed `debug_pre_launch_task`, `debug_proxy_launch`, `prov_db_host/port/database/user` configuration settings
+
+
+
 ## [1.4] 2024-08-20
 
 ### Added
