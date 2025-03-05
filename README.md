@@ -1,6 +1,7 @@
 # DBOS Debugger
 
 This extension enables developers to debug previous executions of their DBOS applications, both running locally and in DBOS Cloud.
+The DBOS Debugger extension supports both Python and TypeScript DBOS applications.
 
 ## Local Replay Debugging
 
