@@ -359,7 +359,6 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             request: 'launch',
             name: cloudLensInfo?.timeTravel ? "Time-Travel Debug" : "Replay Debug",
             cwd: path.dirname(config.uri.fsPath),
-            justMyCode: Configuration.getJustMyCode(),
             env: {
                 DBOS_DEBUG_WORKFLOW_ID: workflowID,
                 DBOS_DBHOST: timeTravel ? "localhost" : cloudLensInfo?.host,
