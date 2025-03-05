@@ -325,7 +325,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                     if (value === "Install") {
                         vscode.env.openExternal(vscode.Uri.parse("https://marketplace.visualstudio.com/items?itemName=ms-python.python"));
                     }
-                })
+                });
             return undefined;
         }
 
