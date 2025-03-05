@@ -2,10 +2,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { assert } from 'node:console';
 
 /**
  * @param {string} versionJsonName
+ * @returns {object}
  */
 function readVersionJson(versionJsonName) {
     const contents = fs.readFileSync(versionJsonName, 'utf-8');
@@ -39,6 +39,34 @@ export function getVersion(repoName) {
 }
 
 /**
+ * @param {number} major
+ * @param {number} minor
+ */
+function getNewVersion(major, minor) {
+    const releaseVersionArgIndex = process.argv.indexOf('--relver');
+    if (releaseVersionArgIndex !== -1) {
+        const version = process.argv[releaseVersionArgIndex + 1];
+        if (!version) { throw new Error(`No release version specified`); }
+
+        const regexVersion = /^(?<major>\d*)\.(?<minor>\d*)$/;
+        const match = regexVersion.exec(version);
+        if (!match) { throw new Error(`Invalid version: '${version}'`); }
+
+        major = +match.groups.major;
+        minor = +match.groups.minor;
+        if (minor % 2 !== 0) { throw new Error('Release must have an even minor version'); }
+
+        const releaseVersion = `${major}.${minor}`;
+        const mainVersion = `${major}.${minor + 1}-preview`;
+        return { mainVersion, releaseVersion };
+    } else {
+        const releaseVersion = `${major}.${minor + 1}`;
+        const mainVersion = `${major}.${minor + 2}-preview`;
+        return { mainVersion, releaseVersion };
+    }
+}
+
+/**
  * @param {string} repoName
  * @param {string} releaseVersion
  * @param {string} mainVersion
@@ -63,18 +91,27 @@ export function prepareRelease(repoName, releaseVersion, mainVersion) {
     }
 }
 
-const dirName = path.dirname(fileURLToPath(import.meta.url));
-const repoName = path.join(dirName, '..');
 
-const { major, minor, prerel } = getVersion(repoName);
-assert(minor % 2 === 1 && prerel === 'preview', 'Current version must have odd minor and preview prerelease tag');
-console.log(`Current version: ${major}.${minor}-${prerel}`);
+function main() {
+    const dirName = path.dirname(fileURLToPath(import.meta.url));
+    const repoName = path.join(dirName, '..');
 
-const releaseVersion = `${major}.${minor + 1}`;
-const mainVersion = `${major}.${minor + 2}-preview`;
-console.log("releaseVersion", releaseVersion);
-console.log("mainVersion", mainVersion);
+    const { major, minor, prerel } = getVersion(repoName);
+    if (minor % 2 !== 1 || prerel !== "preview") { throw new Error('Current must have odd minor version and preview prerelease tag'); }
 
-if (process.argv.includes('--run')) {
-    prepareRelease(repoName, releaseVersion, mainVersion);
+    const { mainVersion, releaseVersion } = getNewVersion(major, minor);
+    console.log(`Current version: ${major}.${minor}-${prerel}`);
+    console.log("release branch Version", releaseVersion);
+    console.log("New main branch Version", mainVersion);
+
+    if (process.argv.includes('--run')) {
+        prepareRelease(repoName, releaseVersion, mainVersion);
+    }
+}
+
+try {
+    main();
+} catch (e) {
+    console.error(e.message);
+    process.exit(1);
 }
