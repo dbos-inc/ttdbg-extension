@@ -1,6 +1,7 @@
 # DBOS Debugger
 
 This extension enables developers to debug previous executions of their DBOS applications, both running locally and in DBOS Cloud.
+The DBOS Debugger extension supports both Python and TypeScript DBOS applications.
 
 ## Local Replay Debugging
 
@@ -56,8 +57,11 @@ For more information, please see the [DBOS Interactive Time Travel docs](https:/
 The latest released version of the DBOS Debugger for VS Code can be installed via the 
 [VS Code Marketplace](https://marketplace.visualstudio.com/publishers/dbos-inc). 
 
-DBOS depends on [Node.js](https://nodejs.org/) version 20 or later. 
-The DBOS Debugger for VS Code has no additional dependencies beyond what DBOS depends on.
+DBOS depends on either
+* [Node.js](https://nodejs.org/) version 20 or later 
+* [Python](https://www.python.org/) version 3.9 or later
+
+The DBOS Debugger for VS Code works with both versions of DBOS and has no additional dependencies beyond what DBOS depends on.
 
 ### Preview Releases
 

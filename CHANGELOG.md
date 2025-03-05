@@ -14,9 +14,11 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 ### Added
 
 * Added Replay debugging (local and cloud)
+* Added DBOS Transact Python support (Requires v0.23 or later)
 * Added support for Typescript "V2" API
 * Added `Browse DBOS Cloud App` command to navigate to a selected DBOS cloud application
 * Added `debug_proxy_prerelease` configuration setting, to support automatically installing prerelease versions of the Time Travel Debug Proxy
+* added `just_my_code` configuration setting, to control [`justMyCode`](https://code.visualstudio.com/docs/python/debugging#_justmycode) Python debugger setting
 
 ### Changed
 

@@ -48,7 +48,7 @@
         "title": "Launch Time Travel Debugging Proxy",
         "category": "DBOS",
         "icon": "$(debug)"
-      } 
+      }
     ],
     "configuration": {
       "title": "DBOS Time Travel Debugger",
@@ -65,6 +65,11 @@
           "type": "boolean",
           "default": false,
           "description": "Install prerelease versions of Time Travel Debugging Proxy."
+        },
+        "dbos-ttdbg.just_my_code": {
+          "type": "boolean",
+          "default": true,
+          "description": "Only show frames from the user's code in the call stack when debugging."
         }
       }
     },
@@ -111,6 +116,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
+    "generate": "antlr4 -Dlanguage=TypeScript src/parsers/python/Python3Lexer.g4 src/parsers/python/Python3Parser.g4",
     "compile": "npm run check-types && npm run lint && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
@@ -136,6 +142,7 @@
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "@vscode/vsce": "^3.2.2",
+    "antlr4": "^4.13.2",
     "esbuild": "^0.25.0",
     "eslint": "^9.20.1",
     "fastify": "^5.2.1",

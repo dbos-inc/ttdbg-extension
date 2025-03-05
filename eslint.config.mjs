@@ -3,6 +3,7 @@ import tsParser from "@typescript-eslint/parser";
 
 export default [{
     files: ["**/*.ts"],
+    ignores: ["src/parsers/python/*.ts"],
 }, {
     plugins: {
         "@typescript-eslint": typescriptEslint,
