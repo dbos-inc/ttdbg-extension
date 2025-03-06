@@ -214,41 +214,46 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
     }
 
     async #getCloudLensInfo(config: DbosConfig, token?: vscode.CancellationToken): Promise<{ cloudRelay?: CloudLensInfo; timeTravel?: CloudLensInfo; }> {
-        const cred = await this.credManager.getValidCredential(undefined);
-        if (!cred || token?.isCancellationRequested) { return {}; }
+        try {
+            const cred = await this.credManager.getValidCredential(undefined);
+            if (!cred || token?.isCancellationRequested) { return {}; }
 
-        const app = await getApp(config.name, cred, token);
-        if (isUnauthorized(app)) { return {}; }
+            const app = await getApp(config.name, cred, token);
+            if (isUnauthorized(app)) { return {}; }
 
-        const [dbi, dbCred, proxyCred] = await Promise.all([
-            getDbInstance(app.PostgresInstanceName, cred, token),
-            getDbCredentials(app.PostgresInstanceName, cred, token),
-            app.ProvenanceDatabase ? getDbProxyRole(app.PostgresInstanceName, cred, token) : Promise.resolve(undefined)
-        ]);
+            const [dbi, dbCred, proxyCred] = await Promise.all([
+                getDbInstance(app.PostgresInstanceName, cred, token),
+                getDbCredentials(app.PostgresInstanceName, cred, token),
+                app.ProvenanceDatabase ? getDbProxyRole(app.PostgresInstanceName, cred, token) : Promise.resolve(undefined)
+            ]);
 
-        const cloudRelay: CloudLensInfo | undefined = !isUnauthorized(dbi) && !isUnauthorized(dbCred)
-            ? {
-                host: dbi.HostName,
-                port: dbi.Port,
-                database: `${app.ApplicationDatabaseName}_dbos_sys`,
-                user: dbCred.RoleName,
-                password: dbCred.Password,
-                timeTravel: false,
-            }
-            : undefined;
+            const cloudRelay: CloudLensInfo | undefined = !isUnauthorized(dbi) && !isUnauthorized(dbCred)
+                ? {
+                    host: dbi.HostName,
+                    port: dbi.Port,
+                    database: `${app.ApplicationDatabaseName}_dbos_sys`,
+                    user: dbCred.RoleName,
+                    password: dbCred.Password,
+                    timeTravel: false,
+                }
+                : undefined;
 
-        let timeTravel: CloudLensInfo | undefined = app.ProvenanceDatabase && proxyCred && !isUnauthorized(proxyCred)
-            ? {
-                host: app.ProvenanceDatabase.HostName,
-                port: app.ProvenanceDatabase.Port,
-                database: app.ProvenanceDatabase.Name,
-                user: proxyCred.RoleName,
-                password: proxyCred.Secret,
-                timeTravel: true,
-            }
-            : undefined;
+            let timeTravel: CloudLensInfo | undefined = app.ProvenanceDatabase && proxyCred && !isUnauthorized(proxyCred)
+                ? {
+                    host: app.ProvenanceDatabase.HostName,
+                    port: app.ProvenanceDatabase.Port,
+                    database: app.ProvenanceDatabase.Name,
+                    user: proxyCred.RoleName,
+                    password: proxyCred.Secret,
+                    timeTravel: true,
+                }
+                : undefined;
 
-        return { cloudRelay, timeTravel };
+            return { cloudRelay, timeTravel };
+        } catch (e) {
+            logger.error("#getCloudLensInfo", e);
+            return {};
+        }
     }
 
     getCodeLensDebugCommand() {
@@ -370,7 +375,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" : undefined,
             }
         };
-        
+
         if (Configuration.getJustMyCode()) {
             const nodeInternals = "<node_internals>/**/*.js";
             const nodeModules = path.join(path.dirname(config.uri.fsPath), "node_modules", "**", "*.js");
