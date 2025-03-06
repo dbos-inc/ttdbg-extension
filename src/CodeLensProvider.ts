@@ -372,7 +372,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         };
         
         if (Configuration.getJustMyCode()) {
-            const nodeInternals = "<node_internals>/**";
+            const nodeInternals = "<node_internals>/**/*.js";
             const nodeModules = path.join(path.dirname(config.uri.fsPath), "node_modules", "**", "*.js");
             debugConfig.skipFiles = [nodeInternals, nodeModules];
         }
