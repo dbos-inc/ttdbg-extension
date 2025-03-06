@@ -184,14 +184,15 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                     }));
                 }
 
-                if (timeTravel) {
-                    lenses.push(new vscode.CodeLens(range, {
-                        title: '⏳ Time-Travel Debug',
-                        tooltip: `Debug ${name} with the time travel debugger`,
-                        command: startDebuggingCodeLensCommandName,
-                        arguments: [name, config, timeTravel]
-                    }));
-                }
+                // TODO: re-enable time-travel debugging after ts/py transact are fixed
+                // if (timeTravel) {
+                //     lenses.push(new vscode.CodeLens(range, {
+                //         title: '⏳ Time-Travel Debug',
+                //         tooltip: `Debug ${name} with the time travel debugger`,
+                //         command: startDebuggingCodeLensCommandName,
+                //         arguments: [name, config, timeTravel]
+                //     }));
+                // }
             }
             return lenses;
         } catch (e) {
@@ -306,7 +307,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
 
     #getDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration | undefined {
         const language = config.language ?? "node";
-        switch (config.language) {
+        switch (language) {
             case "node": return this.#getNodeDebugConfig(workflowID, config, cloudLensInfo);
             case "python": return this.#getPythonDebugConfig(workflowID, config, cloudLensInfo);
             default: throw new Error(`Unsupported language: ${language}`);
@@ -339,6 +340,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             cwd: path.dirname(config.uri.fsPath),
             justMyCode: Configuration.getJustMyCode(),
             env: {
+                DBOS_DEBUG_TIME_TRAVEL: timeTravel ? "true" : undefined,
                 DBOS_DBHOST: timeTravel ? "localhost" : cloudLensInfo?.host,
                 DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
                 DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
@@ -361,6 +363,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             cwd: path.dirname(config.uri.fsPath),
             env: {
                 DBOS_DEBUG_WORKFLOW_ID: workflowID,
+                DBOS_DEBUG_TIME_TRAVEL: timeTravel ? "true" : undefined,
                 DBOS_DBHOST: timeTravel ? "localhost" : cloudLensInfo?.host,
                 DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
                 DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
@@ -368,6 +371,12 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" : undefined,
             }
         };
+        
+        if (Configuration.getJustMyCode()) {
+            const nodeInternals = "<node_internals>/**";
+            const nodeModules = path.join(path.dirname(config.uri.fsPath), "node_modules", "**", "*.js");
+            debugConfig.skipFiles = [nodeInternals, nodeModules];
+        }
 
         const start = config.runtime?.start ?? [];
         if (start.length === 0) {
