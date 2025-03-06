@@ -51,7 +51,7 @@
       }
     ],
     "configuration": {
-      "title": "DBOS Time Travel Debugger",
+      "title": "DBOS Debugger",
       "properties": {
         "dbos-ttdbg.debug_proxy_port": {
           "type": "number",
@@ -70,6 +70,11 @@
           "type": "boolean",
           "default": true,
           "description": "Only show frames from the user's code in the call stack when debugging."
+        },
+        "dbos-ttdbg.time_travel_code_lens_enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Time Travel Debugging Code Lens."
         }
       }
     },

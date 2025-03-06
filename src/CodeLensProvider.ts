@@ -184,15 +184,14 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                     }));
                 }
 
-                // TODO: re-enable time-travel debugging after ts/py transact are fixed
-                // if (timeTravel) {
-                //     lenses.push(new vscode.CodeLens(range, {
-                //         title: '⏳ Time-Travel Debug',
-                //         tooltip: `Debug ${name} with the time travel debugger`,
-                //         command: startDebuggingCodeLensCommandName,
-                //         arguments: [name, config, timeTravel]
-                //     }));
-                // }
+                if (timeTravel && Configuration.getTimeTravelCodeLensEnabled()) {
+                    lenses.push(new vscode.CodeLens(range, {
+                        title: '⏳ Time-Travel Debug',
+                        tooltip: `Debug ${name} with the time travel debugger`,
+                        command: startDebuggingCodeLensCommandName,
+                        arguments: [name, config, timeTravel]
+                    }));
+                }
             }
             return lenses;
         } catch (e) {

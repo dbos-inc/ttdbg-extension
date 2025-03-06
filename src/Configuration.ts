@@ -5,6 +5,7 @@ const DEBUG_PROXY_PORT = "debug_proxy_port";
 const DEBUG_PROXY_PATH = "debug_proxy_path";
 const DEBUG_PROXY_PRERELEASE = "debug_proxy_prerelease";
 const DEBUG_JUST_MY_CODE = "just_my_code";
+const DEBUG_TIME_TRAVEL_CODE_LENS = "time_travel_code_lens_enabled";
 
 export class Configuration {
 
@@ -27,5 +28,10 @@ export class Configuration {
     static getJustMyCode(folder?: vscode.WorkspaceFolder) {
         const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
         return cfg.get<boolean>(DEBUG_JUST_MY_CODE, true);
+    }
+
+    static getTimeTravelCodeLensEnabled(folder?: vscode.WorkspaceFolder) {
+        const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
+        return cfg.get<boolean>(DEBUG_TIME_TRAVEL_CODE_LENS, false);
     }
 }
