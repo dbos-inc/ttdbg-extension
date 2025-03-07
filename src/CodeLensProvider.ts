@@ -52,12 +52,13 @@ async function pickWorkflow(client: ClientBase, methodName: string) {
         "SELECT * FROM dbos.workflow_status WHERE (status = 'SUCCESS' OR status = 'ERROR') AND name = $1 ORDER BY created_at DESC",
         [methodName]);
     const items = result.rows.map(status => {
-        const $createdAt = BigInt(status.created_at);
-        const createdAt = $createdAt <= BigInt(Number.MAX_SAFE_INTEGER) ? new Date(Number($createdAt)) : undefined;
+        const createdAt = new Date(Number(status.created_at)).toLocaleString();
         return <vscode.QuickPickItem>{
-            label: createdAt?.toLocaleString() ?? "unknown",
-            description: `${status.status}${status.authenticated_user && status.authenticated_user.length !== 0 ? ` (${status.authenticated_user})` : ""}`,
-            detail: status.workflow_uuid,
+            label: status.workflow_uuid,
+            description: `${status.status}`,
+            detail: status.authenticated_user && status.authenticated_user.length !== 0
+                ? `at ${createdAt} by ${status.authenticated_user}`
+                : `at ${createdAt}`
         };
     });
 
