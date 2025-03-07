@@ -101,7 +101,7 @@ async function pickWorkflow(client: ClientBase, methodName: string) {
         });
         if (result === undefined) { return undefined; }
         if ("label" in result) {
-            return result.detail;
+            return result.label;
         }
         if (result === editButton) {
             return await vscode.window.showInputBox({ prompt: "Enter the workflow ID" });
