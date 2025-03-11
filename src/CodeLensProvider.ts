@@ -3,7 +3,7 @@ import { logger, startDebuggingCodeLensCommandName } from './extension';
 import { ClientBase, Pool, PoolClient, PoolConfig } from 'pg';
 import { DbosConfig, loadConfigFile, locateDbosConfigFile } from './dbosConfig';
 import { CloudCredentialManager } from './CloudCredentialManager';
-import { DbosCloudApp, DbosCloudDbCredentials, DbosCloudDbInstance, DbosCloudDbProxyRole, getApp, getDbCredentials, getDbInstance, getDbProxyRole, isUnauthorized } from './dbosCloudApi';
+import { getApp, getDbCredentials, getDbInstance, getDbProxyRole, isUnauthorized } from './dbosCloudApi';
 import { DebugProxyManager } from './DebugProxyManager';
 import { Configuration } from './Configuration';
 import { parseTypeScript } from './parsers/tsParser';

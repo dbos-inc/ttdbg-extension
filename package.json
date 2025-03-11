@@ -105,7 +105,8 @@
       "dbos-cloud": [
         {
           "id": "dbos-ttdbg.views.resources",
-          "name": "Resources"
+          "name": "Resources",
+          "icon": "resources/dbos-logo.png"
         }
       ]
     },
