@@ -185,7 +185,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                     }));
                 }
 
-                if (timeTravel && Configuration.getTimeTravelCodeLensEnabled()) {
+                if (timeTravel && document.languageId === 'typescript' && Configuration.getTimeTravelCodeLensEnabled()) {
                     lenses.push(new vscode.CodeLens(range, {
                         title: '⏳ Time-Travel Debug',
                         tooltip: `Debug ${name} with the time travel debugger`,
@@ -320,6 +320,12 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             throw new Error(`Expected python language, received ${config.language ?? null}`);
         }
 
+        const timeTravel = cloudLensInfo?.timeTravel ?? false;
+        if (timeTravel)  {
+            vscode.window.showErrorMessage("Python does not support time travel debugging at this time");
+            return undefined;
+        }
+
         const ext = vscode.extensions.getExtension("ms-python.debugpy");
         if (!ext) {
             vscode.window.showErrorMessage("Python debugger not found. Please install the Python extension for VSCode.", "Install", "Cancel")
@@ -331,7 +337,6 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             return undefined;
         }
 
-        const timeTravel = cloudLensInfo?.timeTravel ?? false;
         const debugConfig: vscode.DebugConfiguration = {
             type: 'debugpy',
             request: 'launch',
