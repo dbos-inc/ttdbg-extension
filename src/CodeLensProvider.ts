@@ -331,7 +331,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             return undefined;
         }
 
-        const timeTravel = cloudLensInfo?.timeTravel ?? false;
+        // const timeTravel = cloudLensInfo?.timeTravel ?? false;
         return {
             type: 'debugpy',
             request: 'launch',
@@ -340,14 +340,14 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             args: ['debug', workflowID],
             cwd: path.dirname(config.uri.fsPath),
             justMyCode: Configuration.getJustMyCode(),
-            env: {
-                DBOS_DEBUG_TIME_TRAVEL: timeTravel ? "true" : undefined,
-                DBOS_DBHOST: timeTravel ? "localhost" : cloudLensInfo?.host,
-                DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
-                DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
-                DBOS_DBPASSWORD: timeTravel ? undefined : cloudLensInfo?.password,
-                DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" : undefined,
-            }
+            // env: {
+            //     DBOS_DEBUG_TIME_TRAVEL: timeTravel ? "true" : undefined,
+            //     DBOS_DBHOST: timeTravel ? "localhost" : cloudLensInfo?.host,
+            //     DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
+            //     DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
+            //     DBOS_DBPASSWORD: timeTravel ? undefined : cloudLensInfo?.password,
+            //     DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" : undefined,
+            // }
         };
     }
 
@@ -375,7 +375,6 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 DBOS_DBHOST: "localhost",
                 DBOS_DBPORT: `${Configuration.getProxyPort()}`,
                 DBOS_DBLOCALSUFFIX: "false",
-                DBOS_DEBUG_TIME_TRAVEL:"true",
             }
         } else if (cloudLensInfo) {
             debugConfig.env = { 
@@ -402,6 +401,9 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             debugConfig.runtimeExecutable = args[0];
             debugConfig.args = args.slice(1);
             debugConfig.env.DBOS_DEBUG_WORKFLOW_ID = workflowID;
+            if (timeTravel) {
+                debugConfig.env.DBOS_DEBUG_TIME_TRAVEL = "true";
+            }
         }
         else {
             throw new Error("multiple runtimeConfig.start command support not implemented");
