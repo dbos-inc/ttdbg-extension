@@ -320,12 +320,6 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             throw new Error(`Expected python language, received ${config.language ?? null}`);
         }
 
-        const timeTravel = cloudLensInfo?.timeTravel ?? false;
-        if (timeTravel)  {
-            vscode.window.showErrorMessage("Python does not support time travel debugging at this time");
-            return undefined;
-        }
-
         const ext = vscode.extensions.getExtension("ms-python.debugpy");
         if (!ext) {
             vscode.window.showErrorMessage("Python debugger not found. Please install the Python extension for VSCode.", "Install", "Cancel")
@@ -337,7 +331,12 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             return undefined;
         }
 
-        const debugConfig: vscode.DebugConfiguration = {
+        const timeTravel = cloudLensInfo?.timeTravel ?? false;
+        if (timeTravel)  {
+            vscode.window.showErrorMessage("Python does not support time travel debugging at this time");
+            return undefined;
+        }
+        return {
             type: 'debugpy',
             request: 'launch',
             name: cloudLensInfo?.timeTravel ? "Time-Travel Debug" : "Replay Debug",
@@ -345,13 +344,15 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             args: ['debug', workflowID],
             cwd: path.dirname(config.uri.fsPath),
             justMyCode: Configuration.getJustMyCode(),
-            env: CodeLensProvider.#getDebugConfigEnv(cloudLensInfo),
+            env: {
+                DBOS_DEBUG_TIME_TRAVEL: timeTravel ? "true" : undefined,
+                DBOS_DBHOST: timeTravel ? "localhost" : cloudLensInfo?.host,
+                DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
+                DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
+                DBOS_DBPASSWORD: timeTravel ? undefined : cloudLensInfo?.password,
+                DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" : undefined,
+            }
         };
-
-        if (timeTravel) {
-            debugConfig.args.push('--time-travel');
-        }
-        return debugConfig;
     }
 
     #getNodeDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration {
