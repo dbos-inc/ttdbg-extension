@@ -32,6 +32,6 @@ export class Configuration {
 
     static getTimeTravelCodeLensEnabled(folder?: vscode.WorkspaceFolder) {
         const cfg = vscode.workspace.getConfiguration(TTDBG_CONFIG_SECTION, folder);
-        return cfg.get<boolean>(DEBUG_TIME_TRAVEL_CODE_LENS, false);
+        return cfg.get<boolean>(DEBUG_TIME_TRAVEL_CODE_LENS, true);
     }
 }

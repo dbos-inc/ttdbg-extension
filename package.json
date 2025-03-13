@@ -73,7 +73,7 @@
         },
         "dbos-ttdbg.time_travel_code_lens_enabled": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Enable Time Travel Debugging Code Lens."
         }
       }

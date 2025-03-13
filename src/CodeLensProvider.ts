@@ -185,7 +185,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                     }));
                 }
 
-                if (timeTravel && Configuration.getTimeTravelCodeLensEnabled()) {
+                if (timeTravel && document.languageId === 'typescript' && Configuration.getTimeTravelCodeLensEnabled()) {
                     lenses.push(new vscode.CodeLens(range, {
                         title: '⏳ Time-Travel Debug',
                         tooltip: `Debug ${name} with the time travel debugger`,
@@ -275,22 +275,18 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             logger.info("codeLensDebug", { workflowID: workflowID ?? null });
             if (!workflowID) { return; }
 
-
             const debugConfig = $this.#getDebugConfig(workflowID, config, cloudLensInfo);
             logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
             if (!debugConfig) { return; }
 
-            if (cloudLensInfo && (cloudLensInfo.timeTravel ?? false)) {
-                const proxyPort = Configuration.getProxyPort();
-                debugConfig.env["DBOS_DBPORT"] = proxyPort.toString();
-
+            if (cloudLensInfo?.timeTravel === true) {
                 $this.debugProxyManager.launchDebugProxy({
                     host: cloudLensInfo.host,
                     port: cloudLensInfo.port,
                     user: cloudLensInfo.user,
                     password: cloudLensInfo.password,
                     database: cloudLensInfo.database,
-                    proxyPort
+                    proxyPort: Configuration.getProxyPort()
                 });
 
             }
@@ -336,6 +332,10 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         }
 
         const timeTravel = cloudLensInfo?.timeTravel ?? false;
+        if (timeTravel)  {
+            vscode.window.showErrorMessage("Python does not support time travel debugging at this time");
+            return undefined;
+        }
         return {
             type: 'debugpy',
             request: 'launch',
@@ -364,29 +364,21 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         const debugConfig: vscode.DebugConfiguration = {
             type: 'node',
             request: 'launch',
-            name: cloudLensInfo?.timeTravel ? "Time-Travel Debug" : "Replay Debug",
+            name: timeTravel ? "Time-Travel Debug" : "Replay Debug",
             cwd: path.dirname(config.uri.fsPath),
-            env: {
-                DBOS_DEBUG_WORKFLOW_ID: workflowID,
-                DBOS_DEBUG_TIME_TRAVEL: timeTravel ? "true" : undefined,
-                DBOS_DBHOST: timeTravel ? "localhost" : cloudLensInfo?.host,
-                DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
-                DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
-                DBOS_DBPASSWORD: timeTravel ? undefined : cloudLensInfo?.password,
-                DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" : undefined,
-            }
+            env: CodeLensProvider.#getDebugConfigEnv(cloudLensInfo),
+            skipFiles: Configuration.getJustMyCode()
+                ? ["<node_internals>/**/*.js", path.join(path.dirname(config.uri.fsPath), "node_modules", "**", "*.js")]
+                : undefined,
         };
-
-        if (Configuration.getJustMyCode()) {
-            const nodeInternals = "<node_internals>/**/*.js";
-            const nodeModules = path.join(path.dirname(config.uri.fsPath), "node_modules", "**", "*.js");
-            debugConfig.skipFiles = [nodeInternals, nodeModules];
-        }
 
         const start = config.runtime?.start ?? [];
         if (start.length === 0) {
             debugConfig.runtimeExecutable = "npx";
             debugConfig.args = ['dbos', 'debug', '--uuid', workflowID];
+            if (timeTravel) {
+                debugConfig.args.push('--time-travel');
+            }
         } else if (start.length === 1) {
             const args = start[0].split(" ");
             if (!nodeExecutables.includes(args[0])) {
@@ -394,12 +386,36 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             }
             debugConfig.runtimeExecutable = args[0];
             debugConfig.args = args.slice(1);
+            debugConfig.env.DBOS_DEBUG_WORKFLOW_ID = workflowID;
+            if (timeTravel) {
+                debugConfig.env.DBOS_DEBUG_TIME_TRAVEL = "true";
+            }
         }
         else {
-            throw new Error("multiple runtimeConfig.start commands not implemented");
+            throw new Error("multiple runtimeConfig.start command support not implemented");
         }
 
         return debugConfig;
+    }
+
+    static #getDebugConfigEnv(cloudLensInfo:  CloudLensInfo | undefined): Record<string, string> {
+        const timeTravel = cloudLensInfo?.timeTravel ?? false;
+        if (timeTravel) {
+            return {
+                DBOS_DBHOST: "localhost",
+                DBOS_DBPORT: `${Configuration.getProxyPort()}`,
+                DBOS_DBLOCALSUFFIX: "false",
+            }
+        } else if (cloudLensInfo) {
+            return { 
+                DBOS_DBHOST: cloudLensInfo.host,
+                DBOS_DBPORT: `${cloudLensInfo.port}`,
+                DBOS_DBUSER: cloudLensInfo.user,
+                DBOS_DBPASSWORD:  cloudLensInfo.password,
+                DBOS_DBLOCALSUFFIX: "false"
+            }
+        }
+        return {};
     }
 
     async #pickWorkflow(methodName: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined) {
