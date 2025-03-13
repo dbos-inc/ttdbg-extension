@@ -9,6 +9,14 @@ This project adheres to [Semantic Versioning](https://semver.org) and uses
 As per [VSCode recommendation](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#prerelease-extensions),
 this project uses *EVEN* minor version numbers for release versions and *ODD* minor version numbers for pre-release versions,
 
+## Unreleased
+
+### Changed
+
+* `time_travel_code_lens_enabled` configuration setting defaults to true
+* `Time-Travel Debug` CodeLens only supported in TypeScript
+* Reworked generated TypeScript debug config to match TS Time Travel Debug Mode as implemented in https://github.com/dbos-inc/dbos-transact-ts/pull/786
+
 ## [2.0] 2025-03-11
 
 ### Added
