@@ -331,8 +331,8 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             return undefined;
         }
 
-        // const timeTravel = cloudLensInfo?.timeTravel ?? false;
-        return {
+        const timeTravel = cloudLensInfo?.timeTravel ?? false;
+        const debugConfig: vscode.DebugConfiguration = {
             type: 'debugpy',
             request: 'launch',
             name: cloudLensInfo?.timeTravel ? "Time-Travel Debug" : "Replay Debug",
@@ -340,15 +340,13 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             args: ['debug', workflowID],
             cwd: path.dirname(config.uri.fsPath),
             justMyCode: Configuration.getJustMyCode(),
-            // env: {
-            //     DBOS_DEBUG_TIME_TRAVEL: timeTravel ? "true" : undefined,
-            //     DBOS_DBHOST: timeTravel ? "localhost" : cloudLensInfo?.host,
-            //     DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
-            //     DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
-            //     DBOS_DBPASSWORD: timeTravel ? undefined : cloudLensInfo?.password,
-            //     DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" : undefined,
-            // }
+            env: CodeLensProvider.#getDebugConfigEnv(cloudLensInfo),
         };
+
+        if (timeTravel) {
+            debugConfig.args.push('--time-travel');
+        }
+        return debugConfig;
     }
 
     #getNodeDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration {
@@ -362,29 +360,11 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             request: 'launch',
             name: timeTravel ? "Time-Travel Debug" : "Replay Debug",
             cwd: path.dirname(config.uri.fsPath),
+            env: CodeLensProvider.#getDebugConfigEnv(cloudLensInfo),
+            skipFiles: Configuration.getJustMyCode()
+                ? ["<node_internals>/**/*.js", path.join(path.dirname(config.uri.fsPath), "node_modules", "**", "*.js")]
+                : undefined,
         };
-
-        if (Configuration.getJustMyCode()) {
-            const nodeInternals = "<node_internals>/**/*.js";
-            const nodeModules = path.join(path.dirname(config.uri.fsPath), "node_modules", "**", "*.js");
-            debugConfig.skipFiles = [nodeInternals, nodeModules];
-        }
-
-        if (timeTravel) {
-            debugConfig.env = { 
-                DBOS_DBHOST: "localhost",
-                DBOS_DBPORT: `${Configuration.getProxyPort()}`,
-                DBOS_DBLOCALSUFFIX: "false",
-            }
-        } else if (cloudLensInfo) {
-            debugConfig.env = { 
-                DBOS_DBHOST: cloudLensInfo.host,
-                DBOS_DBPORT: `${cloudLensInfo.port}`,
-                DBOS_DBUSER: cloudLensInfo.user,
-                DBOS_DBPASSWORD:  cloudLensInfo.password,
-                DBOS_DBLOCALSUFFIX: "false"
-            }
-        }
 
         const start = config.runtime?.start ?? [];
         if (start.length === 0) {
@@ -410,6 +390,26 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         }
 
         return debugConfig;
+    }
+
+    static #getDebugConfigEnv(cloudLensInfo:  CloudLensInfo | undefined): Record<string, string> {
+        const timeTravel = cloudLensInfo?.timeTravel ?? false;
+        if (timeTravel) {
+            return {
+                DBOS_DBHOST: "localhost",
+                DBOS_DBPORT: `${Configuration.getProxyPort()}`,
+                DBOS_DBLOCALSUFFIX: "false",
+            }
+        } else if (cloudLensInfo) {
+            return { 
+                DBOS_DBHOST: cloudLensInfo.host,
+                DBOS_DBPORT: `${cloudLensInfo.port}`,
+                DBOS_DBUSER: cloudLensInfo.user,
+                DBOS_DBPASSWORD:  cloudLensInfo.password,
+                DBOS_DBLOCALSUFFIX: "false"
+            }
+        }
+        return {};
     }
 
     async #pickWorkflow(methodName: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined) {
