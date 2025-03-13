@@ -275,22 +275,18 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             logger.info("codeLensDebug", { workflowID: workflowID ?? null });
             if (!workflowID) { return; }
 
-
             const debugConfig = $this.#getDebugConfig(workflowID, config, cloudLensInfo);
             logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
             if (!debugConfig) { return; }
 
-            if (cloudLensInfo && (cloudLensInfo.timeTravel ?? false)) {
-                const proxyPort = Configuration.getProxyPort();
-                debugConfig.env["DBOS_DBPORT"] = proxyPort.toString();
-
+            if (cloudLensInfo?.timeTravel === true) {
                 $this.debugProxyManager.launchDebugProxy({
                     host: cloudLensInfo.host,
                     port: cloudLensInfo.port,
                     user: cloudLensInfo.user,
                     password: cloudLensInfo.password,
                     database: cloudLensInfo.database,
-                    proxyPort
+                    proxyPort: Configuration.getProxyPort()
                 });
 
             }
