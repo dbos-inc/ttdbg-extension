@@ -5,6 +5,7 @@ import { CloudDataProvider } from './CloudDataProvider';
 import { CloudCredentialManager } from './CloudCredentialManager';
 import { S3Storage } from './BlobStorage';
 import { DebugProxyManager } from './DebugProxyManager';
+import { UriHandler } from './UriHandler';
 
 export let logger: Logger;
 
@@ -44,6 +45,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.languages.registerCodeLensProvider(
       [{ language: 'python' }, { language: 'typescript' }],
       codeLensProvider),
+    vscode.window.registerUriHandler(new UriHandler()),
 
     vscode.commands.registerCommand(
       cloudLoginCommandName,
