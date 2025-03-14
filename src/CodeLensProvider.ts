@@ -73,7 +73,8 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             const parser = getParser(document.languageId);
             if (!parser) { return []; }
 
-            const config = await this.#getConfig(document.uri, token);
+            const configUri = await locateDbosConfigFile(document.uri);
+            const config =  configUri ? await loadConfigFile(configUri, token) : undefined;
             if (!config) { return []; }
 
             const { cloudRelay, timeTravel } = await this.#getCloudLensInfo(config, token);
@@ -120,11 +121,6 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 default: return undefined;
             }
         }
-    }
-
-    async #getConfig(uri: vscode.Uri, token?: vscode.CancellationToken): Promise<DbosConfig | undefined> {
-        const configUri = await locateDbosConfigFile(uri);
-        return configUri ? await loadConfigFile(configUri, token) : undefined;
     }
 
     async #getCloudLensInfo(config: DbosConfig, token?: vscode.CancellationToken): Promise<{ cloudRelay?: CloudLensInfo; timeTravel?: CloudLensInfo; }> {
