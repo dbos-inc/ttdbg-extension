@@ -26,73 +26,6 @@ interface CloudLensInfo {
     timeTravel: boolean;
 }
 
-async function pickWorkflow(client: ClientBase, methodName: string) {
-
-    const result = await client.query<workflow_status>(
-        "SELECT * FROM dbos.workflow_status WHERE (status = 'SUCCESS' OR status = 'ERROR') AND name = $1 ORDER BY created_at DESC",
-        [methodName]);
-    const items = result.rows.map(status => {
-        const createdAt = new Date(Number(status.created_at)).toLocaleString();
-        return <vscode.QuickPickItem>{
-            label: status.workflow_uuid,
-            description: `${status.status}`,
-            detail: status.authenticated_user && status.authenticated_user.length !== 0
-                ? `at ${createdAt} by ${status.authenticated_user}`
-                : `at ${createdAt}`
-        };
-    });
-
-    const editButton: vscode.QuickInputButton = {
-        iconPath: new vscode.ThemeIcon("edit"),
-        tooltip: "Specify workflow id directly"
-    };
-
-    const disposables: { dispose(): any; }[] = [];
-    try {
-        const result = await new Promise<vscode.QuickInputButton | vscode.QuickPickItem | undefined>(resolve => {
-            const input = vscode.window.createQuickPick();
-            input.title = "Select a workflow ID to debug";
-            input.canSelectMany = false;
-            input.items = items;
-            input.buttons = [editButton];
-            let selectedItem: vscode.QuickPickItem | undefined = undefined;
-            disposables.push(
-                input.onDidAccept(() => {
-                    logger.debug("showWorkflowPick.onDidAccept", { selectedItem });
-                    resolve(selectedItem);
-                    input.dispose();
-                }),
-                input.onDidHide(() => {
-                    logger.debug("showWorkflowPick.onDidHide", { selectedItem });
-                    resolve(undefined);
-                    input.dispose();
-                }),
-                input.onDidChangeSelection(items => {
-                    logger.debug("showWorkflowPick.onDidChangeSelection", { items });
-                    selectedItem = items.length === 0 ? undefined : items[0];
-                }),
-                input.onDidTriggerButton(button => {
-                    logger.debug("showWorkflowPick.onDidTriggerButton", { button });
-                    resolve(button);
-                    input.dispose();
-                })
-            );
-            input.show();
-        });
-        if (result === undefined) { return undefined; }
-        if ("label" in result) {
-            return result.label;
-        }
-        if (result === editButton) {
-            return await vscode.window.showInputBox({ prompt: "Enter the workflow ID" });
-        } else {
-            throw new Error(`Unexpected button: ${result.tooltip ?? "<unknown>"}`);
-        }
-    } finally {
-        disposables.forEach(d => d.dispose());
-    }
-}
-
 const nodeExecutables: ReadonlyArray<string> = ['node', 'npm', 'npx'];
 
 export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposable {
@@ -255,156 +188,225 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             logger.info("codeLensDebug", { workflowID: workflowID ?? null });
             if (!workflowID) { return; }
 
-            const debugConfig = $this.#getDebugConfig(workflowID, config, cloudLensInfo);
-            logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
-            if (!debugConfig) { return; }
-
-            if (cloudLensInfo?.timeTravel === true) {
-                $this.debugProxyManager.launchDebugProxy({
-                    host: cloudLensInfo.host,
-                    port: cloudLensInfo.port,
-                    user: cloudLensInfo.user,
-                    password: cloudLensInfo.password,
-                    database: cloudLensInfo.database,
-                    proxyPort: Configuration.getProxyPort()
-                });
-
-            }
-
-            const folder = vscode.workspace.getWorkspaceFolder(config.uri);
-            const debuggerStarted = await vscode.debug.startDebugging(folder, debugConfig);
-            if (!debuggerStarted) {
-                throw new Error("launchDebugger: Debugger failed to start", {
-                    cause: {
-                        configUri: config.uri.toString(),
-                        workflowID,
-                        debugConfig,
-                        folder,
-                    }
-                });
-            }
+            await $this.#launchDebugger(workflowID, config, cloudLensInfo);
         };
     }
 
-    #getDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration | undefined {
-        const language = config.language ?? "node";
-        switch (language) {
-            case "node": return this.#getNodeDebugConfig(workflowID, config, cloudLensInfo);
-            case "python": return this.#getPythonDebugConfig(workflowID, config, cloudLensInfo);
-            default: throw new Error(`Unsupported language: ${language}`);
-        }
-    }
+    async #launchDebugger(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined) {
+        const debugConfig = getDebugConfig(workflowID, config, cloudLensInfo);
+        logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
+        if (!debugConfig) { return; }
 
-    #getPythonDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration | undefined {
-        if (config.language !== "python") {
-            throw new Error(`Expected python language, received ${config.language ?? null}`);
-        }
-
-        const ext = vscode.extensions.getExtension("ms-python.debugpy");
-        if (!ext) {
-            vscode.window.showErrorMessage("Python debugger not found. Please install the Python extension for VSCode.", "Install", "Cancel")
-                .then(value => {
-                    if (value === "Install") {
-                        vscode.env.openExternal(vscode.Uri.parse("https://marketplace.visualstudio.com/items?itemName=ms-python.python"));
-                    }
-                });
-            return undefined;
+        if (cloudLensInfo?.timeTravel === true) {
+            this.debugProxyManager.launchDebugProxy({
+                host: cloudLensInfo.host,
+                port: cloudLensInfo.port,
+                user: cloudLensInfo.user,
+                password: cloudLensInfo.password,
+                database: cloudLensInfo.database,
+                proxyPort: Configuration.getProxyPort()
+            });
         }
 
-        const timeTravel = cloudLensInfo?.timeTravel ?? false;
-        if (timeTravel)  {
-            vscode.window.showErrorMessage("Python does not support time travel debugging at this time");
-            return undefined;
-        }
-        return {
-            type: 'debugpy',
-            request: 'launch',
-            name: cloudLensInfo?.timeTravel ? "Time-Travel Debug" : "Replay Debug",
-            module: 'dbos',
-            args: ['debug', workflowID],
-            cwd: path.dirname(config.uri.fsPath),
-            justMyCode: Configuration.getJustMyCode(),
-            env: {
-                DBOS_DEBUG_TIME_TRAVEL: timeTravel ? "true" : undefined,
-                DBOS_DBHOST: timeTravel ? "localhost" : cloudLensInfo?.host,
-                DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
-                DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
-                DBOS_DBPASSWORD: timeTravel ? undefined : cloudLensInfo?.password,
-                DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" : undefined,
-            }
-        };
-    }
-
-    #getNodeDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration {
-        if ((config.language ?? "node") !== "node") {
-            throw new Error(`Expected node language, received ${config.language ?? null}`);
+        const folder = vscode.workspace.getWorkspaceFolder(config.uri);
+        const debuggerStarted = await vscode.debug.startDebugging(folder, debugConfig);
+        if (!debuggerStarted) {
+            throw new Error("launchDebugger: Debugger failed to start", {
+                cause: {
+                    configUri: config.uri.toString(),
+                    workflowID,
+                    debugConfig,
+                    folder,
+                }
+            });
         }
 
-        const timeTravel = cloudLensInfo?.timeTravel ?? false;
-        const debugConfig: vscode.DebugConfiguration = {
-            type: 'node',
-            request: 'launch',
-            name: timeTravel ? "Time-Travel Debug" : "Replay Debug",
-            cwd: path.dirname(config.uri.fsPath),
-            env: CodeLensProvider.#getDebugConfigEnv(cloudLensInfo),
-            skipFiles: Configuration.getJustMyCode()
-                ? ["<node_internals>/**/*.js", path.join(path.dirname(config.uri.fsPath), "node_modules", "**", "*.js")]
-                : undefined,
-        };
-
-        const start = config.runtime?.start ?? [];
-        if (start.length === 0) {
-            debugConfig.runtimeExecutable = "npx";
-            debugConfig.args = ['dbos', 'debug', '--uuid', workflowID];
-            if (timeTravel) {
-                debugConfig.args.push('--time-travel');
-            }
-        } else if (start.length === 1) {
-            const args = start[0].split(" ");
-            if (!nodeExecutables.includes(args[0])) {
-                throw new Error("Unsupported runtimeExecutable: " + args[0]);
-            }
-            debugConfig.runtimeExecutable = args[0];
-            debugConfig.args = args.slice(1);
-            debugConfig.env.DBOS_DEBUG_WORKFLOW_ID = workflowID;
-            if (timeTravel) {
-                debugConfig.env.DBOS_DEBUG_TIME_TRAVEL = "true";
+        function getDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration | undefined {
+            const language = config.language ?? "node";
+            switch (language) {
+                case "node": return getNodeDebugConfig(workflowID, config, cloudLensInfo);
+                case "python": return getPythonDebugConfig(workflowID, config, cloudLensInfo);
+                default: throw new Error(`Unsupported language: ${language}`);
             }
         }
-        else {
-            throw new Error("multiple runtimeConfig.start command support not implemented");
-        }
-
-        return debugConfig;
-    }
-
-    static #getDebugConfigEnv(cloudLensInfo:  CloudLensInfo | undefined): Record<string, string> {
-        const timeTravel = cloudLensInfo?.timeTravel ?? false;
-        if (timeTravel) {
+    
+        function getPythonDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration | undefined {
+            if (config.language !== "python") {
+                throw new Error(`Expected python language, received ${config.language ?? null}`);
+            }
+    
+            const ext = vscode.extensions.getExtension("ms-python.debugpy");
+            if (!ext) {
+                vscode.window.showErrorMessage("Python debugger not found. Please install the Python extension for VSCode.", "Install", "Cancel")
+                    .then(value => {
+                        if (value === "Install") {
+                            vscode.env.openExternal(vscode.Uri.parse("https://marketplace.visualstudio.com/items?itemName=ms-python.python"));
+                        }
+                    });
+                return undefined;
+            }
+    
+            const timeTravel = cloudLensInfo?.timeTravel ?? false;
+            if (timeTravel)  {
+                vscode.window.showErrorMessage("Python does not support time travel debugging at this time");
+                return undefined;
+            }
             return {
-                DBOS_DBHOST: "localhost",
-                DBOS_DBPORT: `${Configuration.getProxyPort()}`,
-                DBOS_DBLOCALSUFFIX: "false",
-            }
-        } else if (cloudLensInfo) {
-            return { 
-                DBOS_DBHOST: cloudLensInfo.host,
-                DBOS_DBPORT: `${cloudLensInfo.port}`,
-                DBOS_DBUSER: cloudLensInfo.user,
-                DBOS_DBPASSWORD:  cloudLensInfo.password,
-                DBOS_DBLOCALSUFFIX: "false"
-            }
+                type: 'debugpy',
+                request: 'launch',
+                name: cloudLensInfo?.timeTravel ? "Time-Travel Debug" : "Replay Debug",
+                module: 'dbos',
+                args: ['debug', workflowID],
+                cwd: path.dirname(config.uri.fsPath),
+                justMyCode: Configuration.getJustMyCode(),
+                env: {
+                    DBOS_DEBUG_TIME_TRAVEL: timeTravel ? "true" : undefined,
+                    DBOS_DBHOST: timeTravel ? "localhost" : cloudLensInfo?.host,
+                    DBOS_DBPORT: timeTravel ? undefined : cloudLensInfo?.port.toString(),
+                    DBOS_DBUSER: timeTravel ? undefined : cloudLensInfo?.user,
+                    DBOS_DBPASSWORD: timeTravel ? undefined : cloudLensInfo?.password,
+                    DBOS_DBLOCALSUFFIX: (timeTravel || cloudLensInfo) ? "false" : undefined,
+                }
+            };
         }
-        return {};
+    
+        function getNodeDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration {
+            if ((config.language ?? "node") !== "node") {
+                throw new Error(`Expected node language, received ${config.language ?? null}`);
+            }
+    
+            const timeTravel = cloudLensInfo?.timeTravel ?? false;
+            const debugConfig: vscode.DebugConfiguration = {
+                type: 'node',
+                request: 'launch',
+                name: timeTravel ? "Time-Travel Debug" : "Replay Debug",
+                cwd: path.dirname(config.uri.fsPath),
+                env: getDebugConfigEnv(cloudLensInfo),
+                skipFiles: Configuration.getJustMyCode()
+                    ? ["<node_internals>/**/*.js", path.join(path.dirname(config.uri.fsPath), "node_modules", "**", "*.js")]
+                    : undefined,
+            };
+    
+            const start = config.runtime?.start ?? [];
+            if (start.length === 0) {
+                debugConfig.runtimeExecutable = "npx";
+                debugConfig.args = ['dbos', 'debug', '--uuid', workflowID];
+                if (timeTravel) {
+                    debugConfig.args.push('--time-travel');
+                }
+            } else if (start.length === 1) {
+                const args = start[0].split(" ");
+                if (!nodeExecutables.includes(args[0])) {
+                    throw new Error("Unsupported runtimeExecutable: " + args[0]);
+                }
+                debugConfig.runtimeExecutable = args[0];
+                debugConfig.args = args.slice(1);
+                debugConfig.env.DBOS_DEBUG_WORKFLOW_ID = workflowID;
+                if (timeTravel) {
+                    debugConfig.env.DBOS_DEBUG_TIME_TRAVEL = "true";
+                }
+            }
+            else {
+                throw new Error("multiple runtimeConfig.start command support not implemented");
+            }
+    
+            return debugConfig;
+        }
+    
+        function getDebugConfigEnv(cloudLensInfo:  CloudLensInfo | undefined): Record<string, string> {
+            const timeTravel = cloudLensInfo?.timeTravel ?? false;
+            if (timeTravel) {
+                return {
+                    DBOS_DBHOST: "localhost",
+                    DBOS_DBPORT: `${Configuration.getProxyPort()}`,
+                    DBOS_DBLOCALSUFFIX: "false",
+                }
+            } else if (cloudLensInfo) {
+                return { 
+                    DBOS_DBHOST: cloudLensInfo.host,
+                    DBOS_DBPORT: `${cloudLensInfo.port}`,
+                    DBOS_DBUSER: cloudLensInfo.user,
+                    DBOS_DBPASSWORD:  cloudLensInfo.password,
+                    DBOS_DBLOCALSUFFIX: "false"
+                }
+            }
+            return {};
+        }
     }
 
     async #pickWorkflow(methodName: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined) {
         const client = await this.#getDbClient(config, cloudLensInfo);
         if (!client) { return undefined; }
         try {
-            return await pickWorkflow(client, methodName);
+            return await showWorkflowPicker(client, methodName);
         } finally {
             client.release();
+        }
+
+        async function showWorkflowPicker(client: ClientBase, methodName: string) {
+            const result = await client.query<workflow_status>(
+                "SELECT * FROM dbos.workflow_status WHERE (status = 'SUCCESS' OR status = 'ERROR') AND name = $1 ORDER BY created_at DESC",
+                [methodName]);
+            const items = result.rows.map(status => {
+                const createdAt = new Date(Number(status.created_at)).toLocaleString();
+                return <vscode.QuickPickItem>{
+                    label: status.workflow_uuid,
+                    description: `${status.status}`,
+                    detail: status.authenticated_user && status.authenticated_user.length !== 0
+                        ? `at ${createdAt} by ${status.authenticated_user}`
+                        : `at ${createdAt}`
+                };
+            });
+        
+            const editButton: vscode.QuickInputButton = {
+                iconPath: new vscode.ThemeIcon("edit"),
+                tooltip: "Specify workflow id directly"
+            };
+
+            const disposables: { dispose(): any; }[] = [];
+            try {
+                const result = await new Promise<vscode.QuickInputButton | vscode.QuickPickItem | undefined>(resolve => {
+                    const input = vscode.window.createQuickPick();
+                    input.title = "Select a workflow ID to debug";
+                    input.canSelectMany = false;
+                    input.items = items;
+                    input.buttons = [editButton];
+                    let selectedItem: vscode.QuickPickItem | undefined = undefined;
+                    disposables.push(
+                        input.onDidAccept(() => {
+                            logger.debug("showWorkflowPick.onDidAccept", { selectedItem });
+                            resolve(selectedItem);
+                            input.dispose();
+                        }),
+                        input.onDidHide(() => {
+                            logger.debug("showWorkflowPick.onDidHide", { selectedItem });
+                            resolve(undefined);
+                            input.dispose();
+                        }),
+                        input.onDidChangeSelection(items => {
+                            logger.debug("showWorkflowPick.onDidChangeSelection", { items });
+                            selectedItem = items.length === 0 ? undefined : items[0];
+                        }),
+                        input.onDidTriggerButton(button => {
+                            logger.debug("showWorkflowPick.onDidTriggerButton", { button });
+                            resolve(button);
+                            input.dispose();
+                        })
+                    );
+                    input.show();
+                });
+                if (result === undefined) { return undefined; }
+                if ("label" in result) {
+                    return result.label;
+                }
+                if (result === editButton) {
+                    return await vscode.window.showInputBox({ prompt: "Enter the workflow ID" });
+                } else {
+                    throw new Error(`Unexpected button: ${result.tooltip ?? "<unknown>"}`);
+                }
+            } finally {
+                disposables.forEach(d => d.dispose());
+            }
         }
     }
 
