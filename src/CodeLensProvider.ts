@@ -17,13 +17,18 @@ export interface DbosWorkflowMethod {
     end: vscode.Position;
 }
 
-interface CloudLensInfo {
+interface CloudConnection {
     user: string;
     database: string;
     password: string;
     port: number;
     host: string;
     timeTravel: boolean;
+}
+
+export interface CloudConnections {
+    cloudRelay?: CloudConnection;
+    timeTravel?: CloudConnection;
 }
 
 const nodeExecutables: ReadonlyArray<string> = ['node', 'npm', 'npx'];
@@ -77,7 +82,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             const config =  configUri ? await loadConfigFile(configUri, token) : undefined;
             if (!config) { return []; }
 
-            const { cloudRelay, timeTravel } = await this.#getCloudLensInfo(config, token);
+            const { cloudRelay, timeTravel } = await this.#getCloudConnections(config, token);
 
             const lenses = new Array<vscode.CodeLens>();
             for (const { start, end, name } of parser(document, token)) {
@@ -123,7 +128,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         }
     }
 
-    async #getCloudLensInfo(config: DbosConfig, token?: vscode.CancellationToken): Promise<{ cloudRelay?: CloudLensInfo; timeTravel?: CloudLensInfo; }> {
+    async #getCloudConnections(config: DbosConfig, token?: vscode.CancellationToken): Promise<CloudConnections> {
         try {
             const cred = await this.credManager.getValidCredential(undefined);
             if (!cred || token?.isCancellationRequested) { return {}; }
@@ -137,7 +142,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 app.ProvenanceDatabase ? getDbProxyRole(app.PostgresInstanceName, cred, token) : Promise.resolve(undefined)
             ]);
 
-            const cloudRelay: CloudLensInfo | undefined = !isUnauthorized(dbi) && !isUnauthorized(dbCred)
+            const cloudRelay: CloudConnection | undefined = !isUnauthorized(dbi) && !isUnauthorized(dbCred)
                 ? {
                     host: dbi.HostName,
                     port: dbi.Port,
@@ -148,7 +153,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 }
                 : undefined;
 
-            let timeTravel: CloudLensInfo | undefined = app.ProvenanceDatabase && proxyCred && !isUnauthorized(proxyCred)
+            let timeTravel: CloudConnection | undefined = app.ProvenanceDatabase && proxyCred && !isUnauthorized(proxyCred)
                 ? {
                     host: app.ProvenanceDatabase.HostName,
                     port: app.ProvenanceDatabase.Port,
@@ -166,12 +171,21 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         }
     }
 
+    getGetCloudConnectionsCommand() {
+        const $this = this;
+        return async function (config?: DbosConfig): Promise<CloudConnections> {
+            logger.info("getCloudConnections", { config: config ?? null });
+            if (!config) { return {}; }
+            return await $this.#getCloudConnections(config);
+        };
+    }
+
     getCodeLensDebugCommand() {
         const $this = this;
         return async function (
             methodName?: string,
             config?: DbosConfig,
-            cloudLensInfo?: CloudLensInfo
+            cloudLensInfo?: CloudConnection
         ) {
             logger.info("codeLensDebug", {
                 methodName: methodName ?? null,
@@ -188,7 +202,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         };
     }
 
-    async #launchDebugger(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined) {
+    async #launchDebugger(workflowID: string, config: DbosConfig, cloudLensInfo: CloudConnection | undefined) {
         const debugConfig = getDebugConfig(workflowID, config, cloudLensInfo);
         logger.info("startDebuggingFromCodeLens", { debugConfig: debugConfig ?? null });
         if (!debugConfig) { return; }
@@ -217,7 +231,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             });
         }
 
-        function getDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration | undefined {
+        function getDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudConnection | undefined): vscode.DebugConfiguration | undefined {
             const language = config.language ?? "node";
             switch (language) {
                 case "node": return getNodeDebugConfig(workflowID, config, cloudLensInfo);
@@ -226,7 +240,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             }
         }
     
-        function getPythonDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration | undefined {
+        function getPythonDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudConnection | undefined): vscode.DebugConfiguration | undefined {
             if (config.language !== "python") {
                 throw new Error(`Expected python language, received ${config.language ?? null}`);
             }
@@ -266,7 +280,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             };
         }
     
-        function getNodeDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): vscode.DebugConfiguration {
+        function getNodeDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudConnection | undefined): vscode.DebugConfiguration {
             if ((config.language ?? "node") !== "node") {
                 throw new Error(`Expected node language, received ${config.language ?? null}`);
             }
@@ -309,7 +323,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             return debugConfig;
         }
     
-        function getDebugConfigEnv(cloudLensInfo:  CloudLensInfo | undefined): Record<string, string> {
+        function getDebugConfigEnv(cloudLensInfo:  CloudConnection | undefined): Record<string, string> {
             const timeTravel = cloudLensInfo?.timeTravel ?? false;
             if (timeTravel) {
                 return {
@@ -330,7 +344,14 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         }
     }
 
-    async #pickWorkflow(methodName: string, config: DbosConfig, cloudLensInfo: CloudLensInfo | undefined) {
+    getLaunchDebuggerCommand() {
+        const $this = this;
+        return async function (workflowID: string, config: DbosConfig, cloudLensInfo: CloudConnection | undefined) {
+            await $this.#launchDebugger(workflowID, config, cloudLensInfo);
+        };
+    }
+
+    async #pickWorkflow(methodName: string, config: DbosConfig, cloudLensInfo: CloudConnection | undefined) {
         const client = await this.#getDbClient(config, cloudLensInfo);
         if (!client) { return undefined; }
         try {
@@ -406,7 +427,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         }
     }
 
-    async #getDbClient({ poolConfig, sysDatabase }: DbosConfig, cloudLensInfo: CloudLensInfo | undefined): Promise<PoolClient | undefined> {
+    async #getDbClient({ poolConfig, sysDatabase }: DbosConfig, cloudLensInfo: CloudConnection | undefined): Promise<PoolClient | undefined> {
         const key = cloudLensInfo
             ? `${cloudLensInfo.host}:${cloudLensInfo.port}:${cloudLensInfo.user}:${cloudLensInfo.database}`
             : `${poolConfig.host}:${poolConfig.port}:${poolConfig.user}:${sysDatabase}`;
