@@ -443,7 +443,8 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                     // vscode.env.openExternal(navigateUri).then(undefined, error => logger.error("openExternal", error));
 
                     // TODO: remove directly opening the callback URI with the hard coded wf id
-                    const demoUri = vscode.Uri.parse(`${callbackUri}&workflow_id=${items[0].label}`);
+                    const randomIndex = Math.floor(Math.random() * items.length);
+                    const demoUri = vscode.Uri.parse(`${callbackUri}&workflow_id=${items[randomIndex].label}`);
                     vscode.env.openExternal(demoUri);
 
                     return undefined;
