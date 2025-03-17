@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
 import { getCloudConnectionsCommandName, launchDebuggerCommandName, logger } from './extension';
-import { DbosConfig, loadConfigFile } from './dbosConfig';
+import { loadConfigFile } from './dbosConfig';
 import type { CloudConnections } from './CodeLensProvider';
-import { time } from 'console';
 
 export class UriHandler implements vscode.UriHandler {
     async handleUri(uri: vscode.Uri): Promise<void> {

@@ -10,7 +10,7 @@ import * as semver from 'semver';
 import { Configuration } from './Configuration';
 import { CloudAppItem } from './CloudDataProvider';
 import { CloudCredentialManager } from './CloudCredentialManager';
-import { getDbInstance, getDbProxyRole, isUnauthorized } from './dbosCloudApi';
+import { getDbProxyRole, isUnauthorized } from './dbosCloudApi';
 
 interface DebugProxyOptions {
   host: string;
