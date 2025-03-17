@@ -31,7 +31,7 @@ export async function activate(context: vscode.ExtensionContext) {
     credManager,
     context.globalStorageUri);
   const cloudDataProvider = new CloudDataProvider(credManager);
-  const codeLensProvider = new CodeLensProvider(credManager, debugProxyManager);
+  const codeLensProvider = new CodeLensProvider(context.extension.id, credManager, debugProxyManager);
   const blobStorage = new S3Storage();
 
   context.subscriptions.push(

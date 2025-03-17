@@ -42,6 +42,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
     readonly onDidChangeCodeLenses = this.onDidChangeCodeLensesEmitter.event;
 
     constructor(
+        private readonly extensionId: string,
         private readonly credManager: CloudCredentialManager,
         private readonly debugProxyManager: DebugProxyManager,
     ) {
@@ -355,15 +356,22 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
         const client = await this.#getDbClient(config, cloudLensInfo);
         if (!client) { return undefined; }
         try {
-            return await showWorkflowPicker(client, methodName);
+            return await showWorkflowPicker(client, methodName, this.extensionId);
         } finally {
             client.release();
         }
 
-        async function showWorkflowPicker(client: ClientBase, methodName: string) {
+        
+        async function showWorkflowPicker(client: ClientBase, methodName: string, extensionId: string) {
             const result = await client.query<workflow_status>(
                 "SELECT * FROM dbos.workflow_status WHERE (status = 'SUCCESS' OR status = 'ERROR') AND name = $1 ORDER BY created_at DESC",
                 [methodName]);
+
+            if (result.rowCount === 0) {
+                vscode.window.showErrorMessage(`No workflows found for method ${methodName}`);
+                return undefined;
+            }
+
             const items = result.rows.map(status => {
                 const createdAt = new Date(Number(status.created_at)).toLocaleString();
                 return <vscode.QuickPickItem>{
@@ -380,6 +388,11 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 tooltip: "Specify workflow id directly"
             };
 
+            const consoleButton: vscode.QuickInputButton = {
+                iconPath: new vscode.ThemeIcon("server"),
+                tooltip: "Select workflow via DBOS Cloud Conole"
+              };
+
             const disposables: { dispose(): any; }[] = [];
             try {
                 const result = await new Promise<vscode.QuickInputButton | vscode.QuickPickItem | undefined>(resolve => {
@@ -387,7 +400,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                     input.title = "Select a workflow ID to debug";
                     input.canSelectMany = false;
                     input.items = items;
-                    input.buttons = [editButton];
+                    input.buttons = cloudLensInfo ? [editButton, consoleButton] : [editButton];
                     let selectedItem: vscode.QuickPickItem | undefined = undefined;
                     disposables.push(
                         input.onDidAccept(() => {
@@ -418,9 +431,25 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 }
                 if (result === editButton) {
                     return await vscode.window.showInputBox({ prompt: "Enter the workflow ID" });
-                } else {
-                    throw new Error(`Unexpected button: ${result.tooltip ?? "<unknown>"}`);
+                } 
+                if (result === consoleButton) {
+                    if (!cloudLensInfo) { return undefined; }
+                    const path = cloudLensInfo.timeTravel ? "tt-debug" : "debug";
+                    const debugUri =  vscode.Uri.parse(`${vscode.env.uriScheme}://${extensionId}/${path}?app_name=${config.name}`);
+                    const callbackUri = await vscode.env.asExternalUri(debugUri);
+
+                    // TODO: uncomment navigation to console URI
+                    // const navigateUri = vscode.Uri.parse(`https://console.dbos.dev/applications/${config.name}/workflows?workflow_name=${methodName}&callback_uri=${encodeURI(callbackUri.toString())}`);
+                    // vscode.env.openExternal(navigateUri).then(undefined, error => logger.error("openExternal", error));
+
+                    // TODO: remove directly opening the callback URI with the hard coded wf id
+                    const demoUri = vscode.Uri.parse(`${callbackUri}&workflow_id=${items[0].label}`);
+                    vscode.env.openExternal(demoUri);
+
+                    return undefined;
                 }
+                
+                throw new Error(`Unexpected button: ${result.tooltip ?? "<unknown>"}`);
             } finally {
                 disposables.forEach(d => d.dispose());
             }

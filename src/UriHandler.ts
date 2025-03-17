@@ -14,29 +14,32 @@ export class UriHandler implements vscode.UriHandler {
         if (!appName || !workflowID) { return; }
 
         const config = await findConfig(appName);
-        if (!config) { return; }
+        if (!config) { 
+            vscode.window.showErrorMessage(`Could not find dbos config file for ${appName} in the current workspace.`);
+            return; 
+        }
 
         const { cloudRelay, timeTravel } = await vscode.commands.executeCommand<CloudConnections>(getCloudConnectionsCommandName, config);
 
         switch (uri.path) {
             case '/debug':
                 if (!cloudRelay) {
-                    await vscode.window.showErrorMessage(`No cloud relay found for ${appName}`);
+                    vscode.window.showErrorMessage(`Cloud replay connection information for ${appName} not found`);
                     return;
                 }
-                await vscode.window.showInformationMessage(`Starting DBOS Replay Debugger for ${appName} with workflow ID ${workflowID}`);
+                vscode.window.showInformationMessage(`Starting DBOS Replay Debugger for ${appName} with workflow ID ${workflowID}`);
                 await vscode.commands.executeCommand(launchDebuggerCommandName, workflowID, config, cloudRelay);
                 break;
             case '/tt-debug':
                 if (!timeTravel) {
-                    await vscode.window.showErrorMessage(`No cloud relay found for ${appName}`);
+                    vscode.window.showErrorMessage(`Time travel connection information for ${appName} not found`);
                     return;
                 }
-                await vscode.window.showInformationMessage(`Starting DBOS TimeTravel Debugger for ${appName} with workflow ID ${workflowID}`);
+                vscode.window.showInformationMessage(`Starting DBOS TimeTravel Debugger for ${appName} with workflow ID ${workflowID}`);
                 await vscode.commands.executeCommand(launchDebuggerCommandName, workflowID, config, timeTravel);
                 break;
             default:
-                vscode.window.showErrorMessage(`Unsupported uri: ${uri.path}}`);
+                vscode.window.showErrorMessage(`Unsupported DBOS Debugger uri path: ${uri.path}}`);
         }
 
         async function findConfig(appName: string) {
