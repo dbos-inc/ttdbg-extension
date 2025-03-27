@@ -5,6 +5,7 @@ import { CloudDataProvider } from './CloudDataProvider';
 import { CloudCredentialManager } from './CloudCredentialManager';
 import { S3Storage } from './BlobStorage';
 import { DebugProxyManager } from './DebugProxyManager';
+import { UriHandler } from './UriHandler';
 
 export let logger: Logger;
 
@@ -14,6 +15,8 @@ export const startDebuggingCodeLensCommandName = "dbos-ttdbg.start-debugging-cod
 const browseCloudAppCommandName = "dbos-ttdbg.browse-cloud-app";
 const updateDebugProxyCommandName = "dbos-ttdbg.update-debug-proxy";
 const launchDebugProxyCommandName = "dbos-ttdbg.launch-debug-proxy";
+export const getCloudConnectionsCommandName = "dbos-ttdbg.get-cloud-connections";
+export const launchDebuggerCommandName = "dbos-ttdbg.launch-debugger";
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -28,7 +31,7 @@ export async function activate(context: vscode.ExtensionContext) {
     credManager,
     context.globalStorageUri);
   const cloudDataProvider = new CloudDataProvider(credManager);
-  const codeLensProvider = new CodeLensProvider(credManager, debugProxyManager);
+  const codeLensProvider = new CodeLensProvider(context.extension.id, credManager, debugProxyManager);
   const blobStorage = new S3Storage();
 
   context.subscriptions.push(
@@ -44,6 +47,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.languages.registerCodeLensProvider(
       [{ language: 'python' }, { language: 'typescript' }],
       codeLensProvider),
+    vscode.window.registerUriHandler(new UriHandler()),
 
     vscode.commands.registerCommand(
       cloudLoginCommandName,
@@ -54,6 +58,12 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       startDebuggingCodeLensCommandName,
       codeLensProvider.getCodeLensDebugCommand()),
+    vscode.commands.registerCommand(
+      launchDebuggerCommandName,
+      codeLensProvider.getLaunchDebuggerCommand()),
+    vscode.commands.registerCommand(
+      getCloudConnectionsCommandName,
+      codeLensProvider.getGetCloudConnectionsCommand()),
     vscode.commands.registerCommand(
       browseCloudAppCommandName,
       CloudDataProvider.browseCloudApp),
