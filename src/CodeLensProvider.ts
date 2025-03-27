@@ -438,15 +438,9 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                     const debugUri =  vscode.Uri.parse(`${vscode.env.uriScheme}://${extensionId}/${path}?app_name=${config.name}`);
                     const callbackUri = await vscode.env.asExternalUri(debugUri);
 
-                    // TODO: remove staging from hard coded URL
-                    const navigateUri = vscode.Uri.parse(`https://staging.console.dbos.dev/applications/${config.name}/workflows?workflow_name=${methodName}&callback_uri=${encodeURI(callbackUri.toString())}`);
+                    const navigateUri = vscode.Uri.parse(`https://console.dbos.dev/applications/${config.name}/workflows?workflow_name=${methodName}&callback_uri=${encodeURI(callbackUri.toString())}`);
                     vscode.env.openExternal(navigateUri)
                         .then(undefined, error => logger.error("openExternal", { error, navigateUri: navigateUri.toString() }));
-
-                    // TODO: remove directly opening the callback URI with the hard coded wf id
-                    // const randomIndex = Math.floor(Math.random() * items.length);
-                    // const demoUri = vscode.Uri.parse(`${callbackUri}&workflow_id=${items[randomIndex].label}`);
-                    // vscode.env.openExternal(demoUri);
 
                     return undefined;
                 }
