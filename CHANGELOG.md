@@ -11,6 +11,10 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 
 ## Unreleased
 
+### Added
+
+* DBOS Cloud Console integration for workflow picker in cloud replay and time travel debugging scenarios.
+
 ### Changed
 
 * `time_travel_code_lens_enabled` configuration setting defaults to true
@@ -79,6 +83,8 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 - Added custom `prep-release.mjs` script that implements `nbgv prepare-release` but using this project's
   [version numbering strategy](https://github.com/dbos-inc/ttdbg-extension?tab=readme-ov-file#versioning-strategy).
 
+
+
 ## [1.0.9] 2024-03-19
 
 ### Fixed
@@ -88,6 +94,8 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 ### Engineering
 
 - Updated `softprops/action-gh-release` action to v2.0.2 and fixed commit tagged for the release.
+
+
 
 ## [1.0.5] 2024-03-18
 
@@ -99,9 +107,13 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 - Simplified launching the DBOS Cloud Dashboard to silently call `createDashboard` if `getDashboard` returns undefined. 
   Previously, undefined `getDashboard` would launch the `createDashboard` url but cancel launching the debugger.
 
+
+
 ## [1.0] 2024-03-12
 
 - Initial release
+
+
 
 ## [0.9] 2024-02-28
 

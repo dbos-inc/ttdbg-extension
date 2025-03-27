@@ -80,7 +80,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             if (!parser) { return []; }
 
             const configUri = await locateDbosConfigFile(document.uri);
-            const config =  configUri ? await loadConfigFile(configUri, token) : undefined;
+            const config = configUri ? await loadConfigFile(configUri, token) : undefined;
             if (!config) { return []; }
 
             const { cloudRelay, timeTravel } = await this.#getCloudConnections(config, token);
@@ -240,12 +240,12 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 default: throw new Error(`Unsupported language: ${language}`);
             }
         }
-    
+
         function getPythonDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudConnection | undefined): vscode.DebugConfiguration | undefined {
             if (config.language !== "python") {
                 throw new Error(`Expected python language, received ${config.language ?? null}`);
             }
-    
+
             const ext = vscode.extensions.getExtension("ms-python.debugpy");
             if (!ext) {
                 vscode.window.showErrorMessage("Python debugger not found. Please install the Python extension for VSCode.", "Install", "Cancel")
@@ -256,9 +256,9 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                     });
                 return undefined;
             }
-    
+
             const timeTravel = cloudLensInfo?.timeTravel ?? false;
-            if (timeTravel)  {
+            if (timeTravel) {
                 vscode.window.showErrorMessage("Python does not support time travel debugging at this time");
                 return undefined;
             }
@@ -280,12 +280,12 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 }
             };
         }
-    
+
         function getNodeDebugConfig(workflowID: string, config: DbosConfig, cloudLensInfo: CloudConnection | undefined): vscode.DebugConfiguration {
             if ((config.language ?? "node") !== "node") {
                 throw new Error(`Expected node language, received ${config.language ?? null}`);
             }
-    
+
             const timeTravel = cloudLensInfo?.timeTravel ?? false;
             const debugConfig: vscode.DebugConfiguration = {
                 type: 'node',
@@ -297,7 +297,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                     ? ["<node_internals>/**/*.js", path.join(path.dirname(config.uri.fsPath), "node_modules", "**", "*.js")]
                     : undefined,
             };
-    
+
             const start = config.runtime?.start ?? [];
             if (start.length === 0) {
                 debugConfig.runtimeExecutable = "npx";
@@ -320,11 +320,11 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             else {
                 throw new Error("multiple runtimeConfig.start command support not implemented");
             }
-    
+
             return debugConfig;
         }
-    
-        function getDebugConfigEnv(cloudLensInfo:  CloudConnection | undefined): Record<string, string> {
+
+        function getDebugConfigEnv(cloudLensInfo: CloudConnection | undefined): Record<string, string> {
             const timeTravel = cloudLensInfo?.timeTravel ?? false;
             if (timeTravel) {
                 return {
@@ -333,11 +333,11 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                     DBOS_DBLOCALSUFFIX: "false",
                 }
             } else if (cloudLensInfo) {
-                return { 
+                return {
                     DBOS_DBHOST: cloudLensInfo.host,
                     DBOS_DBPORT: `${cloudLensInfo.port}`,
                     DBOS_DBUSER: cloudLensInfo.user,
-                    DBOS_DBPASSWORD:  cloudLensInfo.password,
+                    DBOS_DBPASSWORD: cloudLensInfo.password,
                     DBOS_DBLOCALSUFFIX: "false"
                 }
             }
@@ -361,7 +361,6 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             client.release();
         }
 
-        
         async function showWorkflowPicker(client: ClientBase, methodName: string, extensionId: string) {
             const result = await client.query<workflow_status>(
                 "SELECT * FROM dbos.workflow_status WHERE (status = 'SUCCESS' OR status = 'ERROR') AND name = $1 ORDER BY created_at DESC",
@@ -382,7 +381,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                         : `at ${createdAt}`
                 };
             });
-        
+
             const editButton: vscode.QuickInputButton = {
                 iconPath: new vscode.ThemeIcon("edit"),
                 tooltip: "Specify workflow id directly"
@@ -391,7 +390,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
             const consoleButton: vscode.QuickInputButton = {
                 iconPath: new vscode.ThemeIcon("server"),
                 tooltip: "Select workflow via DBOS Cloud Conole"
-              };
+            };
 
             const disposables: { dispose(): any; }[] = [];
             try {
@@ -431,11 +430,11 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                 }
                 if (result === editButton) {
                     return await vscode.window.showInputBox({ prompt: "Enter the workflow ID" });
-                } 
+                }
                 if (result === consoleButton) {
                     if (!cloudLensInfo) { return undefined; }
                     const path = cloudLensInfo.timeTravel ? "tt-debug" : "debug";
-                    const debugUri =  vscode.Uri.parse(`${vscode.env.uriScheme}://${extensionId}/${path}?app_name=${config.name}`);
+                    const debugUri = vscode.Uri.parse(`${vscode.env.uriScheme}://${extensionId}/${path}?app_name=${config.name}`);
                     const callbackUri = await vscode.env.asExternalUri(debugUri);
 
                     const navigateUri = vscode.Uri.parse(`https://console.dbos.dev/applications/${config.name}/workflows?workflow_name=${methodName}&callback_uri=${encodeURI(callbackUri.toString())}`);
@@ -444,7 +443,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
 
                     return undefined;
                 }
-                
+
                 throw new Error(`Unexpected button: ${result.tooltip ?? "<unknown>"}`);
             } finally {
                 disposables.forEach(d => d.dispose());
