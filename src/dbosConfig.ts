@@ -33,35 +33,10 @@ interface ConfigFile {
         sys_db_name?: string;
         ssl?: boolean;
         ssl_ca?: string;
-        app_db_client?: string;
-        migrate?: string[];
-        rollback?: string[];
         local_suffix?: boolean;
     };
-    http?: {
-        cors_middleware?: boolean;
-        credentials?: boolean;
-        allowed_origins?: string[];
-    };
-    telemetry?: {
-        logs?: {
-            logLevel?: string;
-            silent?: boolean;
-            addContextMetadata?: boolean;
-        };
-        OTLPExporter?: {
-            logsEndpoint?: string;
-            tracesEndpoint?: string;
-        };
-    };
-    application: object;
-    env: Record<string, string>;
-    runtimeConfig?: {
-        entrypoints: string[];
-        port: number;
-        admin_port: number;
+    runtimeConfig?:{
         start: string[];
-        setup: string[];
     };
 }
 
@@ -73,11 +48,7 @@ export interface DbosConfig {
     appDatabase: string;
     sysDatabase: string;
     runtime?: {
-        entrypoints: string[];
-        port: number;
-        admin_port: number;
         start: string[];
-        setup: string[];
     };
 }
 
