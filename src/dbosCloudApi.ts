@@ -12,6 +12,7 @@ export function isUnauthorized(obj: any): obj is Unauthorized {
 export interface DbosCloudCredential {
   token: string;
   userName: string;
+  orgName: string;
   domain: string;
 }
 
@@ -39,6 +40,15 @@ export interface DbosCloudDbInstance {
   // AdminUsername: string;
 }
 
+export interface DbosCloudProfile {
+  Name: string,
+  Email: string,
+  Organization: string,
+  SubscriptionPlan: string,
+  IsOrgAdmin: boolean,
+  CreatedAt: string,
+}
+
 export interface DbosCloudDbProxyRole {
   RoleName: string;
   Secret: string;
@@ -46,7 +56,7 @@ export interface DbosCloudDbProxyRole {
 
 export interface DbosCloudDbCredentials {
   RoleName: string;
-	Password: string;
+  Password: string;
 }
 
 export interface DbosCloudDomain {
@@ -211,8 +221,13 @@ export async function authenticate(domain?: string | DbosCloudDomain): Promise<D
 
         const access_token = authTokenResponse.access_token;
         await verifyToken(access_token, cloud, cts.token);
-        const userName = await getUser(access_token, cloud, cts.token);
-        const credentials = <DbosCloudCredential>{ token: access_token, userName, domain: cloud.cloudDomain };
+        const profile = await getUserProfile(access_token, cloud, cts.token);
+        const credentials = <DbosCloudCredential>{ 
+          token: access_token, 
+          userName: profile.Name,
+          orgName: profile.Organization, 
+          domain: cloud.cloudDomain 
+        };
         return credentials;
       } finally {
         cts.dispose();
@@ -226,27 +241,27 @@ export async function authenticate(domain?: string | DbosCloudDomain): Promise<D
   }
 }
 
-async function getUser(accessToken: string, domain?: string | DbosCloudDomain, token?: vscode.CancellationToken) {
+async function getUserProfile(accessToken: string, domain?: string | DbosCloudDomain, token?: vscode.CancellationToken) {
   const { cloudDomain } = getCloudDomain(domain);
-  const url = `https://${cloudDomain}/v1alpha1/user`;
+  const url = `https://${cloudDomain}/v1alpha1/user/profile`;
   const request = <RequestInit>{
     method: 'GET',
     headers: { 'authorization': `Bearer ${accessToken}` }
   };
   const response = await cancellableFetch(url, request, token);
   if (!response.ok) {
-    throw new Error(`getUser request failed`, {
+    throw new Error(`getUserProfile request failed`, {
       cause: { url, accessToken, status: response.status, statusText: response.statusText }
     });
   }
 
-  const body = await response.text();
-  logger.debug("getUser", { url, authToken: accessToken, status: response.status, body });
+  const body = await response.json() as DbosCloudProfile;
+  logger.debug("getUserProfile", { url, authToken: accessToken, status: response.status, body });
   return body;
 }
 
-export async function listApps({ domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudApp[]> {
-  const url = `https://${domain}/v1alpha1/${userName}/applications`;
+export async function listApps({ domain, token: accessToken, orgName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudApp[]> {
+  const url = `https://${domain}/v1alpha1/${orgName}/applications`;
   const request = <RequestInit>{
     method: 'GET',
     headers: { 'authorization': `Bearer ${accessToken}` }
@@ -255,8 +270,8 @@ export async function listApps({ domain, token: accessToken, userName }: DbosClo
   return fetchHelper('listApps', url, request, async (response) => await response.json() as DbosCloudApp[], token);
 }
 
-export async function getApp(appName: string, { domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudApp> {
-  const url = `https://${domain}/v1alpha1/${userName}/applications/${appName}`;
+export async function getApp(appName: string, { domain, token: accessToken, orgName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudApp> {
+  const url = `https://${domain}/v1alpha1/${orgName}/applications/${appName}`;
   const request = <RequestInit>{
     method: 'GET',
     headers: { 'authorization': `Bearer ${accessToken}` }
@@ -265,8 +280,8 @@ export async function getApp(appName: string, { domain, token: accessToken, user
   return fetchHelper('getApp', url, request, async (response) => await response.json() as DbosCloudApp, token);
 }
 
-export async function listDbInstances({ domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbInstance[]> {
-  const url = `https://${domain}/v1alpha1/${userName}/databases`;
+export async function listDbInstances({ domain, token: accessToken, orgName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbInstance[]> {
+  const url = `https://${domain}/v1alpha1/${orgName}/databases`;
   const request = <RequestInit>{
     method: 'GET',
     headers: { 'authorization': `Bearer ${accessToken}` }
@@ -275,8 +290,8 @@ export async function listDbInstances({ domain, token: accessToken, userName }: 
   return fetchHelper('listDbInstances', url, request, async (response) => await response.json() as DbosCloudDbInstance[], token);
 }
 
-export async function getDbInstance(dbName: string, { domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbInstance> {
-  const url = `https://${domain}/v1alpha1/${userName}/databases/userdb/info/${dbName}`;
+export async function getDbInstance(dbName: string, { domain, token: accessToken, orgName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbInstance> {
+  const url = `https://${domain}/v1alpha1/${orgName}/databases/userdb/info/${dbName}`;
   const request = <RequestInit>{
     method: 'GET',
     headers: { 'authorization': `Bearer ${accessToken}` }
@@ -285,8 +300,8 @@ export async function getDbInstance(dbName: string, { domain, token: accessToken
   return fetchHelper('getDbInstance', url, request, async (response) => await response.json() as DbosCloudDbInstance, token);
 }
 
-export async function getDbProxyRole(dbName: string, { domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbProxyRole> {
-  const url = `https://${domain}/v1alpha1/${userName}/databases/userdb/${dbName}/proxyrole`;
+export async function getDbProxyRole(dbName: string, { domain, token: accessToken, orgName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbProxyRole> {
+  const url = `https://${domain}/v1alpha1/${orgName}/databases/userdb/${dbName}/proxyrole`;
   const request = <RequestInit>{
     method: 'GET',
     headers: { 'authorization': `Bearer ${accessToken}` }
@@ -296,8 +311,8 @@ export async function getDbProxyRole(dbName: string, { domain, token: accessToke
 }
 
 
-export async function getDbCredentials(dbName: string, { domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbCredentials> {
-  const url = `https://${domain}/v1alpha1/${userName}/databases/userdb/${dbName}/credentials`;
+export async function getDbCredentials(dbName: string, { domain, token: accessToken, orgName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<Unauthorized | DbosCloudDbCredentials> {
+  const url = `https://${domain}/v1alpha1/${orgName}/databases/userdb/${dbName}/credentials`;
   const request = <RequestInit>{
     method: 'GET',
     headers: { 'authorization': `Bearer ${accessToken}` }
@@ -306,9 +321,9 @@ export async function getDbCredentials(dbName: string, { domain, token: accessTo
   return fetchHelper('getDbCredentials', url, request, async (response) => await response.json() as DbosCloudDbCredentials, token);
 }
 
-export async function createDashboard({ domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<string | Unauthorized> {
+export async function createDashboard({ domain, token: accessToken, orgName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<string | Unauthorized> {
 
-  const url = `https://${domain}/v1alpha1/${userName}/dashboard`;
+  const url = `https://${domain}/v1alpha1/${orgName}/dashboard`;
   const request = <RequestInit>{
     method: 'PUT',
     headers: { 'authorization': `Bearer ${accessToken}` }
@@ -317,8 +332,8 @@ export async function createDashboard({ domain, token: accessToken, userName }: 
   return fetchHelper('createDashboard', url, request, (response) => response.text(), token);
 }
 
-export async function getDashboard({ domain, token: accessToken, userName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<string | Unauthorized | undefined> {
-  const url = `https://${domain}/v1alpha1/${userName}/dashboard`;
+export async function getDashboard({ domain, token: accessToken, orgName }: DbosCloudCredential, token?: vscode.CancellationToken): Promise<string | Unauthorized | undefined> {
+  const url = `https://${domain}/v1alpha1/${orgName}/dashboard`;
   const request = <RequestInit>{
     method: 'GET',
     headers: { 'authorization': `Bearer ${accessToken}` }
