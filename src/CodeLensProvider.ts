@@ -331,7 +331,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                     DBOS_DBHOST: "localhost",
                     DBOS_DBPORT: `${Configuration.getProxyPort()}`,
                     DBOS_DBLOCALSUFFIX: "false",
-                }
+                };
             } else if (cloudLensInfo) {
                 return {
                     DBOS_DBHOST: cloudLensInfo.host,
@@ -339,7 +339,7 @@ export class CodeLensProvider implements vscode.CodeLensProvider, vscode.Disposa
                     DBOS_DBUSER: cloudLensInfo.user,
                     DBOS_DBPASSWORD: cloudLensInfo.password,
                     DBOS_DBLOCALSUFFIX: "false"
-                }
+                };
             }
             return {};
         }
