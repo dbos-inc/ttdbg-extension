@@ -61,7 +61,7 @@ export async function loadConfigFile(configUri: vscode.Uri, token?: vscode.Cance
     const configFile = await readConfigFile(configUri, token);
     if (token?.isCancellationRequested) { return; }
 
-    const appName = configFile.name ?? (await loadPackageJson(configUri)).name;
+    const appName = configFile.name ?? (await loadPackageJson(configUri, configFile.language)).name;
     if (token?.isCancellationRequested) { return; }
     if (!appName) {
         throw new Error(`Failed to determine app name`, { cause: configUri.fsPath });
@@ -128,7 +128,9 @@ export async function loadConfigFile(configUri: vscode.Uri, token?: vscode.Cance
         }
     }
 
-    async function loadPackageJson(configUri: vscode.Uri): Promise<{ name?: string }> {
+    async function loadPackageJson(configUri: vscode.Uri, language: string | undefined): Promise<{ name?: string }> {
+        if (language && language !== 'node') { return {}; }
+
         const packageJsonPath = path.join(path.dirname(configUri.fsPath), 'package.json');
         try {
             const contents = await fs.readFile(packageJsonPath, 'utf-8');
