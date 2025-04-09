@@ -9,17 +9,17 @@ This project adheres to [Semantic Versioning](https://semver.org) and uses
 As per [VSCode recommendation](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#prerelease-extensions),
 this project uses *EVEN* minor version numbers for release versions and *ODD* minor version numbers for pre-release versions,
 
-## Unreleased
+## [2.2.7] 2025-04-09
 
 ### Changed
 
-* Updated config parsing to latest changes in DBOS Transact, including `database_url` support.
+* Updated config parsing to latest changes in DBOS Transact, including `database_url` support. ([#51](https://github.com/dbos-inc/ttdbg-extension/pull/51))
 
 ### Fixed
 
-* Changed authentication flow to call `/user/profile` endpoint instead of deprecated `/user` endpoint
-* Changed app, db and dashboard endpoint invocations to use organization name instead of user name
-* Fixed Python parsing to correctly handle files with decorated classes.
+* Changed authentication flow to call `/user/profile` endpoint instead of deprecated `/user` endpoint ([#50](https://github.com/dbos-inc/ttdbg-extension/pull/50))
+* Changed app, db and dashboard endpoint invocations to use organization name instead of user name ([#50](https://github.com/dbos-inc/ttdbg-extension/pull/50))
+* Fixed Python parsing to correctly handle files with decorated classes. ([#53](https://github.com/dbos-inc/ttdbg-extension/pull/53))
 
 ## [2.2] 2025-03-27
 
