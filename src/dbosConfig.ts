@@ -3,6 +3,8 @@ import YAML from "yaml";
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { PoolConfig } from 'pg';
+import { parse as parsePGConnectionString } from 'pg-connection-string';
+import { logger } from './extension';
 
 export async function locateDbosConfigFile(uri: vscode.Uri): Promise<vscode.Uri | undefined> {
     const folder = vscode.workspace.getWorkspaceFolder(uri);
@@ -20,22 +22,25 @@ export async function locateDbosConfigFile(uri: vscode.Uri): Promise<vscode.Uri 
     }
 }
 
+interface DatabaseConfig {
+    hostname?: string;
+    port?: number;
+    username?: string;
+    password?: string;
+    connectionTimeoutMillis?: number;
+    app_db_name?: string;
+    sys_db_name?: string;
+    ssl?: boolean;
+    ssl_ca?: string;
+    local_suffix?: boolean;
+}
+
 interface ConfigFile {
     name?: string;
     language?: string;
-    database: {
-        hostname?: string;
-        port?: number;
-        username?: string;
-        password?: string;
-        connectionTimeoutMillis?: number;
-        app_db_name?: string;
-        sys_db_name?: string;
-        ssl?: boolean;
-        ssl_ca?: string;
-        local_suffix?: boolean;
-    };
-    runtimeConfig?:{
+    database?: DatabaseConfig;
+    database_url?: string;
+    runtimeConfig?: {
         start: string[];
     };
 }
@@ -53,92 +58,116 @@ export interface DbosConfig {
 }
 
 export async function loadConfigFile(configUri: vscode.Uri, token?: vscode.CancellationToken): Promise<DbosConfig | undefined> {
-    try {
-        const configContent = await fs.readFile(configUri.fsPath, 'utf-8');
-        if (token?.isCancellationRequested) { return; }
-        const interpolatedContent = substituteEnvVars(configContent);
-        const configFile = YAML.parse(interpolatedContent) as ConfigFile;
+    const configFile = await readConfigFile(configUri, token);
+    if (token?.isCancellationRequested) { return; }
 
-        const appName = configFile.name ?? await loadPackageName(configUri);
-        if (token?.isCancellationRequested) { return; }
-        if (!appName) {
-            throw new Error(
-                'application name not defined in dbos-config.yaml or package.json',
-                {
-                    cause: {
-                        configUri: configUri.fsPath,
-                        packageJson: path.join(path.dirname(configUri.fsPath), 'package.json')
-                    }
-                });
-        }
-        const language = configFile.language;
-        const runtimeConfig = configFile.runtimeConfig;
+    const appName = configFile.name ?? (await loadPackageJson(configUri)).name;
+    if (token?.isCancellationRequested) { return; }
+    if (!appName) {
+        throw new Error(`Failed to determine app name`, { cause: configUri.fsPath });
+    }
 
-        const databaseConnection = await loadDbConnection(configUri);
-        if (token?.isCancellationRequested) { return; }
-        const hostName = configFile.database.hostname ?? databaseConnection?.hostname ?? "localhost";
-        const port = configFile.database.port ?? databaseConnection?.port ?? 5432;
-        const userName = configFile.database.username ?? databaseConnection?.username ?? "postgres";
-        const password = configFile.database.password ?? databaseConnection?.password ?? process.env.PGPASSWORD ?? "dbos";
-        const timeout = configFile.database.connectionTimeoutMillis ?? 3000;
-        const localSuffix = configFile.database.local_suffix ?? databaseConnection?.local_suffix ?? false;
-        const appDatabase = getAppDbName(configFile.database.app_db_name, appName, localSuffix);
-        const sysDatabase = configFile.database.sys_db_name ?? `${appDatabase}_dbos_sys`;
-        const ssl = await getSsl(configFile.database.ssl, configFile.database.ssl_ca, hostName);
+    const dbConnection = await loadDbConnection(configUri);
+    if (token?.isCancellationRequested) { return; }
 
-        const poolConfig: PoolConfig = {
-            host: hostName,
+    const dbConfig = configFile.database_url
+        ? parseDatabaseUrl(configFile.database_url)
+        : configFile.database ?? {};
+
+    const envPort = process.env.DBOS_DBPORT ? parseInt(process.env.DBOS_DBPORT, 10) : undefined;
+    const envLocalSuffix = process.env.DBOS_DBLOCALSUFFIX ? process.env.DBOS_DBLOCALSUFFIX === 'true' : undefined;
+
+    const host = process.env.DBOS_DBHOST ?? dbConfig.hostname ?? dbConnection.hostname ?? "localhost";
+    const port = envPort ?? dbConfig.port ?? dbConnection.port ?? 5432;
+    const user = process.env.DBOS_DBUSER ?? dbConfig.username ?? dbConnection.username ?? "postgres";
+    const password = process.env.DBOS_DBPASSWORD ?? dbConfig.password ?? dbConnection.password ?? process.env.PGPASSWORD ?? "dbos";
+    const localSuffix = envLocalSuffix ?? dbConfig.local_suffix ?? dbConnection.local_suffix ?? false;
+
+    const databaseName = dbConfig.app_db_name ?? getDatabaseNameFromAppName(appName);
+    const appDatabase = localSuffix ? `${databaseName}_local` : databaseName;
+    const sysDatabase = configFile.database?.sys_db_name ?? `${appDatabase}_dbos_sys`;
+
+    const ssl = await parseSSL(dbConfig.ssl, dbConfig.ssl_ca, host);
+
+    return {
+        uri: configUri,
+        name: appName,
+        language: configFile.language,
+        runtime: configFile.runtimeConfig,
+        appDatabase,
+        sysDatabase,
+        poolConfig: {
+            host,
             port,
-            user: userName,
+            user,
             password,
-            connectionTimeoutMillis: timeout,
+            connectionTimeoutMillis: dbConfig.connectionTimeoutMillis || 3000,
             ssl,
-        };
+        },
+    };
+
+    async function readConfigFile(configUri: vscode.Uri, token?: vscode.CancellationToken): Promise<ConfigFile> {
+        try {
+            const configContent = await fs.readFile(configUri.fsPath, 'utf-8');
+            if (token?.isCancellationRequested) { return {}; }
+            const interpolatedContent = substituteEnvVars(configContent);
+            return YAML.parse(interpolatedContent) as ConfigFile;
+
+            function substituteEnvVars(content: string): string {
+                const regex = /\${([^}]+)}/g; // Regex to match ${VAR_NAME} style placeholders
+                return content.replace(regex, (_, g1: string) => {
+                    return process.env[g1] || '""'; // If the env variable is not set, return an empty string.
+                });
+            }
+        } catch (e) {
+            logger.error(`Failed to load dbos-config.yaml`, {
+                error: e,
+                configUri: configUri.fsPath,
+            });
+            return {};
+        }
+    }
+
+    async function loadPackageJson(configUri: vscode.Uri): Promise<{ name?: string }> {
+        const packageJsonPath = path.join(path.dirname(configUri.fsPath), 'package.json');
+        try {
+            const contents = await fs.readFile(packageJsonPath, 'utf-8');
+            return JSON.parse(contents) as { name?: string };
+        } catch (e) {
+            logger.error(`Failed to load package.json`, {
+                error: e,
+                configUri: configUri.fsPath,
+                packageJsonPath,
+            });
+            return {};
+        }
+    }
+
+    function parseDatabaseUrl(dbUrl: string): DatabaseConfig {
+        const connOpts = parsePGConnectionString(dbUrl);
+        const url = new URL(dbUrl);
+        const queryParams = Object.fromEntries(url.searchParams.entries());
 
         return {
-            uri: configUri,
-            name: appName,
-            language,
-            runtime: runtimeConfig,
-            appDatabase,
-            sysDatabase,
-            poolConfig,
+            hostname: connOpts.host || undefined,
+            port: connOpts.port ? parseInt(connOpts.port, 10) : undefined,
+            username: connOpts.user || undefined,
+            password: connOpts.password || undefined,
+            app_db_name: connOpts.database || undefined,
+            ssl: 'sslmode' in connOpts && (connOpts.sslmode === 'require' || connOpts.sslmode === 'verify-full'),
+            ssl_ca: queryParams['sslrootcert'] || undefined,
+            connectionTimeoutMillis: queryParams['connect_timeout']
+                ? parseInt(queryParams['connect_timeout'], 10) * 1000
+                : undefined,
         };
-    } catch (e) {
-        if (e instanceof Error) {
-            throw new Error(`Failed to load config from ${configUri.fsPath}: ${e.message}`);
-        } else {
-            throw e;
-        }
     }
 
-    async function loadPackageName(configUri: vscode.Uri): Promise<string | undefined> {
-        const packageJsonPath = path.join(
-            path.dirname(configUri.fsPath),
-            'package.json');
-        const contents = await fs.readFile(packageJsonPath, 'utf-8');
-        const packageJson = JSON.parse(contents) as { name?: string };
-        return packageJson.name;
+    function getDatabaseNameFromAppName(appName: string) {
+        const dbName = appName.toLowerCase().replaceAll("-", "_").replaceAll(' ', '_');
+        return dbName.match(/^\d/) ? `_${dbName}` : dbName;
     }
 
-    function substituteEnvVars(content: string): string {
-        const regex = /\${([^}]+)}/g; // Regex to match ${VAR_NAME} style placeholders
-        return content.replace(regex, (_, g1: string) => {
-            return process.env[g1] || '""'; // If the env variable is not set, return an empty string.
-        });
-    }
-
-    function getAppDbName(dbName: string | undefined, appName: string, local_suffix: boolean) {
-        if (!dbName) {
-            dbName = appName.toLowerCase().replaceAll("-", "_");
-            if (dbName.match(/^\d/)) {
-                dbName = `_${dbName}`;
-            }
-        }
-        return local_suffix ? `${dbName}_local` : dbName;
-    }
-
-    async function getSsl(ssl: boolean | undefined, ssl_ca: string | undefined, host: string) {
+    async function parseSSL(ssl: boolean | undefined, ssl_ca: string | undefined, host: string): Promise<PoolConfig['ssl']> {
         if (ssl === false) {
             return false;
         }
@@ -161,24 +190,21 @@ interface DatabaseConnection {
     local_suffix?: boolean;
 }
 
-async function loadDbConnection(configUri: vscode.Uri): Promise<DatabaseConnection | undefined> {
-    type Nullable<T> = { [P in keyof T]: T[P] | null; };
-
+async function loadDbConnection(configUri: vscode.Uri): Promise<DatabaseConnection> {
+    type Nullable<T> = { [P in keyof T]-?: T[P] | null; };
     try {
-        const filePath = path.join(path.
-            dirname(configUri.fsPath),
-            '.dbos', 'db_connection');
+        const filePath = path.join(path.dirname(configUri.fsPath), '.dbos', 'db_connection');
         const contents = await fs.readFile(filePath, 'utf8');
-        const data = JSON.parse(contents) as Nullable<Required<DatabaseConnection>>;
+        const data = JSON.parse(contents) as Nullable<DatabaseConnection>;
         return {
-            hostname: data.hostname === null ? undefined : data.hostname,
-            port: data.port === null ? undefined : data.port,
-            username: data.username === null ? undefined : data.username,
-            password: data.password === null ? undefined : data.password,
-            local_suffix: data.local_suffix === null ? undefined : data.local_suffix,
+            hostname: data.hostname ? data.hostname : undefined,
+            port: data.port ? data.port : undefined,
+            username: data.username ? data.username : undefined,
+            password: data.password ? data.password : undefined,
+            local_suffix: data.local_suffix ? data.local_suffix : undefined,
         };
     } catch (e) {
-        return undefined;
+        return {};
     }
 }
 
