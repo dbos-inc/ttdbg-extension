@@ -9,6 +9,18 @@ This project adheres to [Semantic Versioning](https://semver.org) and uses
 As per [VSCode recommendation](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#prerelease-extensions),
 this project uses *EVEN* minor version numbers for release versions and *ODD* minor version numbers for pre-release versions,
 
+## Unreleased
+
+### Changed
+
+* Updated config parsing to latest changes in DBOS Transact, including `database_url` support.
+
+### Fixed
+
+* Changed authentication flow to call `/user/profile` endpoint instead of deprecated `/user` endpoint
+* Changed app, db and dashboard endpoint invocations to use organization name instead of user name
+* Fixed Python parsing to correctly handle files with decorated classes.
+
 ## [2.2] 2025-03-27
 
 ### Added
