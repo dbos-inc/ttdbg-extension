@@ -48,7 +48,7 @@ class DbosPythonListener extends Python3ParserListener {
     };
 
     enterDecorated = (ctx: DecoratedContext) => {
-        const funcDef = ctx.funcdef() ?? ctx.async_funcdef().funcdef();
+        const funcDef = ctx.funcdef() ?? ctx.async_funcdef()?.funcdef();
         if (!funcDef) { return; }
         const start = ctx.start.start;
         const stop = ctx.stop?.stop ?? ctx.start.stop;
