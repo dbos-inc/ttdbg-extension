@@ -9,6 +9,12 @@ This project adheres to [Semantic Versioning](https://semver.org) and uses
 As per [VSCode recommendation](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#prerelease-extensions),
 this project uses *EVEN* minor version numbers for release versions and *ODD* minor version numbers for pre-release versions,
 
+## [2.2.8] 2025-05-05
+
+### Changed
+
+* `time_travel_code_lens_enabled` configuration setting defaults to false
+
 ## [2.2.7] 2025-04-09
 
 ### Changed
