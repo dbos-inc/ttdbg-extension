@@ -1,11 +1,19 @@
 import * as vscode from 'vscode';
-import { DbosCloudApp, getCloudDomain, DbosCloudDbInstance, listApps, listDbInstances, isUnauthorized, DbosCloudCredential } from './dbosCloudApi';
+import {
+  DbosCloudApp,
+  getCloudDomain,
+  DbosCloudDbInstance,
+  listApps,
+  listDbInstances,
+  isUnauthorized,
+  DbosCloudCredential,
+} from './dbosCloudApi';
 import { CloudCredentialManager } from './CloudCredentialManager';
 
 class CloudDomainLoginNeededItem extends vscode.TreeItem {
   constructor() {
-    super("You need to login to DBOS Cloud.");
-    this.contextValue = "cloudDomainLoginNeeded";
+    super('You need to login to DBOS Cloud.');
+    this.contextValue = 'cloudDomainLoginNeeded';
   }
 }
 
@@ -23,9 +31,9 @@ class CloudDomainItem extends vscode.TreeItem {
     private readonly credManager: CloudCredentialManager,
   ) {
     super(domain, vscode.TreeItemCollapsibleState.Collapsed);
-    this.contextValue = "cloudDomain";
-    this.appItem = new CloudResourceTypeItem("apps", this);
-    this.dbInstanceItem = new CloudResourceTypeItem("dbInstances", this);
+    this.contextValue = 'cloudDomain';
+    this.appItem = new CloudResourceTypeItem('apps', this);
+    this.dbInstanceItem = new CloudResourceTypeItem('dbInstances', this);
   }
 
   async getChildren() {
@@ -35,8 +43,10 @@ class CloudDomainItem extends vscode.TreeItem {
     const cred = await this.credManager.getCachedCredential(this.domain);
     if (cred && CloudCredentialManager.isCredentialValid(cred)) {
       const [apps, dbInstances] = await Promise.all([listApps(cred), listDbInstances(cred)]);
-      this.apps = isUnauthorized(apps) ? undefined : apps.map(app => new CloudAppItem(app, this));
-      this.dbInstances = isUnauthorized(dbInstances) ? undefined : dbInstances.map(dbi => new CloudDbInstanceItem(dbi, this));
+      this.apps = isUnauthorized(apps) ? undefined : apps.map((app) => new CloudAppItem(app, this));
+      this.dbInstances = isUnauthorized(dbInstances)
+        ? undefined
+        : dbInstances.map((dbi) => new CloudDbInstanceItem(dbi, this));
       return [this.appItem, this.dbInstanceItem];
     }
 
@@ -55,24 +65,25 @@ class CloudDomainItem extends vscode.TreeItem {
 
 class CloudResourceTypeItem extends vscode.TreeItem {
   constructor(
-    public readonly type: "apps" | "dbInstances",
+    public readonly type: 'apps' | 'dbInstances',
     readonly parent: CloudDomainItem,
   ) {
-    super(type === "apps" ? "Applications" : "Database Instances", vscode.TreeItemCollapsibleState.Collapsed);
-    this.contextValue = "cloudResourceType";
+    super(type === 'apps' ? 'Applications' : 'Database Instances', vscode.TreeItemCollapsibleState.Collapsed);
+    this.contextValue = 'cloudResourceType';
   }
 
   getChildren() {
-    return this.type === "apps"
-      ? this.parent.getApps()
-      : this.parent.getDbInstances();
+    return this.type === 'apps' ? this.parent.getApps() : this.parent.getDbInstances();
   }
 }
 
 export class CloudAppItem extends vscode.TreeItem {
-  constructor(readonly app: DbosCloudApp, readonly parent: CloudDomainItem) {
+  constructor(
+    readonly app: DbosCloudApp,
+    readonly parent: CloudDomainItem,
+  ) {
     super(app.Name, vscode.TreeItemCollapsibleState.None);
-    this.contextValue = "cloudApp";
+    this.contextValue = 'cloudApp';
     const tooltip = `
 Database Instance: ${app.PostgresInstanceName}\n
 Database Name: ${app.ApplicationDatabaseName}\n
@@ -83,13 +94,18 @@ Application URL: ${app.AppURL}`;
     this.tooltip = new vscode.MarkdownString(tooltip);
   }
 
-  get domain() { return this.parent.domain;}
+  get domain() {
+    return this.parent.domain;
+  }
 }
 
 class CloudDbInstanceItem extends vscode.TreeItem {
-  constructor(readonly dbi: DbosCloudDbInstance, readonly parent: CloudDomainItem) {
+  constructor(
+    readonly dbi: DbosCloudDbInstance,
+    readonly parent: CloudDomainItem,
+  ) {
     super(dbi.PostgresInstanceName, vscode.TreeItemCollapsibleState.None);
-    this.contextValue = "cloudDbInstance";
+    this.contextValue = 'cloudDbInstance';
     const tooltip = `
 Host Name: ${dbi.HostName}\n
 Port: ${dbi.Port}\n
@@ -99,10 +115,17 @@ Status: ${dbi.Status}`;
   }
 }
 
-type CloudProviderNode = CloudDomainItem | CloudResourceTypeItem | CloudAppItem | CloudDbInstanceItem | CloudDomainLoginNeededItem;
+type CloudProviderNode =
+  | CloudDomainItem
+  | CloudResourceTypeItem
+  | CloudAppItem
+  | CloudDbInstanceItem
+  | CloudDomainLoginNeededItem;
 
 export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderNode>, vscode.Disposable {
-  private readonly onDidChangeTreeDataEmitter = new vscode.EventEmitter<CloudProviderNode | CloudProviderNode[] | undefined | null | void>();
+  private readonly onDidChangeTreeDataEmitter = new vscode.EventEmitter<
+    CloudProviderNode | CloudProviderNode[] | undefined | null | void
+  >();
   private readonly credChangeSub: vscode.Disposable;
   private readonly domains: Array<CloudDomainItem>;
 
@@ -112,7 +135,7 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
     this.credChangeSub = this.credManager.onCredentialChange((domain) => this.#refresh(domain));
 
     const { cloudDomain } = getCloudDomain();
-    this.domains = [new CloudDomainItem(cloudDomain, this.credManager) ];
+    this.domains = [new CloudDomainItem(cloudDomain, this.credManager)];
   }
 
   dispose() {
@@ -121,7 +144,7 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
   }
 
   async #refresh(domain: string) {
-    const node = this.domains.find(d => d.domain === domain);
+    const node = this.domains.find((d) => d.domain === domain);
     if (node) {
       node.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
       this.onDidChangeTreeDataEmitter.fire(node);
@@ -155,4 +178,3 @@ export class CloudDataProvider implements vscode.TreeDataProvider<CloudProviderN
     }
   }
 }
-

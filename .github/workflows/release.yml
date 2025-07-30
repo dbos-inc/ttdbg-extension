@@ -13,21 +13,21 @@ jobs:
     #       We need to convert these to actual booleans via fromJSON for conditional checks.
     if: ${{ fromJSON(needs.build.outputs.onPublicationBranch) }}
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4.1.1
-    - name: Download a Build Artifact
-      uses: actions/download-artifact@v4.1.4
-      with:
-        name: Extension
-        path: ./extension      
-    - name: Create GitHub release
-      uses: softprops/action-gh-release@v2.0.2
-      with:
-        name: Release ${{ needs.build.outputs.version }}
-        prerelease: ${{ fromJson(needs.build.outputs.preRelease) }}
-        tag_name: ${{ needs.build.outputs.version }}
-        files: ./extension/*
-        token: ${{ secrets.GITHUB_TOKEN }}
-        target_commitish: ${{ github.sha }}
-    - name: Publish debug extension to VSCode Marketplace
-      run: npx vsce publish -i ${{ format('./extension/dbos-ttdbg-{0}.vsix', needs.build.outputs.version) }} -p ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Download a Build Artifact
+        uses: actions/download-artifact@v4.1.4
+        with:
+          name: Extension
+          path: ./extension
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2.0.2
+        with:
+          name: Release ${{ needs.build.outputs.version }}
+          prerelease: ${{ fromJson(needs.build.outputs.preRelease) }}
+          tag_name: ${{ needs.build.outputs.version }}
+          files: ./extension/*
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target_commitish: ${{ github.sha }}
+      - name: Publish debug extension to VSCode Marketplace
+        run: npx vsce publish -i ${{ format('./extension/dbos-ttdbg-{0}.vsix', needs.build.outputs.version) }} -p ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}

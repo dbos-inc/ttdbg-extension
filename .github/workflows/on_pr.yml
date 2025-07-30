@@ -23,4 +23,3 @@ jobs:
         env:
           REL_INFO: ${{ toJson(needs.build.outputs) }}
         run: echo "$REL_INFO"
-  

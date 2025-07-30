@@ -3,66 +3,64 @@
 All notable changes to the "dbos-ttdbg" extension will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
-This project adheres to [Semantic Versioning](https://semver.org) and uses 
+This project adheres to [Semantic Versioning](https://semver.org) and uses
 [NerdBank.GitVersioning](https://github.com/AArnott/Nerdbank.GitVersioning) to manage version numbers.
 
 As per [VSCode recommendation](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#prerelease-extensions),
-this project uses *EVEN* minor version numbers for release versions and *ODD* minor version numbers for pre-release versions,
+this project uses _EVEN_ minor version numbers for release versions and _ODD_ minor version numbers for pre-release versions,
 
 ## [2.2.8] 2025-05-05
 
 ### Changed
 
-* `time_travel_code_lens_enabled` configuration setting defaults to false
+- `time_travel_code_lens_enabled` configuration setting defaults to false
 
 ## [2.2.7] 2025-04-09
 
 ### Changed
 
-* Updated config parsing to latest changes in DBOS Transact, including `database_url` support. ([#51](https://github.com/dbos-inc/ttdbg-extension/pull/51))
+- Updated config parsing to latest changes in DBOS Transact, including `database_url` support. ([#51](https://github.com/dbos-inc/ttdbg-extension/pull/51))
 
 ### Fixed
 
-* Changed authentication flow to call `/user/profile` endpoint instead of deprecated `/user` endpoint ([#50](https://github.com/dbos-inc/ttdbg-extension/pull/50))
-* Changed app, db and dashboard endpoint invocations to use organization name instead of user name ([#50](https://github.com/dbos-inc/ttdbg-extension/pull/50))
-* Fixed Python parsing to correctly handle files with decorated classes. ([#53](https://github.com/dbos-inc/ttdbg-extension/pull/53))
+- Changed authentication flow to call `/user/profile` endpoint instead of deprecated `/user` endpoint ([#50](https://github.com/dbos-inc/ttdbg-extension/pull/50))
+- Changed app, db and dashboard endpoint invocations to use organization name instead of user name ([#50](https://github.com/dbos-inc/ttdbg-extension/pull/50))
+- Fixed Python parsing to correctly handle files with decorated classes. ([#53](https://github.com/dbos-inc/ttdbg-extension/pull/53))
 
 ## [2.2] 2025-03-27
 
 ### Added
 
-* DBOS Cloud Console integration for workflow picker in cloud replay and time travel debugging scenarios.
+- DBOS Cloud Console integration for workflow picker in cloud replay and time travel debugging scenarios.
 
 ### Changed
 
-* `time_travel_code_lens_enabled` configuration setting defaults to true
-* `Time-Travel Debug` CodeLens only supported in TypeScript
-* Reworked generated TypeScript debug config to match TS Time Travel Debug Mode as implemented in https://github.com/dbos-inc/dbos-transact-ts/pull/786
+- `time_travel_code_lens_enabled` configuration setting defaults to true
+- `Time-Travel Debug` CodeLens only supported in TypeScript
+- Reworked generated TypeScript debug config to match TS Time Travel Debug Mode as implemented in https://github.com/dbos-inc/dbos-transact-ts/pull/786
 
 ## [2.0] 2025-03-11
 
 ### Added
 
-* Added Replay debugging (local and cloud)
-* Added DBOS Transact Python support (Requires v0.23 or later)
-* Added support for Typescript "V2" API
-* Added `Browse DBOS Cloud App` command to navigate to a selected DBOS cloud application
-* Added `debug_proxy_prerelease` configuration setting, to support automatically installing prerelease versions of the Time Travel Debug Proxy
-* added `just_my_code` configuration setting, to control [`justMyCode`](https://code.visualstudio.com/docs/python/debugging#_justmycode) Python debugger setting
-* Added `time_travel_code_lens_enabled` configuration setting
+- Added Replay debugging (local and cloud)
+- Added DBOS Transact Python support (Requires v0.23 or later)
+- Added support for Typescript "V2" API
+- Added `Browse DBOS Cloud App` command to navigate to a selected DBOS cloud application
+- Added `debug_proxy_prerelease` configuration setting, to support automatically installing prerelease versions of the Time Travel Debug Proxy
+- added `just_my_code` configuration setting, to control [`justMyCode`](https://code.visualstudio.com/docs/python/debugging#_justmycode) Python debugger setting
+- Added `time_travel_code_lens_enabled` configuration setting
 
 ### Changed
 
-* Time Travel Debug Code Lens now only attached to DBOS Workflow methods
+- Time Travel Debug Code Lens now only attached to DBOS Workflow methods
 
 ### Removed
 
-* Removed Dashboard URI Handler
-* Removed `Refresh DBOS Cloud Resources`, `Shutdown Debug Proxy`, `Launch DBOS Dashboard`, and `Set Application Name` commands
-* Removed `dbos-ttdbg.get-proxy-url` and `dbos-ttdbg.pick-workflow-id` command variables
-* Removed `debug_pre_launch_task`, `debug_proxy_launch`, `prov_db_host/port/database/user` configuration settings
-
-
+- Removed Dashboard URI Handler
+- Removed `Refresh DBOS Cloud Resources`, `Shutdown Debug Proxy`, `Launch DBOS Dashboard`, and `Set Application Name` commands
+- Removed `dbos-ttdbg.get-proxy-url` and `dbos-ttdbg.pick-workflow-id` command variables
+- Removed `debug_pre_launch_task`, `debug_proxy_launch`, `prov_db_host/port/database/user` configuration settings
 
 ## [1.4] 2024-08-20
 
@@ -71,7 +69,6 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 - Custom app name support ([#35](https://github.com/dbos-inc/ttdbg-extension/pull/35))
 - `debug_proxy_path` and `debug_proxy_launch` settings ([#40](https://github.com/dbos-inc/ttdbg-extension/pull/40))
 - Use Debug Proxy Role for connection to provenance DB ([#41](https://github.com/dbos-inc/ttdbg-extension/pull/41))
-
 
 ### Fixed
 
@@ -82,8 +79,6 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 
 - removed `Delete Stored Application Database Password` and `Delete Stored Passwords` commands (obsoleted by [#41](https://github.com/dbos-inc/ttdbg-extension/pull/41))
 
-
-
 ## [1.2] 2024-05-06
 
 ### Added
@@ -92,16 +87,14 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 - Added `Launch Debug Proxy` and `Launch DBOS Dashboard` commands and menu items.
 - Added `Delete Stored DBOS Cloud Credentials` and `Delete Stored Application Database Password` commands.
 
-### Changed 
+### Changed
 
-- Modified 
+- Modified
 
 ### Engineering
 
 - Added custom `prep-release.mjs` script that implements `nbgv prepare-release` but using this project's
   [version numbering strategy](https://github.com/dbos-inc/ttdbg-extension?tab=readme-ov-file#versioning-strategy).
-
-
 
 ## [1.0.9] 2024-03-19
 
@@ -113,8 +106,6 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 
 - Updated `softprops/action-gh-release` action to v2.0.2 and fixed commit tagged for the release.
 
-
-
 ## [1.0.5] 2024-03-18
 
 ### Changed
@@ -122,16 +113,12 @@ this project uses *EVEN* minor version numbers for release versions and *ODD* mi
 - DBOS Cloud integration now uses Cloud API directly instead of invoking the `dbos-cloud` CLI.
 - `Delete Stored Application Database Passwords` command renamed to `Delete Stored Passwords`
 - `Delete Stored Passwords` command deletes stored DBOS Cloud credentials as well as cloud hosted app database passwords.
-- Simplified launching the DBOS Cloud Dashboard to silently call `createDashboard` if `getDashboard` returns undefined. 
+- Simplified launching the DBOS Cloud Dashboard to silently call `createDashboard` if `getDashboard` returns undefined.
   Previously, undefined `getDashboard` would launch the `createDashboard` url but cancel launching the debugger.
-
-
 
 ## [1.0] 2024-03-12
 
 - Initial release
-
-
 
 ## [0.9] 2024-02-28
 

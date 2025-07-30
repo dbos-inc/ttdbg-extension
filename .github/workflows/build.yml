@@ -7,7 +7,7 @@ on:
         value: ${{ jobs.build.outputs.preRelease }}
       onPublicationBranch:
         value: ${{ jobs.build.outputs.onPublicationBranch }}
-      version: 
+      version:
         value: ${{ jobs.build.outputs.version }}
 
 jobs:
@@ -53,7 +53,7 @@ jobs:
 
             // releases from main branch are marked as pre-release 
             const preRelease = onMainBranch;
-  
+
             core.setOutput('onPublicationBranch', onPublicationBranch)
             core.setOutput('preRelease', preRelease);
             core.setOutput('version', version);
@@ -65,14 +65,14 @@ jobs:
         # NOTE: GH Actions string encodes boolean variables (i.e. 'true' or 'false').
         #       We need to convert these to actual booleans via fromJSON for conditional checks.
         if: ${{ ! fromJSON(steps.relInfo.outputs.preRelease) }}
-        run: npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version 
+        run: npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version
       - name: Pack Pre-Release Extension
-        if: ${{ fromJSON(steps.relInfo.outputs.preRelease) }} 
-        run: | 
+        if: ${{ fromJSON(steps.relInfo.outputs.preRelease) }}
+        run: |
           npm pkg set preview=true --json
-          npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version --pre-release  
+          npx vsce pack ${{ steps.relInfo.outputs.version }} --no-git-tag-version --pre-release
       - name: Upload Extension Artifact
         uses: actions/upload-artifact@v4.3.1
-        with: 
+        with:
           name: Extension
           path: dbos-ttdbg*.vsix
