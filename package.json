@@ -133,7 +133,8 @@
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.857.0",
@@ -150,9 +151,11 @@
     "antlr4": "^4.13.2",
     "esbuild": "^0.25.8",
     "eslint": "^9.32.0",
+    "husky": "^9.1.7",
     "jsonwebtoken": "^9.0.2",
     "jszip": "^3.10.1",
     "jwks-rsa": "^3.2.0",
+    "lint-staged": "^16.1.2",
     "pg": "^8.16.3",
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",
@@ -160,5 +163,8 @@
     "typescript": "^5.8.3",
     "winston": "^3.17.0",
     "yaml": "^2.8.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,css,scss,md}": "prettier --write"
   }
 }

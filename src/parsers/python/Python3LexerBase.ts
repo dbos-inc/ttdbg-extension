@@ -102,7 +102,7 @@ export default abstract class Python3LexerBase extends Lexer {
     let nextnext = this._input.LA(2);
     if (
       this.opened > 0 ||
-      (nextnext !== -1 /* EOF */ && (next === 13 /* '\r' */ || next === 10 /* '\n' */ || next === 35) /* '#' */)
+      (nextnext !== -1 /* EOF */ && (next === 13 /* '\r' */ || next === 10 /* '\n' */ || next === 35)) /* '#' */
     ) {
       // If we're inside a list or on a blank line, ignore all indents,
       // dedents and line breaks.
