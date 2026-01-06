@@ -1,5 +1,9 @@
 # DBOS Debugger
 
+> [!IMPORTANT]
+> We're sunsetting the DBOS Debugger extension and will be archiving this repository.
+> The good news: interactive debugging is now better supported in the DBOS Console. Please head over to the management console (https://console.dbos.dev/) for the latest and recommended debugging experience.
+
 This extension enables developers to debug previous executions of their DBOS applications, both running locally and in DBOS Cloud.
 The DBOS Debugger extension supports both Python and TypeScript DBOS applications.
 
